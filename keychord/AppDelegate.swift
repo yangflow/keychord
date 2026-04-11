@@ -111,6 +111,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
         let root = AccountsWindowView(appState: appState)
         let hostingController = NSHostingController(rootView: root)
+        hostingController.preferredContentSize = NSSize(width: 760, height: 520)
         let window = NSWindow(
             contentRect: NSRect(x: 0, y: 0, width: 760, height: 520),
             styleMask: [.titled, .closable, .resizable, .miniaturizable, .fullSizeContentView],

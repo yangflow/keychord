@@ -24,7 +24,7 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		960DE56B2F8A2EE000CE45C6 /* keychord.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = keychord.app; sourceTree = BUILT_PRODUCTS_DIR; };
+		960DE56B2F8A2EE000CE45C6 /* KeyChord.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = KeyChord.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		960DE5782F8A2EE100CE45C6 /* keychordTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = keychordTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		960DE5822F8A2EE100CE45C6 /* keychordUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = keychordUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
@@ -85,7 +85,7 @@
 		960DE56C2F8A2EE000CE45C6 /* Products */ = {
 			isa = PBXGroup;
 			children = (
-				960DE56B2F8A2EE000CE45C6 /* keychord.app */,
+				960DE56B2F8A2EE000CE45C6 /* KeyChord.app */,
 				960DE5782F8A2EE100CE45C6 /* keychordTests.xctest */,
 				960DE5822F8A2EE100CE45C6 /* keychordUITests.xctest */,
 			);
@@ -114,7 +114,7 @@
 			packageProductDependencies = (
 			);
 			productName = keychord;
-			productReference = 960DE56B2F8A2EE000CE45C6 /* keychord.app */;
+			productReference = 960DE56B2F8A2EE000CE45C6 /* KeyChord.app */;
 			productType = "com.apple.product-type.application";
 		};
 		960DE5772F8A2EE100CE45C6 /* keychordTests */ = {

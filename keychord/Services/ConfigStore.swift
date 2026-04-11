@@ -33,13 +33,23 @@ struct ConfigStore {
     static func loadFromDefaultLocations() throws -> ConfigModel {
         var model = ConfigModel()
 
-        // 1. SSH config
+        // 1. SSH config (follow Include directives one level deep)
         let sshPath = Self.expand("~/.ssh/config")
         if FileManager.default.fileExists(atPath: sshPath) {
             do {
                 let text = try String(contentsOfFile: sshPath, encoding: .utf8)
                 let doc = SSHConfigDocument.parse(text)
                 model.sshHosts = doc.extractHosts()
+
+                for line in doc.lines {
+                    if case .include(let path) = line.kind {
+                        let resolved = Self.expand(path)
+                        guard FileManager.default.fileExists(atPath: resolved) else { continue }
+                        let subText = try String(contentsOfFile: resolved, encoding: .utf8)
+                        let subDoc = SSHConfigDocument.parse(subText)
+                        model.sshHosts.append(contentsOf: subDoc.extractHosts())
+                    }
+                }
             } catch {
                 throw LoadError.sshConfigReadFailed(path: sshPath, underlying: error)
             }

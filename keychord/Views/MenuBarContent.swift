@@ -79,7 +79,7 @@ struct MenuBarContent: View {
             Image(systemName: "key.horizontal.fill")
                 .foregroundStyle(.tint)
                 .font(.body)
-            Text("keychord")
+            Text("KeyChord")
                 .font(.title3.weight(.semibold))
             Spacer()
         }
@@ -175,33 +175,55 @@ struct MenuBarContent: View {
     @ViewBuilder
     private var accountsSection: some View {
         let records = appState.accountsStore.accounts
-        KCGroupedSection(title: accountsSectionTitle(records)) {
-            if records.isEmpty {
-                Text("No accounts yet. Click Manage to import or add one.")
-                    .font(KC.rowCaption)
+        VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Text(accountsSectionTitle(records).uppercased())
+                    .font(KC.sectionLabel)
+                    .kerning(0.8)
                     .foregroundStyle(.tertiary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .padding(.horizontal, KC.rowHPadding)
-                    .padding(.vertical, KC.space8)
-            } else {
-                VStack(spacing: 0) {
-                    ForEach(Array(records.enumerated()), id: \.element.id) { idx, record in
-                        Button {
-                            onOpenAccount(record.id)
-                        } label: {
-                            AccountRow(
-                                record: record,
-                                probe: probeStates[record.sshAlias] ?? .idle
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        if idx < records.count - 1 {
-                            Divider()
-                                .padding(.leading, KC.rowHPadding + 18)
+                Spacer()
+                Button {
+                    onOpenAccountsWindow()
+                } label: {
+                    Text("Manage")
+                        .font(.system(size: 11, weight: .medium))
+                        .foregroundStyle(.tint)
+                }
+                .buttonStyle(.plain)
+            }
+            .padding(.horizontal, KC.rowHPadding)
+            .padding(.top, KC.sectionHeaderTop)
+            .padding(.bottom, KC.sectionHeaderBottom)
+
+            KCCard {
+                if records.isEmpty {
+                    Text("No accounts yet. Click Manage to import or add one.")
+                        .font(KC.rowCaption)
+                        .foregroundStyle(.tertiary)
+                        .fixedSize(horizontal: false, vertical: true)
+                        .padding(.horizontal, KC.rowHPadding)
+                        .padding(.vertical, KC.space8)
+                } else {
+                    VStack(spacing: 0) {
+                        ForEach(Array(records.enumerated()), id: \.element.id) { idx, record in
+                            Button {
+                                onOpenAccount(record.id)
+                            } label: {
+                                AccountRow(
+                                    record: record,
+                                    probe: probeStates[record.sshAlias] ?? .idle
+                                )
+                            }
+                            .buttonStyle(.plain)
+                            if idx < records.count - 1 {
+                                Divider()
+                                    .padding(.leading, KC.rowHPadding + 18)
+                            }
                         }
                     }
                 }
             }
+            .padding(.horizontal, KC.space10)
         }
     }
 
@@ -278,6 +300,9 @@ struct MenuBarContent: View {
         case .success(let r):
             resolvedRepo = r
             repoResolveError = nil
+            if let alias = r.sshAlias {
+                appState.accountsStore.touchLastUsed(sshAlias: alias)
+            }
         case .failure(let err):
             resolvedRepo = nil
             switch err {

@@ -88,6 +88,7 @@ struct AccountsWindowView: View {
                 selection = first.id
             }
         }
+        .frame(minWidth: 640, minHeight: 420)
     }
 
     // MARK: - Detail pane

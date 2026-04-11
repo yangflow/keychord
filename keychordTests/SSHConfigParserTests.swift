@@ -235,7 +235,7 @@ struct SSHConfigParserTests {
         let text = try String(contentsOfFile: path, encoding: .utf8)
         let doc = SSHConfigDocument.parse(text)
         #expect(doc.serialize() == text, "Round-trip of ~/.ssh/config must be byte-identical")
-        let hosts = doc.extractHosts()
-        #expect(!hosts.isEmpty)
+        // Host blocks may live in Include'd files, so the main config
+        // can legitimately contain zero inline hosts.
     }
 }

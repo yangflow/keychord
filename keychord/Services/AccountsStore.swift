@@ -116,6 +116,12 @@ final class AccountsStore: ObservableObject {
         try save()
     }
 
+    func touchLastUsed(sshAlias: String) {
+        guard let idx = accounts.firstIndex(where: { $0.sshAlias == sshAlias }) else { return }
+        accounts[idx].lastUsedAt = Date()
+        try? save()
+    }
+
     func replaceAll(_ records: [Account]) throws {
         accounts = records
         try save()
