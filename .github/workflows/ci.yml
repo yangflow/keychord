@@ -1,0 +1,54 @@
+# Note: keychord targets macOS 26.2 and uses Xcode 26 / Swift 6 upcoming
+# features. GitHub Actions' macos runners may not yet ship with an Xcode
+# version that can build this target. Until they do, this workflow will
+# fail on `xcodebuild test`; once macos-26 runners (or Xcode 26 on
+# macos-15) land, it starts passing without any changes to this file.
+# Local `xcodebuild test` on a developer machine remains the source of
+# truth for correctness.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Build & test
+    runs-on: macos-15
+    timeout-minutes: 20
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select latest Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app
+
+      - name: Show versions
+        run: |
+          sw_vers
+          xcodebuild -version
+          swift --version
+
+      - name: Build & run unit tests
+        run: |
+          set -o pipefail
+          xcodebuild test \
+            -project keychord.xcodeproj \
+            -scheme keychord \
+            -destination 'platform=macOS' \
+            -only-testing:keychordTests \
+            CODE_SIGNING_ALLOWED=NO \
+            | xcpretty || true
+          # xcpretty may not be installed; the raw xcodebuild exit code is the truth.
+          xcodebuild test \
+            -project keychord.xcodeproj \
+            -scheme keychord \
+            -destination 'platform=macOS' \
+            -only-testing:keychordTests \
+            CODE_SIGNING_ALLOWED=NO
