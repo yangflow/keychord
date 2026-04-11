@@ -116,7 +116,8 @@ enum AccountProjector {
         // Scoped accounts → includeIf in main + a per-account sub file.
         var subs: [ProjectedOutput.SubFile] = []
         for account in accounts {
-            guard case .gitdir(let dir) = account.scope else { continue }
+            guard case .gitdir(var dir) = account.scope else { continue }
+            if !dir.hasSuffix("/") { dir += "/" }
             let subPath = paths.subFilePath(for: account.id)
             let subTildePath = Self.toTilde(subPath)
 

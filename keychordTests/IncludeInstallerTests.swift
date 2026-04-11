@@ -144,6 +144,11 @@ struct IncludeInstallerTests {
             #expect(result.contains("[include]"))
             #expect(result.contains("path ="))
             #expect(result.contains("name = alice"))
+            // Git include must appear AFTER existing content so includeIf
+            // overrides earlier [user] values (last-write-wins in git).
+            let userRange = result.range(of: "name = alice")!
+            let markerRange = result.range(of: IncludeInstaller.markerBegin)!
+            #expect(userRange.lowerBound < markerRange.lowerBound)
         }
     }
 

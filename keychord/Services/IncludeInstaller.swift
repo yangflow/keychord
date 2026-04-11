@@ -61,7 +61,7 @@ enum IncludeInstaller {
         \(markerEnd)
 
         """
-        try installBlock(targetPath: targetPath, block: block, backups: backups)
+        try installBlock(targetPath: targetPath, block: block, position: .append, backups: backups)
     }
 
     static func uninstallGitInclude(
@@ -73,9 +73,12 @@ enum IncludeInstaller {
 
     // MARK: - Core install / uninstall
 
+    enum Position { case prepend, append }
+
     static func installBlock(
         targetPath: String,
         block: String,
+        position: Position = .prepend,
         backups: BackupService
     ) throws {
         let current = (try? String(contentsOfFile: targetPath, encoding: .utf8)) ?? ""
@@ -98,15 +101,26 @@ enum IncludeInstaller {
             _ = try backups.backup(originalPath: targetPath)
         }
 
-        // Prepend the block at the top so keychord's Hosts take
-        // precedence over any duplicates the user may have below.
         let newContents: String
-        if current.isEmpty {
-            newContents = block
-        } else if current.hasPrefix("\n") || current.hasPrefix(markerBegin) {
-            newContents = block + current
-        } else {
-            newContents = block + "\n" + current
+        switch position {
+        case .prepend:
+            // SSH: first matched Host wins, so our block goes on top.
+            if current.isEmpty {
+                newContents = block
+            } else if current.hasPrefix("\n") || current.hasPrefix(markerBegin) {
+                newContents = block + current
+            } else {
+                newContents = block + "\n" + current
+            }
+        case .append:
+            // Git: last value wins, so our block goes at the bottom.
+            if current.isEmpty {
+                newContents = block
+            } else if current.hasSuffix("\n") {
+                newContents = current + "\n" + block
+            } else {
+                newContents = current + "\n\n" + block
+            }
         }
 
         do {
