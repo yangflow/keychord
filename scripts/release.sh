@@ -176,7 +176,38 @@ if [[ "$MODE" == "sparkle" ]]; then
         fi
         echo "$SIG" > "$DIST/sparkle-signature.txt"
         echo "==> Sparkle signature written to $DIST/sparkle-signature.txt"
-        echo "    Paste this into the <enclosure> of appcast.xml."
+
+        # --- Auto-update appcast.xml -------------------------------------------
+        APPCAST="$REPO_ROOT/docs/appcast.xml"
+        if [[ -f "$APPCAST" ]]; then
+            ED_SIG="$(echo "$SIG" | grep -oP '(?<=edSignature=")[^"]*')"
+            DMG_LEN="$(stat -f%z "$DMG_PATH")"
+            DMG_URL="https://github.com/yangflow/keychord/releases/download/v${VERSION}/${DMG_NAME}"
+            PUB_DATE="$(date -R 2>/dev/null || date '+%a, %d %b %Y %H:%M:%S %z')"
+
+            ITEM="\\
+    <item>\\
+      <title>Version ${VERSION}</title>\\
+      <pubDate>${PUB_DATE}</pubDate>\\
+      <sparkle:version>${VERSION}</sparkle:version>\\
+      <sparkle:shortVersionString>${VERSION}</sparkle:shortVersionString>\\
+      <sparkle:minimumSystemVersion>15.0</sparkle:minimumSystemVersion>\\
+      <enclosure url=\"${DMG_URL}\"\\
+                 type=\"application/octet-stream\"\\
+                 sparkle:edSignature=\"${ED_SIG}\"\\
+                 length=\"${DMG_LEN}\" />\\
+    </item>"
+
+            # Insert before the closing </channel> tag
+            if grep -q '<!-- Prepend new <item>' "$APPCAST"; then
+                sed -i '' "s|<!-- Prepend new <item> blocks here for each release. -->|<!-- Prepend new <item> blocks here for each release. -->\n${ITEM}|" "$APPCAST"
+            else
+                sed -i '' "s|</channel>|${ITEM}\n  </channel>|" "$APPCAST"
+            fi
+            echo "==> appcast.xml updated with v${VERSION} entry"
+        else
+            echo "    Paste this into the <enclosure> of appcast.xml."
+        fi
     fi
 fi
 
@@ -196,8 +227,7 @@ echo "  2. Update Formula/keychord.rb (or your tap) with the new version"
 echo "     and the SHA256 from $DMG_PATH.sha256"
 case "$MODE" in
     sparkle)
-        echo "  3. Append a new <item> to appcast.xml using the signature in"
-        echo "     $DIST/sparkle-signature.txt and the DMG URL from gh release"
+        echo "  3. Push docs/appcast.xml (auto-updated) to GitHub Pages"
         ;;
     unsigned)
         echo "  Note: unsigned build. Recipients must 'xattr -cr KeyChord.app' or"

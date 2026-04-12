@@ -6,6 +6,10 @@
 	objectVersion = 77;
 	objects = {
 
+/* Begin PBXBuildFile section */
+		964A1BBC2F8B7039008A7FD2 /* Sparkle in Frameworks */ = {isa = PBXBuildFile; productRef = 964A1BBD2F8B7039008A7FD2 /* Sparkle */; };
+/* End PBXBuildFile section */
+
 /* Begin PBXContainerItemProxy section */
 		960DE5792F8A2EE100CE45C6 /* PBXContainerItemProxy */ = {
 			isa = PBXContainerItemProxy;
@@ -29,9 +33,22 @@
 		960DE5822F8A2EE100CE45C6 /* keychordUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = keychordUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		964A1BBE2F8B7100008A7FD2 /* Exceptions for "keychord" folder in "keychord" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				Info.plist,
+			);
+			target = 960DE56A2F8A2EE000CE45C6 /* keychord */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		960DE56D2F8A2EE000CE45C6 /* keychord */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				964A1BBE2F8B7100008A7FD2 /* Exceptions for "keychord" folder in "keychord" target */,
+			);
 			path = keychord;
 			sourceTree = "<group>";
 		};
@@ -52,6 +69,7 @@
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				964A1BBC2F8B7039008A7FD2 /* Sparkle in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -112,6 +130,7 @@
 			);
 			name = keychord;
 			packageProductDependencies = (
+				964A1BBD2F8B7039008A7FD2 /* Sparkle */,
 			);
 			productName = keychord;
 			productReference = 960DE56B2F8A2EE000CE45C6 /* KeyChord.app */;
@@ -195,6 +214,9 @@
 			);
 			mainGroup = 960DE5622F8A2EE000CE45C6;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				964A1BBB2F8B7038008A7FD2 /* XCRemoteSwiftPackageReference "Sparkle" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 960DE56C2F8A2EE000CE45C6 /* Products */;
 			projectDirPath = "";
@@ -399,11 +421,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = keychord/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "KeyChord asks Finder for the path of your frontmost window so it can show which Git identity applies there.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_SUFeedURL = "https://yangflow.github.io/keychord/appcast.xml";
-				INFOPLIST_KEY_SUPublicEDKey = REPLACE_WITH_ED25519_PUBLIC_KEY;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -433,11 +454,10 @@
 				ENABLE_PREVIEWS = YES;
 				ENABLE_USER_SELECTED_FILES = readonly;
 				GENERATE_INFOPLIST_FILE = YES;
+				INFOPLIST_FILE = keychord/Info.plist;
 				INFOPLIST_KEY_LSUIElement = YES;
 				INFOPLIST_KEY_NSAppleEventsUsageDescription = "KeyChord asks Finder for the path of your frontmost window so it can show which Git identity applies there.";
 				INFOPLIST_KEY_NSHumanReadableCopyright = "";
-				INFOPLIST_KEY_SUFeedURL = "https://yangflow.github.io/keychord/appcast.xml";
-				INFOPLIST_KEY_SUPublicEDKey = REPLACE_WITH_ED25519_PUBLIC_KEY;
 				LD_RUNPATH_SEARCH_PATHS = (
 					"$(inherited)",
 					"@executable_path/../Frameworks",
@@ -571,6 +591,25 @@
 			defaultConfigurationName = Release;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		964A1BBB2F8B7038008A7FD2 /* XCRemoteSwiftPackageReference "Sparkle" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/sparkle-project/Sparkle";
+			requirement = {
+				kind = upToNextMajorVersion;
+				minimumVersion = 2.9.1;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		964A1BBD2F8B7039008A7FD2 /* Sparkle */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 964A1BBB2F8B7038008A7FD2 /* XCRemoteSwiftPackageReference "Sparkle" */;
+			productName = Sparkle;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 960DE5632F8A2EE000CE45C6 /* Project object */;
 }
