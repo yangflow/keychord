@@ -30,13 +30,13 @@ The unit suite is the source of truth for correctness. UI tests are not relied o
 
 ```bash
 xcodebuild test \
-  -project keychord.xcodeproj \
   -scheme keychord \
   -destination 'platform=macOS' \
-  -only-testing:keychordTests
+  -only-testing keychordTests \
+  CODE_SIGNING_ALLOWED=NO
 ```
 
-Before opening a PR, make sure `xcodebuild test … -only-testing:keychordTests` exits 0.
+Before opening a PR, make sure this command exits 0.
 
 If you add a bug fix, please add a regression test that fails on the old code. If you add a service, please add unit tests covering its happy path + at least one error case.
 
@@ -54,18 +54,12 @@ If you add a bug fix, please add a regression test that fails on the old code. I
 Short imperative subject (under ~70 chars), optional body explaining the *why*. Match the shape of the existing history:
 
 ```
-<short subject, imperative>
+<type>: <short subject, imperative>
 
 <optional body explaining the why, not the what>
 ```
 
-Examples from the log:
-
-```
-Fix Swift 6 MainActor isolation + SSH config round-trip
-Popover cleanup: drop legacy Add/Edit/Delete + Raw config (Commit D')
-AccountProjector + IncludeInstaller (Commit B')
-```
+Type prefixes: `feat`, `fix`, `refactor`, `docs`, `test`, `chore`.
 
 Squash your PR into one commit per logical change before requesting review. We do not require `Signed-off-by`.
 
@@ -81,7 +75,8 @@ Squash your PR into one commit per logical change before requesting review. We d
 
 - **`IncludeInstaller`** — idempotency matters. A second `installSSHInclude` must not double-inject. Test both the first-install and second-install path.
 - **`AccountProjector`** — `project` is pure. Never introduce I/O there; keep `write` as the only side effect.
-- **`BackupService`** — every write path must pre-backup the target file if it already exists. Not negotiable.
+- **`BackupService`** — every save path must snapshot `accounts.json` before writing. Not negotiable.
+- **`CloudSyncService`** — merge logic must handle concurrent edits from multiple machines. The rule is newer `updatedAt` wins per UUID; tombstones prevent deleted accounts from reappearing.
 - **Swift 6 concurrency** — when you add a new service that touches shared state, ask whether it needs `@MainActor`, `Sendable`, or both. When in doubt, read `AccountsStore.swift` for the pattern.
 
 ## Security
