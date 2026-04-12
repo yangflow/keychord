@@ -4,6 +4,11 @@
 
 [简体中文](./README.zh-CN.md) · English
 
+<p align="center">
+  <img src="assets/menubar-popover.png" width="280" alt="Menubar popover">
+  <img src="assets/accounts-window.png" width="560" alt="Accounts window">
+</p>
+
 keychord is a menubar-only macOS app that lets you keep several GitHub accounts on one machine — personal, work, open source — each with its own SSH key, git name/email, URL rewrites, and optional `gitdir:`-scoped activation. keychord owns a small JSON file and generates *managed* SSH config and gitconfig files; it injects a single `Include` line into your existing `~/.ssh/config` and `~/.gitconfig`. Your dotfiles stay yours.
 
 ## Why
@@ -15,6 +20,11 @@ Using more than one Git identity on the same Mac usually means either:
 keychord makes the identity set a first-class thing you can CRUD from a window, and projects the result back into real config files in a way that is auditable, reversible, and leaves everything else you wrote by hand untouched.
 
 ## Features
+
+<p align="center">
+  <img src="assets/import-picker.png" width="320" alt="Import picker">
+  <img src="assets/keygen-sheet.png" width="320" alt="SSH key generator">
+</p>
 
 - **Account CRUD** — add, edit, delete accounts from a native `NavigationSplitView` window. Source of truth: `~/.config/keychord/accounts.json`.
 - **`gitdir:` scoping** — each account can be global or scoped to a working directory via git's `includeIf gitdir:` mechanism.
