@@ -123,11 +123,7 @@ struct MenuBarContent: View {
 
     @ViewBuilder
     private var sections: some View {
-        if model.sshHosts.isEmpty
-            && model.gitIdentities.isEmpty
-            && model.insteadOfRules.isEmpty
-            && model.includeIfRules.isEmpty
-            && appState.accountsStore.accounts.isEmpty {
+        if appState.accountsStore.accounts.isEmpty {
             Text("No config found.")
                 .font(.caption)
                 .foregroundStyle(.secondary)
@@ -291,16 +287,6 @@ struct MenuBarContent: View {
         await reload()
         await probeAll()
         await runDoctor()
-        await detectCurrentRepo()
-    }
-
-    private func detectCurrentRepo() async {
-        if let path = await FinderContext.frontmostDirectory() {
-            await resolveRepo(at: path)
-        } else {
-            resolvedRepo = nil
-            repoResolveError = nil
-        }
     }
 
     private func resolveRepo(at path: String) async {
@@ -325,10 +311,12 @@ struct MenuBarContent: View {
     }
 
     private func runDoctor() async {
-        let snapshot = model
+        let accountAliases = Set(appState.accountsStore.accounts.map(\.sshAlias))
+        var scoped = model
+        scoped.sshHosts = scoped.sshHosts.filter { accountAliases.contains($0.alias) }
         let probes = probeStates
         diagnoses = await Doctor.runAgainstCurrentSystem(
-            model: snapshot,
+            model: scoped,
             probeStates: probes
         )
         appState.highestSeverity = diagnoses.map(\.severity).max()
@@ -353,14 +341,14 @@ struct MenuBarContent: View {
         isProbing = true
         defer { isProbing = false }
 
-        let hosts = model.sshHosts
-        for host in hosts {
-            probeStates[host.alias] = .probing
+        let accountAliases = Set(appState.accountsStore.accounts.map(\.sshAlias))
+        let aliases = accountAliases.filter { !$0.isEmpty }
+        for alias in aliases {
+            probeStates[alias] = .probing
         }
 
         await withTaskGroup(of: (String, HostProbeState).self) { group in
-            for host in hosts {
-                let alias = host.alias
+            for alias in aliases {
                 group.addTask {
                     let result = await Prober.probeAlias(alias)
                     return (alias, result)

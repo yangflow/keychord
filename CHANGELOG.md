@@ -19,8 +19,13 @@ All notable changes to keychord are documented here. The format is based on [Kee
 - **RestoreView** — redesigned to `Form(.grouped) + Divider + Footer` layout. Loads backup list synchronously to eliminate the initial flash.
 - **API simplification** — `AccountProjector.regenerate`, `IncludeInstaller`, `ConfigStore`, and `Fixer` no longer require explicit path parameters; they use sensible defaults.
 
+### Removed
+
+- **Finder directory detection** — popover no longer queries Finder's frontmost window via AppleScript on every refresh. Drag-and-drop detection remains.
+
 ### Fixed
 
+- **Probe scope** — SSH probes and Doctor diagnostics now run only against app-managed accounts, not all hosts in `~/.ssh/config`. Fixes false errors from OrbStack, jump-hosts, and other non-Git SSH entries.
 - `IncludeInstaller` now appends (instead of prepends) the git include block, fixing compatibility with existing gitconfig content.
 - `gitdir:` scope paths are normalized with a trailing slash to match git's `includeIf` semantics.
 
