@@ -14,7 +14,7 @@
 
 cask "keychord" do
   version "0.1.0"
-  sha256 "REPLACE_WITH_SHA256_FROM_dist_keychord_VERSION_dmg_sha256"
+  sha256 "f3cedbfab777520c6878d8c9f7ff58bd94adda47a7a7c7aa59e0a8f02f2375dd"
 
   url      "https://github.com/yangflow/keychord/releases/download/v#{version}/KeyChord-#{version}.dmg"
   name     "KeyChord"
