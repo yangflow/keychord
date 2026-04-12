@@ -13,8 +13,8 @@
 # anything Gatekeeper would warn on.
 
 cask "keychord" do
-  version "0.1.0"
-  sha256 "f3cedbfab777520c6878d8c9f7ff58bd94adda47a7a7c7aa59e0a8f02f2375dd"
+  version "0.2.0"
+  sha256 "328cd4ed428510459e53c2d3e51715f857a1d79bc2486d108f63dc4087c527df"
 
   url      "https://github.com/yangflow/keychord/releases/download/v#{version}/KeyChord-#{version}.dmg"
   name     "KeyChord"
