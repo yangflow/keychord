@@ -16,19 +16,19 @@ cask "keychord" do
   version "0.1.0"
   sha256 "REPLACE_WITH_SHA256_FROM_dist_keychord_VERSION_dmg_sha256"
 
-  url      "https://github.com/ydongy/keychord/releases/download/v#{version}/keychord-#{version}.dmg"
-  name     "keychord"
+  url      "https://github.com/yangflow/keychord/releases/download/v#{version}/KeyChord-#{version}.dmg"
+  name     "KeyChord"
   desc     "macOS menubar Git SSH multi-account manager"
-  homepage "https://github.com/ydongy/keychord"
+  homepage "https://github.com/yangflow/keychord"
 
   livecheck do
     url :url
     strategy :github_latest
   end
 
-  depends_on macos: ">= :sonoma"
+  depends_on macos: ">= :sequoia"
 
-  app "keychord.app"
+  app "KeyChord.app"
 
   zap trash: [
     "~/.config/keychord",

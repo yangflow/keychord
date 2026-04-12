@@ -50,10 +50,29 @@ This means keychord plays nicely with hand-written config, dotfile managers, and
 ## Requirements
 
 - macOS 26.2 or later
-- Xcode 26 or later (Swift 6 mode with strict concurrency)
 - Apple Silicon
 
-## Build from source
+## Install
+
+### Homebrew (recommended)
+
+```bash
+brew tap yangflow/keychord
+brew install --cask keychord
+```
+
+### Manual download
+
+Grab the latest `KeyChord-<version>.dmg` from [Releases](https://github.com/yangflow/keychord/releases), open it, and drag **KeyChord.app** to `/Applications`.
+
+If the app is not notarized, clear the quarantine flag on first launch:
+
+```bash
+xattr -cr /Applications/KeyChord.app
+open /Applications/KeyChord.app
+```
+
+### Build from source
 
 ```bash
 git clone https://github.com/yangflow/keychord.git
@@ -61,7 +80,14 @@ cd keychord
 open keychord.xcodeproj
 ```
 
-Select the `keychord` scheme and ⌘R. The first launch creates `~/.config/keychord/` on demand; nothing is written to your real dotfiles until you click **Save** on an account.
+Select the `keychord` scheme and ⌘R. Or build a standalone `.app` with the build script:
+
+```bash
+./scripts/build.sh
+mv dist/KeyChord.app /Applications/
+```
+
+The first launch creates `~/.config/keychord/` on demand; nothing is written to your real dotfiles until you click **Save** on an account.
 
 ### Running tests
 
@@ -111,6 +137,44 @@ keychord/
 ├── scripts/                 # build.sh, release.sh, generate-icon
 └── keychord.xcodeproj
 ```
+
+## Uninstall
+
+1. Quit KeyChord from the menubar (power icon, or ⌘Q).
+2. Delete `/Applications/KeyChord.app`.
+3. Remove managed config (optional):
+   ```bash
+   rm -rf ~/.config/keychord
+   ```
+4. Remove the `Include` blocks keychord injected — look for the `# --- keychord managed ---` markers in `~/.ssh/config` and `~/.gitconfig` and delete through `# --- keychord managed end ---`.
+
+If installed via Homebrew: `brew uninstall --cask keychord`.
+
+## Release
+
+Maintainer workflow for cutting a release:
+
+```bash
+# 1. Build the DMG (unsigned / signed / notarized)
+./scripts/release.sh 0.2.0
+
+# 2. Create a GitHub release with the artifact
+gh release create v0.2.0 \
+  --title 'KeyChord 0.2.0' \
+  dist/KeyChord-0.2.0.dmg
+
+# 3. Update the Homebrew cask with the new version + SHA256
+#    (SHA256 is in dist/KeyChord-0.2.0.dmg.sha256)
+```
+
+`release.sh` supports four modes via environment variables:
+
+| Mode | Env vars | Result |
+|------|----------|--------|
+| **unsigned** | (none) | Ad-hoc signed DMG. Gatekeeper warns on first launch. |
+| **signed** | `DEVELOPER_ID_APPLICATION` | Developer ID signed DMG. |
+| **notarized** | signed + `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | Notarized + stapled. Fully Gatekeeper-approved. |
+| **sparkle** | notarized + `SPARKLE_PRIVATE_KEY` | Also emits Sparkle Ed25519 signature for appcast.xml. |
 
 ## Contributing
 

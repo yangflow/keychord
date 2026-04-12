@@ -51,10 +51,29 @@ keychord 从不改写你现有 config 文件的正文。它做的事是:
 ## 环境要求
 
 - macOS 26.2 或更高
-- Xcode 26 或更高（Swift 6 strict concurrency 模式）
 - Apple Silicon
 
-## 从源码构建
+## 安装
+
+### Homebrew（推荐）
+
+```bash
+brew tap yangflow/keychord
+brew install --cask keychord
+```
+
+### 手动下载
+
+从 [Releases](https://github.com/yangflow/keychord/releases) 下载最新的 `KeyChord-<version>.dmg`，打开后将 **KeyChord.app** 拖到 `/Applications`。
+
+如果应用未经公证，首次启动前需要清除隔离标记:
+
+```bash
+xattr -cr /Applications/KeyChord.app
+open /Applications/KeyChord.app
+```
+
+### 从源码构建
 
 ```bash
 git clone https://github.com/yangflow/keychord.git
@@ -62,7 +81,14 @@ cd keychord
 open keychord.xcodeproj
 ```
 
-选 `keychord` scheme，⌘R 运行。首次启动时按需创建 `~/.config/keychord/`；在你保存账号之前，真实 dotfiles 不会被写入任何内容。
+选 `keychord` scheme，⌘R 运行。或者用构建脚本生成独立的 `.app`:
+
+```bash
+./scripts/build.sh
+mv dist/KeyChord.app /Applications/
+```
+
+首次启动时按需创建 `~/.config/keychord/`；在你保存账号之前，真实 dotfiles 不会被写入任何内容。
 
 ### 跑测试
 
@@ -112,6 +138,44 @@ keychord/
 ├── scripts/                 # build.sh, release.sh, generate-icon
 └── keychord.xcodeproj
 ```
+
+## 卸载
+
+1. 从菜单栏退出 KeyChord（电源图标，或 ⌘Q）。
+2. 删除 `/Applications/KeyChord.app`。
+3. 删除托管配置（可选）:
+   ```bash
+   rm -rf ~/.config/keychord
+   ```
+4. 删除 keychord 注入的 `Include` 块——在 `~/.ssh/config` 和 `~/.gitconfig` 中找到 `# --- keychord managed ---` 到 `# --- keychord managed end ---` 之间的内容删掉即可。
+
+如果通过 Homebrew 安装: `brew uninstall --cask keychord`。
+
+## 发布
+
+维护者发版流程:
+
+```bash
+# 1. 构建 DMG（unsigned / signed / notarized）
+./scripts/release.sh 0.2.0
+
+# 2. 创建 GitHub Release 并上传
+gh release create v0.2.0 \
+  --title 'KeyChord 0.2.0' \
+  dist/KeyChord-0.2.0.dmg
+
+# 3. 更新 Homebrew cask 的版本号 + SHA256
+#    （SHA256 在 dist/KeyChord-0.2.0.dmg.sha256）
+```
+
+`release.sh` 通过环境变量支持四种模式:
+
+| 模式 | 环境变量 | 结果 |
+|------|----------|------|
+| **unsigned** | （无） | Ad-hoc 签名 DMG。Gatekeeper 首次启动时会提示。 |
+| **signed** | `DEVELOPER_ID_APPLICATION` | Developer ID 签名 DMG。 |
+| **notarized** | signed + `APPLE_ID`, `APPLE_TEAM_ID`, `APPLE_APP_PASSWORD` | 公证 + staple。完全通过 Gatekeeper。 |
+| **sparkle** | notarized + `SPARKLE_PRIVATE_KEY` | 额外输出 Sparkle Ed25519 签名，用于 appcast.xml。 |
 
 ## 参与贡献
 
