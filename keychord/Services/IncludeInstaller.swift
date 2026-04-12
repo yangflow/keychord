@@ -30,8 +30,7 @@ enum IncludeInstaller {
 
     static func installSSHInclude(
         targetPath: String,
-        managedPath: String,
-        backups: BackupService
+        managedPath: String
     ) throws {
         let block = """
         \(markerBegin)
@@ -39,20 +38,18 @@ enum IncludeInstaller {
         \(markerEnd)
 
         """
-        try installBlock(targetPath: targetPath, block: block, backups: backups)
+        try installBlock(targetPath: targetPath, block: block)
     }
 
     static func uninstallSSHInclude(
-        targetPath: String,
-        backups: BackupService
+        targetPath: String
     ) throws {
-        try uninstallBlock(targetPath: targetPath, backups: backups)
+        try uninstallBlock(targetPath: targetPath)
     }
 
     static func installGitInclude(
         targetPath: String,
-        managedPath: String,
-        backups: BackupService
+        managedPath: String
     ) throws {
         let block = """
         \(markerBegin)
@@ -61,14 +58,13 @@ enum IncludeInstaller {
         \(markerEnd)
 
         """
-        try installBlock(targetPath: targetPath, block: block, position: .append, backups: backups)
+        try installBlock(targetPath: targetPath, block: block, position: .append)
     }
 
     static func uninstallGitInclude(
-        targetPath: String,
-        backups: BackupService
+        targetPath: String
     ) throws {
-        try uninstallBlock(targetPath: targetPath, backups: backups)
+        try uninstallBlock(targetPath: targetPath)
     }
 
     // MARK: - Core install / uninstall
@@ -78,8 +74,7 @@ enum IncludeInstaller {
     static func installBlock(
         targetPath: String,
         block: String,
-        position: Position = .prepend,
-        backups: BackupService
+        position: Position = .prepend
     ) throws {
         let current = (try? String(contentsOfFile: targetPath, encoding: .utf8)) ?? ""
 
@@ -91,15 +86,11 @@ enum IncludeInstaller {
             return
         }
 
-        // Back up anything that's about to be modified.
         let parent = (targetPath as NSString).deletingLastPathComponent
         try FileManager.default.createDirectory(
             atPath: parent,
             withIntermediateDirectories: true
         )
-        if FileManager.default.fileExists(atPath: targetPath) {
-            _ = try backups.backup(originalPath: targetPath)
-        }
 
         let newContents: String
         switch position {
@@ -135,15 +126,11 @@ enum IncludeInstaller {
     }
 
     static func uninstallBlock(
-        targetPath: String,
-        backups: BackupService
+        targetPath: String
     ) throws {
         guard let current = try? String(contentsOfFile: targetPath, encoding: .utf8),
               current.contains(markerBegin) else {
             return
-        }
-        if FileManager.default.fileExists(atPath: targetPath) {
-            _ = try backups.backup(originalPath: targetPath)
         }
         let cleaned = stripMarkerBlock(current)
         do {

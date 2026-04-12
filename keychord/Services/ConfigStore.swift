@@ -93,18 +93,12 @@ struct ConfigStore {
 
     // MARK: - Writes
 
-    /// Back up the existing SSH config (if any), then atomically write the
-    /// serialized document. Re-reads the file and verifies that the parsed
-    /// content matches the source document.
+    /// Atomically write the serialized SSH config document. Re-reads the
+    /// file and verifies that the parsed content matches the source document.
     static func saveSSHConfig(
         _ doc: SSHConfigDocument,
-        to path: String,
-        backups: BackupService = BackupService()
+        to path: String
     ) throws {
-        if FileManager.default.fileExists(atPath: path) {
-            _ = try backups.backup(originalPath: path)
-        }
-
         let text = doc.serialize()
         do {
             try text.write(toFile: path, atomically: true, encoding: .utf8)
@@ -119,17 +113,12 @@ struct ConfigStore {
         }
     }
 
-    /// Back up the given gitconfig (if it exists), then pass a GitConfigIO
-    /// into the mutation closure so the caller can run set/add/unsetAll.
-    /// `git config --file` writes are themselves atomic.
+    /// Pass a GitConfigIO into the mutation closure so the caller can
+    /// run set/add/unsetAll. `git config --file` writes are themselves atomic.
     static func modifyGitConfig(
         at path: String,
-        backups: BackupService = BackupService(),
         _ mutation: (GitConfigIO) throws -> Void
     ) throws {
-        if FileManager.default.fileExists(atPath: path) {
-            _ = try backups.backup(originalPath: path)
-        }
         let io = GitConfigIO(filePath: path)
         try mutation(io)
     }

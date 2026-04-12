@@ -1,9 +1,8 @@
 import Foundation
 
 /// Executes a FixID against the live config files. Every write goes
-/// through ConfigStore's save paths, which back up the target file
-/// before overwriting, so any mistaken fix is recoverable from the
-/// Restore view.
+/// through ConfigStore's save paths so any mistaken fix can be
+/// recovered from the accounts snapshot restore.
 enum Fixer {
 
     enum FixError: Swift.Error, CustomStringConvertible {
@@ -28,19 +27,18 @@ enum Fixer {
     static func execute(
         _ fix: FixID,
         sshConfigPath: String,
-        gitConfigPath: String,
-        backups: BackupService = BackupService()
+        gitConfigPath: String
     ) async throws {
         switch fix {
         case .ssh001_removeHost(let alias):
-            try mutateSSHConfig(at: sshConfigPath, backups: backups) { doc in
+            try mutateSSHConfig(at: sshConfigPath) { doc in
                 guard doc.removeHost(alias: alias) else {
                     throw FixError.hostNotFound(alias: alias)
                 }
             }
 
         case .ssh003_addHostKeyAlias(let alias):
-            try mutateSSHConfig(at: sshConfigPath, backups: backups) { doc in
+            try mutateSSHConfig(at: sshConfigPath) { doc in
                 guard doc.setField("HostKeyAlias", to: "github.com", forHost: alias) else {
                     throw FixError.hostNotFound(alias: alias)
                 }
@@ -52,7 +50,6 @@ enum Fixer {
 
     private static func mutateSSHConfig(
         at path: String,
-        backups: BackupService,
         _ mutation: (inout SSHConfigDocument) throws -> Void
     ) throws {
         let text: String
@@ -64,7 +61,7 @@ enum Fixer {
         var doc = SSHConfigDocument.parse(text)
         try mutation(&doc)
         do {
-            try ConfigStore.saveSSHConfig(doc, to: path, backups: backups)
+            try ConfigStore.saveSSHConfig(doc, to: path)
         } catch {
             throw FixError.saveFailed(underlying: error)
         }

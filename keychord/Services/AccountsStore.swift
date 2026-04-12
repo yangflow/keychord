@@ -16,10 +16,23 @@ final class AccountsStore: ObservableObject {
     /// Absolute path of the accounts.json file this store owns.
     let storageURL: URL
 
+    /// Snapshots accounts.json before each save so the user can
+    /// roll back from the Restore view.
+    let backups: BackupService
+
+    /// Optional iCloud sync service — pushes after each save,
+    /// records tombstones on delete.
+    var cloudSync: CloudSyncService?
+
     // MARK: - Init / defaults
 
-    init(storageURL: URL = AccountsStore.defaultURL, autoLoad: Bool = true) {
+    init(
+        storageURL: URL = AccountsStore.defaultURL,
+        backups: BackupService = BackupService(),
+        autoLoad: Bool = true
+    ) {
         self.storageURL = storageURL
+        self.backups = backups
         if autoLoad {
             try? load()
         }
@@ -77,12 +90,17 @@ final class AccountsStore: ObservableObject {
                 at: parent,
                 withIntermediateDirectories: true
             )
+            // Snapshot the current accounts.json before overwriting.
+            if FileManager.default.fileExists(atPath: storageURL.path) {
+                _ = try backups.backup(originalPath: storageURL.path)
+            }
             let file = StorageFile(version: 1, accounts: accounts)
             let encoder = JSONEncoder()
             encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(file)
             try data.write(to: storageURL, options: .atomic)
+            cloudSync?.push(accounts: accounts)
         } catch {
             throw StoreError.writeFailed(error.localizedDescription)
         }
@@ -113,6 +131,7 @@ final class AccountsStore: ObservableObject {
             throw StoreError.notFound(id)
         }
         accounts.removeAll { $0.id == id }
+        cloudSync?.recordDeletion(id: id)
         try save()
     }
 

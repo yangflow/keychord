@@ -243,22 +243,18 @@ struct AccountProjectorTests {
             userSSHConfig: tmp.appendingPathComponent("dummy-ssh").path,
             userGitConfig: tmp.appendingPathComponent("dummy-git").path
         )
-        let backups = BackupService(
-            backupRoot: tmp.appendingPathComponent("backups"),
-            retentionCount: 10
-        )
 
         // Round 1: scoped account → creates sub file
         let scoped = Self.scopedAccount()
         let output1 = AccountProjector.project([scoped], paths: paths)
-        try AccountProjector.write(output1, paths: paths, backups: backups)
+        try AccountProjector.write(output1, paths: paths)
 
         let subPath = paths.subFilePath(for: scoped.id)
         #expect(FileManager.default.fileExists(atPath: subPath))
 
         // Round 2: account removed → sub file should be gone
         let output2 = AccountProjector.project([], paths: paths)
-        try AccountProjector.write(output2, paths: paths, backups: backups)
+        try AccountProjector.write(output2, paths: paths)
         #expect(!FileManager.default.fileExists(atPath: subPath))
     }
 }

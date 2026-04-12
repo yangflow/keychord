@@ -12,8 +12,8 @@ import Foundation
 ///                                   [user] + [core] sshCommand
 ///
 /// `project(_:)` is pure and deterministic so tests can pin exact
-/// content. `write(_:)` writes the output to disk via BackupService.
-/// `regenerate(accounts:paths:backups:)` is the one-call entry point:
+/// content. `write(_:)` writes the output to disk.
+/// `regenerate(accounts:paths:)` is the one-call entry point:
 /// it builds, writes, installs the Include lines in the user's
 /// ~/.ssh/config + ~/.gitconfig, and deletes sub files that no
 /// longer belong to any account.
@@ -144,22 +144,13 @@ enum AccountProjector {
 
     static func write(
         _ output: ProjectedOutput,
-        paths: ManagedPaths = .default,
-        backups: BackupService = BackupService()
+        paths: ManagedPaths = .default
     ) throws {
         let managedRoot = paths.managedRoot
         try FileManager.default.createDirectory(
             atPath: managedRoot,
             withIntermediateDirectories: true
         )
-
-        // Back up existing managed files before overwriting
-        if FileManager.default.fileExists(atPath: paths.sshManaged) {
-            _ = try backups.backup(originalPath: paths.sshManaged)
-        }
-        if FileManager.default.fileExists(atPath: paths.gitManaged) {
-            _ = try backups.backup(originalPath: paths.gitManaged)
-        }
 
         try output.sshConfig.write(
             toFile: paths.sshManaged,
@@ -179,15 +170,11 @@ enum AccountProjector {
             for name in existing where name.hasPrefix("gitconfig-") && name.hasSuffix(".managed") {
                 let fullPath = "\(managedRoot)/\(name)"
                 guard desiredPaths.contains(fullPath) == false else { continue }
-                _ = try? backups.backup(originalPath: fullPath)
                 try? FileManager.default.removeItem(atPath: fullPath)
             }
         }
         for sub in output.subFiles {
             let subPath = paths.subFilePath(for: sub.accountID)
-            if FileManager.default.fileExists(atPath: subPath) {
-                _ = try backups.backup(originalPath: subPath)
-            }
             try sub.content.write(toFile: subPath, atomically: true, encoding: .utf8)
         }
     }
@@ -199,21 +186,18 @@ enum AccountProjector {
     static func regenerate(
         accounts: [Account],
         paths: ManagedPaths = .default,
-        backups: BackupService = BackupService(),
         generatedAt: Date = Date()
     ) throws {
         let output = project(accounts, generatedAt: generatedAt, paths: paths)
-        try write(output, paths: paths, backups: backups)
+        try write(output, paths: paths)
 
         try IncludeInstaller.installSSHInclude(
             targetPath: paths.userSSHConfig,
-            managedPath: paths.sshManaged,
-            backups: backups
+            managedPath: paths.sshManaged
         )
         try IncludeInstaller.installGitInclude(
             targetPath: paths.userGitConfig,
-            managedPath: paths.gitManaged,
-            backups: backups
+            managedPath: paths.gitManaged
         )
     }
 

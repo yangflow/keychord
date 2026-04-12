@@ -5,16 +5,12 @@ import Foundation
 @Suite("Fixer")
 struct FixerTests {
 
-    static func withTempRoot(_ test: (URL, BackupService) async throws -> Void) async throws {
+    static func withTempRoot(_ test: (URL) async throws -> Void) async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("keychord-fixer-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let backups = BackupService(
-            backupRoot: root.appendingPathComponent("backups"),
-            retentionCount: 10
-        )
-        try await test(root, backups)
+        try await test(root)
     }
 
     static let dupConfig = """
@@ -38,7 +34,7 @@ struct FixerTests {
     // MARK: - SSH001
 
     @Test func ssh001RemovesOneDuplicate() async throws {
-        try await Self.withTempRoot { root, backups in
+        try await Self.withTempRoot { root in
             let sshPath = root.appendingPathComponent("sshconfig").path
             let gitPath = root.appendingPathComponent("gitconfig").path
             try Self.dupConfig.write(toFile: sshPath, atomically: true, encoding: .utf8)
@@ -47,21 +43,17 @@ struct FixerTests {
             try await Fixer.execute(
                 .ssh001_removeHost(alias: "github-yangflow"),
                 sshConfigPath: sshPath,
-                gitConfigPath: gitPath,
-                backups: backups
+                gitConfigPath: gitPath
             )
 
             let text = try String(contentsOfFile: sshPath, encoding: .utf8)
             #expect(text.contains("Host github.com"))
             #expect(!text.contains("Host github-yangflow"))
-            // Backup should exist
-            let records = try backups.list(for: sshPath)
-            #expect(records.count == 1)
         }
     }
 
     @Test func ssh001ThrowsForUnknownAlias() async throws {
-        try await Self.withTempRoot { root, backups in
+        try await Self.withTempRoot { root in
             let sshPath = root.appendingPathComponent("sshconfig").path
             let gitPath = root.appendingPathComponent("gitconfig").path
             try "Host foo\n  HostName bar\n".write(toFile: sshPath, atomically: true, encoding: .utf8)
@@ -71,8 +63,7 @@ struct FixerTests {
                 try await Fixer.execute(
                     .ssh001_removeHost(alias: "nope"),
                     sshConfigPath: sshPath,
-                    gitConfigPath: gitPath,
-                    backups: backups
+                    gitConfigPath: gitPath
                 )
                 Issue.record("Expected hostNotFound, got success")
             } catch let Fixer.FixError.hostNotFound(alias) {
@@ -86,7 +77,7 @@ struct FixerTests {
     // MARK: - SSH003
 
     @Test func ssh003AddsHostKeyAlias() async throws {
-        try await Self.withTempRoot { root, backups in
+        try await Self.withTempRoot { root in
             let sshPath = root.appendingPathComponent("sshconfig").path
             let gitPath = root.appendingPathComponent("gitconfig").path
             let before = """
@@ -100,8 +91,7 @@ struct FixerTests {
             try await Fixer.execute(
                 .ssh003_addHostKeyAlias(alias: "gh"),
                 sshConfigPath: sshPath,
-                gitConfigPath: gitPath,
-                backups: backups
+                gitConfigPath: gitPath
             )
 
             let after = try String(contentsOfFile: sshPath, encoding: .utf8)

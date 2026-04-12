@@ -5,22 +5,18 @@ import Foundation
 @Suite("IncludeInstaller")
 struct IncludeInstallerTests {
 
-    static func withTempRoot(_ test: (URL, BackupService) throws -> Void) throws {
+    static func withTempRoot(_ test: (URL) throws -> Void) throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("keychord-installer-\(UUID().uuidString)")
         try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
         defer { try? FileManager.default.removeItem(at: root) }
-        let backups = BackupService(
-            backupRoot: root.appendingPathComponent("backups"),
-            retentionCount: 10
-        )
-        try test(root, backups)
+        try test(root)
     }
 
     // MARK: - SSH install / uninstall
 
     @Test func installSSHIncludeInjectsBlockAtTop() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("sshconfig").path
             let managed = root.appendingPathComponent("ssh_config.managed").path
 
@@ -29,8 +25,7 @@ struct IncludeInstallerTests {
 
             try IncludeInstaller.installSSHInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
 
             let result = try String(contentsOfFile: target, encoding: .utf8)
@@ -42,22 +37,20 @@ struct IncludeInstallerTests {
     }
 
     @Test func installSSHIncludeIsIdempotent() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("sshconfig").path
             let managed = root.appendingPathComponent("ssh_config.managed").path
             try "Host foo\n".write(toFile: target, atomically: true, encoding: .utf8)
 
             try IncludeInstaller.installSSHInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
             let after1 = try String(contentsOfFile: target, encoding: .utf8)
 
             try IncludeInstaller.installSSHInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
             let after2 = try String(contentsOfFile: target, encoding: .utf8)
 
@@ -70,14 +63,13 @@ struct IncludeInstallerTests {
     }
 
     @Test func installSSHIncludeOnEmptyFileCreatesBlock() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("sshconfig").path
             let managed = root.appendingPathComponent("ssh_config.managed").path
             // No file exists yet
             try IncludeInstaller.installSSHInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
             let result = try String(contentsOfFile: target, encoding: .utf8)
             #expect(result.contains(IncludeInstaller.markerBegin))
@@ -86,7 +78,7 @@ struct IncludeInstallerTests {
     }
 
     @Test func uninstallSSHIncludePreservesRestOfFile() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("sshconfig").path
             let managed = root.appendingPathComponent("ssh_config.managed").path
             let userContent = "Host original\n  HostName example.com\n"
@@ -94,12 +86,10 @@ struct IncludeInstallerTests {
 
             try IncludeInstaller.installSSHInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
             try IncludeInstaller.uninstallSSHInclude(
-                targetPath: target,
-                backups: backups
+                targetPath: target
             )
 
             let result = try String(contentsOfFile: target, encoding: .utf8)
@@ -110,14 +100,13 @@ struct IncludeInstallerTests {
     }
 
     @Test func uninstallOnUnmanagedFileIsNoOp() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("sshconfig").path
             let userContent = "Host original\n  HostName example.com\n"
             try userContent.write(toFile: target, atomically: true, encoding: .utf8)
 
             try IncludeInstaller.uninstallSSHInclude(
-                targetPath: target,
-                backups: backups
+                targetPath: target
             )
 
             let result = try String(contentsOfFile: target, encoding: .utf8)
@@ -128,15 +117,14 @@ struct IncludeInstallerTests {
     // MARK: - Git install / uninstall
 
     @Test func installGitIncludeInjectsIncludeSection() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("gitconfig").path
             let managed = root.appendingPathComponent("gitconfig.managed").path
             try "[user]\n\tname = alice\n".write(toFile: target, atomically: true, encoding: .utf8)
 
             try IncludeInstaller.installGitInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
 
             let result = try String(contentsOfFile: target, encoding: .utf8)
@@ -153,20 +141,18 @@ struct IncludeInstallerTests {
     }
 
     @Test func installGitIncludeIsIdempotent() throws {
-        try Self.withTempRoot { root, backups in
+        try Self.withTempRoot { root in
             let target = root.appendingPathComponent("gitconfig").path
             let managed = root.appendingPathComponent("gitconfig.managed").path
             try "".write(toFile: target, atomically: true, encoding: .utf8)
 
             try IncludeInstaller.installGitInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
             try IncludeInstaller.installGitInclude(
                 targetPath: target,
-                managedPath: managed,
-                backups: backups
+                managedPath: managed
             )
             let result = try String(contentsOfFile: target, encoding: .utf8)
             let beginCount = result.components(separatedBy: IncludeInstaller.markerBegin).count - 1

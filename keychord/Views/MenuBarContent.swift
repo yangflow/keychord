@@ -5,6 +5,7 @@ struct MenuBarContent: View {
     @ObservedObject var appState: AppState
     var onOpenAccountsWindow: () -> Void = {}
     var onOpenAccount: (UUID) -> Void = { _ in }
+    var onAddNewAccount: () -> Void = {}
     var onOpenAbout: () -> Void = {}
 
     @State private var model = ConfigModel()
@@ -23,11 +24,13 @@ struct MenuBarContent: View {
         appState: AppState,
         onOpenAccountsWindow: @escaping () -> Void = {},
         onOpenAccount: @escaping (UUID) -> Void = { _ in },
+        onAddNewAccount: @escaping () -> Void = {},
         onOpenAbout: @escaping () -> Void = {}
     ) {
         self.appState = appState
         self.onOpenAccountsWindow = onOpenAccountsWindow
         self.onOpenAccount = onOpenAccount
+        self.onAddNewAccount = onAddNewAccount
         self.onOpenAbout = onOpenAbout
     }
 
@@ -176,55 +179,62 @@ struct MenuBarContent: View {
     private var accountsSection: some View {
         let records = appState.accountsStore.accounts
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
-                Text(accountsSectionTitle(records).uppercased())
-                    .font(KC.sectionLabel)
-                    .kerning(0.8)
-                    .foregroundStyle(.tertiary)
-                Spacer()
-                Button {
-                    onOpenAccountsWindow()
-                } label: {
-                    Text("Manage")
-                        .font(.system(size: 11, weight: .medium))
-                        .foregroundStyle(.tint)
-                }
-                .buttonStyle(.plain)
-            }
-            .padding(.horizontal, KC.rowHPadding)
-            .padding(.top, KC.sectionHeaderTop)
-            .padding(.bottom, KC.sectionHeaderBottom)
+            Text(accountsSectionTitle(records).uppercased())
+                .font(KC.sectionLabel)
+                .kerning(0.8)
+                .foregroundStyle(.tertiary)
+                .padding(.horizontal, KC.rowHPadding)
+                .padding(.top, KC.sectionHeaderTop)
+                .padding(.bottom, KC.sectionHeaderBottom)
 
             KCCard {
-                if records.isEmpty {
-                    Text("No accounts yet. Click Manage to import or add one.")
-                        .font(KC.rowCaption)
-                        .foregroundStyle(.tertiary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, KC.rowHPadding)
-                        .padding(.vertical, KC.space8)
-                } else {
-                    VStack(spacing: 0) {
-                        ForEach(Array(records.enumerated()), id: \.element.id) { idx, record in
-                            Button {
-                                onOpenAccount(record.id)
-                            } label: {
-                                AccountRow(
-                                    record: record,
-                                    probe: probeStates[record.sshAlias] ?? .idle
-                                )
-                            }
-                            .buttonStyle(.plain)
-                            if idx < records.count - 1 {
-                                Divider()
-                                    .padding(.leading, KC.rowHPadding + 18)
-                            }
+                VStack(spacing: 0) {
+                    ForEach(Array(records.enumerated()), id: \.element.id) { idx, record in
+                        Button {
+                            onOpenAccount(record.id)
+                        } label: {
+                            AccountRow(
+                                record: record,
+                                probe: probeStates[record.sshAlias] ?? .idle
+                            )
                         }
+                        .buttonStyle(.plain)
+                        Divider()
+                            .padding(.leading, KC.rowHPadding + 18)
                     }
+                    addAccountRow
                 }
             }
             .padding(.horizontal, KC.space10)
         }
+    }
+
+    private var addAccountRow: some View {
+        Button {
+            onAddNewAccount()
+        } label: {
+            HStack(spacing: KC.space10) {
+                Image(systemName: "plus.circle.fill")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tint)
+                    .frame(width: 10, height: 10)
+
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Add Account")
+                        .font(KC.rowTitle)
+                        .foregroundStyle(.tint)
+                    Text("Create a new Git identity")
+                        .font(KC.rowCaption)
+                        .foregroundStyle(.tint.opacity(0.6))
+                }
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, KC.rowHPadding)
+            .padding(.vertical, KC.space8)
+            .contentShape(Rectangle())
+            .background(Color.primary.opacity(0.02))
+        }
+        .buttonStyle(.plain)
     }
 
     private func accountsSectionTitle(_ records: [Account]) -> String {

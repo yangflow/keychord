@@ -6,6 +6,9 @@ struct AccountsSidebar: View {
     let onAddNew: () -> Void
     let onDelete: (UUID) -> Void
     let onImport: () -> Void
+    var onKeygen: () -> Void = {}
+    var onRestore: () -> Void = {}
+    var onCloudSync: () -> Void = {}
 
     var body: some View {
         List(selection: $selection) {
@@ -22,21 +25,37 @@ struct AccountsSidebar: View {
             }
         }
         .listStyle(.sidebar)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button(action: onAddNew) {
-                    Label("Add", systemImage: "plus")
+        .safeAreaInset(edge: .bottom, spacing: 0) {
+            VStack(spacing: 0) {
+                Divider()
+                HStack(spacing: KC.space16) {
+                    Button(action: onAddNew) {
+                        Image(systemName: "plus")
+                    }
+                    .help("Add new account")
+                    Button(action: onKeygen) {
+                        Image(systemName: "key.horizontal")
+                    }
+                    .help("Generate a new SSH key")
+                    Button(action: onRestore) {
+                        Image(systemName: "clock.arrow.circlepath")
+                    }
+                    .help("Restore from backup")
+                    Button(action: onImport) {
+                        Image(systemName: "square.and.arrow.down")
+                    }
+                    .help("Import from existing config")
+                    Button(action: onCloudSync) {
+                        Image(systemName: "icloud")
+                    }
+                    .help("iCloud Sync settings")
+                    Spacer()
                 }
-                .help("Add new account")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    if let id = selection { onDelete(id) }
-                } label: {
-                    Label("Delete", systemImage: "minus")
-                }
-                .disabled(selection == nil)
-                .help("Delete selected account")
+                .buttonStyle(.borderless)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, KC.space12)
+                .padding(.vertical, KC.space8)
             }
         }
     }

@@ -87,6 +87,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             onOpenAccount: { [weak self] id in
                 self?.showAccountsWindow(selecting: id)
             },
+            onAddNewAccount: { [weak self] in
+                self?.showAccountsWindow(addNew: true)
+            },
             onOpenAbout: { [weak self] in
                 self?.showAboutWindow()
             }
@@ -98,9 +101,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
 
     // MARK: - Accounts window
 
-    func showAccountsWindow(selecting accountID: UUID? = nil) {
+    func showAccountsWindow(selecting accountID: UUID? = nil, addNew: Bool = false) {
         if let accountID {
             appState.pendingAccountSelection = accountID
+        }
+        if addNew {
+            appState.pendingAddNew = true
         }
 
         if let existing = accountsWindow {
@@ -119,7 +125,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             defer: false
         )
         window.contentViewController = hostingController
-        window.title = "keychord · Accounts"
+        window.title = "KeyChord · Accounts"
         window.isReleasedWhenClosed = false
         window.minSize = NSSize(width: 640, height: 420)
         window.center()

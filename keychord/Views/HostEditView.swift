@@ -3,7 +3,6 @@ import SwiftUI
 struct HostEditView: View {
     let host: SSHHost
     let sshConfigPath: String
-    let backups: BackupService
     let onDismiss: () -> Void
     let onSaved: () -> Void
 
@@ -19,13 +18,11 @@ struct HostEditView: View {
     init(
         host: SSHHost,
         sshConfigPath: String,
-        backups: BackupService,
         onDismiss: @escaping () -> Void,
         onSaved: @escaping () -> Void
     ) {
         self.host = host
         self.sshConfigPath = sshConfigPath
-        self.backups = backups
         self.onDismiss = onDismiss
         self.onSaved = onSaved
 
@@ -170,7 +167,7 @@ struct HostEditView: View {
                 )
             }
 
-            try ConfigStore.saveSSHConfig(doc, to: sshConfigPath, backups: backups)
+            try ConfigStore.saveSSHConfig(doc, to: sshConfigPath)
             onSaved()
         } catch {
             errorMessage = String(describing: error)

@@ -13,8 +13,8 @@ struct AccountsWindowView: View {
     @State private var statusIsError = false
     @State private var showingKeygen = false
     @State private var showingRestore = false
-
-    private let backups = BackupService()
+    @State private var showingCloudSync = false
+    @State private var importBatch: ImportBatch?
 
     var body: some View {
         NavigationSplitView {
@@ -23,39 +23,16 @@ struct AccountsWindowView: View {
                 selection: $selection,
                 onAddNew: { beginNew() },
                 onDelete: { id in delete(id: id) },
-                onImport: { importFromExistingConfig() }
+                onImport: { importFromExistingConfig() },
+                onKeygen: { showingKeygen = true },
+                onRestore: { showingRestore = true },
+                onCloudSync: { showingCloudSync = true }
             )
             .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detailContent
         }
         .navigationSplitViewStyle(.balanced)
-        .toolbar {
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showingKeygen = true
-                } label: {
-                    Label("New Key", systemImage: "key.horizontal")
-                }
-                .help("Generate a new SSH key")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    showingRestore = true
-                } label: {
-                    Label("Restore", systemImage: "clock.arrow.circlepath")
-                }
-                .help("Restore from backup")
-            }
-            ToolbarItem(placement: .automatic) {
-                Button {
-                    importFromExistingConfig()
-                } label: {
-                    Label("Import", systemImage: "square.and.arrow.down")
-                }
-                .help("Import from existing SSH + gitconfig")
-            }
-        }
         .sheet(isPresented: $showingKeygen) {
             KeygenView(
                 defaultComment: draft?.gitUserEmail ?? "",
@@ -66,11 +43,30 @@ struct AccountsWindowView: View {
         }
         .sheet(isPresented: $showingRestore) {
             RestoreView(
-                sourcePaths: sourcePathsForRestore(),
-                backups: backups,
+                accountsStore: appState.accountsStore,
+                backups: appState.accountsStore.backups,
                 onDismiss: { showingRestore = false }
             )
             .frame(width: 420, height: 400)
+        }
+        .sheet(isPresented: $showingCloudSync) {
+            CloudSyncView(
+                cloudSync: appState.cloudSync,
+                onDismiss: { showingCloudSync = false }
+            )
+            .frame(width: 420, height: 340)
+        }
+        .sheet(item: $importBatch) { batch in
+            ImportPickerView(
+                candidates: batch.accounts,
+                existingAliases: Set(appState.accountsStore.accounts.map(\.sshAlias)),
+                onImport: { chosen in
+                    importBatch = nil
+                    importSelected(chosen)
+                },
+                onDismiss: { importBatch = nil }
+            )
+            .frame(width: 460, height: 420)
         }
         .onChange(of: selection) { _, newSelection in
             loadDraftForSelection(newSelection)
@@ -80,8 +76,16 @@ struct AccountsWindowView: View {
             selection = id
             appState.pendingAccountSelection = nil
         }
+        .onChange(of: appState.pendingAddNew) { _, newValue in
+            guard newValue else { return }
+            appState.pendingAddNew = false
+            beginNew()
+        }
         .onAppear {
-            if let pending = appState.pendingAccountSelection {
+            if appState.pendingAddNew {
+                appState.pendingAddNew = false
+                beginNew()
+            } else if let pending = appState.pendingAccountSelection {
                 selection = pending
                 appState.pendingAccountSelection = nil
             } else if selection == nil, let first = appState.accountsStore.accounts.first {
@@ -148,25 +152,6 @@ struct AccountsWindowView: View {
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
         .padding()
-    }
-
-    // MARK: - Helpers
-
-    private func sourcePathsForRestore() -> [String] {
-        var paths: [String] = [
-            ConfigStore.expand("~/.ssh/config"),
-            ConfigStore.expand("~/.gitconfig")
-        ]
-        // Include any managed includeIf files from the current config
-        if let model = try? ConfigStore.loadFromDefaultLocations() {
-            for rule in model.includeIfRules {
-                let expanded = ConfigStore.expand(rule.path)
-                if !paths.contains(expanded) {
-                    paths.append(expanded)
-                }
-            }
-        }
-        return paths
     }
 
     // MARK: - Draft lifecycle
@@ -262,13 +247,35 @@ struct AccountsWindowView: View {
         do {
             let current = try ConfigStore.loadFromDefaultLocations()
             let records = AccountImporter.importFromExistingConfig(current)
-            try appState.accountsStore.replaceAll(records)
+            if records.isEmpty {
+                statusIsError = false
+                statusMessage = "No accounts found to import"
+                return
+            }
+            importBatch = ImportBatch(accounts: records)
+        } catch {
+            statusIsError = true
+            statusMessage = "Import failed: \(error)"
+        }
+    }
+
+    private func importSelected(_ chosen: [Account]) {
+        guard !chosen.isEmpty else { return }
+        let existing = Set(appState.accountsStore.accounts.map(\.sshAlias))
+        var added = 0
+        do {
+            for account in chosen {
+                // Skip duplicates by alias
+                if existing.contains(account.sshAlias) { continue }
+                try appState.accountsStore.add(account)
+                added += 1
+            }
             try regenerate()
-            if let first = appState.accountsStore.accounts.first {
+            if let first = chosen.first(where: { !existing.contains($0.sshAlias) }) {
                 selection = first.id
             }
             statusIsError = false
-            statusMessage = "Imported \(records.count) account\(records.count == 1 ? "" : "s")"
+            statusMessage = "Imported \(added) account\(added == 1 ? "" : "s")"
         } catch {
             statusIsError = true
             statusMessage = "Import failed: \(error)"
@@ -278,8 +285,15 @@ struct AccountsWindowView: View {
     private func regenerate() throws {
         try AccountProjector.regenerate(
             accounts: appState.accountsStore.accounts,
-            paths: .default,
-            backups: backups
+            paths: .default
         )
     }
+}
+
+// MARK: - Import batch wrapper
+
+/// Wraps detected import candidates so `.sheet(item:)` can key on it.
+private struct ImportBatch: Identifiable {
+    let id = UUID()
+    let accounts: [Account]
 }

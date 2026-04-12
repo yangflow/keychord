@@ -1,141 +1,97 @@
 import SwiftUI
 
 struct RestoreView: View {
-    let sourcePaths: [String]
+    let accountsStore: AccountsStore
     let backups: BackupService
     let onDismiss: () -> Void
 
-    @State private var groups: [String: [BackupRecord]] = [:]
+    @State private var records: [BackupRecord] = []
     @State private var loadError: String?
     @State private var statusMessage: String?
     @State private var isBusy = false
+    @State private var hasLoaded = false
 
     var body: some View {
         VStack(spacing: 0) {
-            content
-                .frame(maxWidth: .infinity, maxHeight: .infinity)
+            Form {
+                Section("Backups") {
+                    if let statusMessage {
+                        Label(statusMessage, systemImage: "checkmark.circle")
+                            .font(.caption)
+                            .foregroundStyle(.green)
+                    }
+                    if let loadError {
+                        Label(loadError, systemImage: "exclamationmark.triangle")
+                            .font(.caption)
+                            .foregroundStyle(.red)
+                    }
+
+                    if records.isEmpty
+                        && loadError == nil
+                        && statusMessage == nil
+                        && hasLoaded {
+                        Text("No backups yet — edits will appear here once you save changes.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                            .fixedSize(horizontal: false, vertical: true)
+                    }
+
+                    ForEach(records) { record in
+                        HStack(spacing: 8) {
+                            Image(systemName: "clock.arrow.circlepath")
+                                .foregroundStyle(.secondary)
+                                .frame(width: 14)
+                            Text(Self.formatted(record.timestamp))
+                                .font(.caption)
+                                .monospaced()
+                            Spacer()
+                            Button("Restore") {
+                                Task { await restore(record) }
+                            }
+                            .buttonStyle(.borderless)
+                            .font(.caption)
+                            .disabled(isBusy)
+                        }
+                    }
+                }
+
+                Section {
+                    Text("Restoring rolls back all accounts to that point in time.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                }
+            }
+            .formStyle(.grouped)
+
             Divider()
-            footer
+
+            HStack {
+                if isBusy {
+                    ProgressView().controlSize(.small)
+                }
+                Spacer()
+                Button("Done", action: onDismiss)
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, KC.space20)
+            .padding(.vertical, KC.space12)
         }
         .frame(minWidth: 400, minHeight: 300)
-        .task { await reload() }
-    }
-
-    // MARK: - Content
-
-    private var content: some View {
-        ScrollView(showsIndicators: false) {
-            VStack(alignment: .leading, spacing: 0) {
-                if let statusMessage {
-                    Label(statusMessage, systemImage: "checkmark.circle")
-                        .font(.caption)
-                        .foregroundStyle(.green)
-                        .padding(.horizontal, KC.rowHPadding)
-                        .padding(.vertical, KC.space8)
-                }
-                if let loadError {
-                    Label(loadError, systemImage: "exclamationmark.triangle")
-                        .font(.caption)
-                        .foregroundStyle(.red)
-                        .padding(.horizontal, KC.rowHPadding)
-                        .padding(.vertical, KC.space8)
-                }
-
-                if groups.values.allSatisfy(\.isEmpty)
-                    && loadError == nil
-                    && statusMessage == nil {
-                    Text("No backups yet — edits will appear here once you save changes.")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .fixedSize(horizontal: false, vertical: true)
-                        .padding(.horizontal, KC.rowHPadding)
-                        .padding(.vertical, KC.space12)
-                }
-
-                ForEach(sourcePaths, id: \.self) { path in
-                    sourceSection(path: path)
-                }
-            }
-            .padding(.bottom, KC.space6)
-        }
-    }
-
-    @ViewBuilder
-    private func sourceSection(path: String) -> some View {
-        let records = groups[path] ?? []
-        let display = URL(fileURLWithPath: path).lastPathComponent
-        KCSectionHeader(title: display)
-
-        if records.isEmpty {
-            Text("no backups")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, KC.rowHPadding)
-                .padding(.vertical, 4)
-        } else {
-            ForEach(records) { record in
-                backupRow(record)
-            }
-        }
-    }
-
-    private func backupRow(_ record: BackupRecord) -> some View {
-        KCRowContainer {
-            HStack(spacing: 8) {
-                Image(systemName: "clock.arrow.circlepath")
-                    .foregroundStyle(.secondary)
-                    .frame(width: 14)
-                Text(Self.formatted(record.timestamp))
-                    .font(.caption)
-                    .monospaced()
-                Spacer()
-                Button("Restore") {
-                    Task { await restore(record) }
-                }
-                .buttonStyle(.borderless)
-                .font(.caption)
-                .disabled(isBusy)
-            }
-        }
-    }
-
-    // MARK: - Footer
-
-    private var footer: some View {
-        HStack {
-            if isBusy {
-                ProgressView().controlSize(.small)
-            }
-            Text("Restoring auto-backs-up the current file.")
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-            Spacer()
-            Button("Done", action: onDismiss)
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut(.defaultAction)
-        }
-        .padding(.horizontal, KC.space20)
-        .padding(.vertical, KC.space12)
+        .onAppear { reload() }
     }
 
     // MARK: - Actions
 
-    private func reload() async {
-        let svc = backups
-        let paths = sourcePaths
+    private func reload() {
+        let path = accountsStore.storageURL.path
         loadError = nil
         do {
-            let loaded = try await Task.detached {
-                var g: [String: [BackupRecord]] = [:]
-                for p in paths {
-                    g[p] = try svc.list(for: p)
-                }
-                return g
-            }.value
-            groups = loaded
+            records = try backups.list(for: path)
         } catch {
             loadError = "Failed to list backups: \(error)"
         }
+        hasLoaded = true
     }
 
     private func restore(_ record: BackupRecord) async {
@@ -146,9 +102,12 @@ struct RestoreView: View {
             try await Task.detached {
                 try svc.safeRestore(record)
             }.value
-            let name = URL(fileURLWithPath: record.originalPath).lastPathComponent
-            statusMessage = "Restored \(name) → \(Self.formatted(record.timestamp))"
-            await reload()
+            try accountsStore.load()
+            try AccountProjector.regenerate(
+                accounts: accountsStore.accounts
+            )
+            statusMessage = "Restored to \(Self.formatted(record.timestamp))"
+            reload()
         } catch {
             loadError = "Restore failed: \(error)"
         }
