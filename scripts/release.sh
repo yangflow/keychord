@@ -212,6 +212,28 @@ if [[ "$MODE" == "sparkle" ]]; then
 fi
 
 # -----------------------------------------------------------------------------
+# Update Homebrew tap
+# -----------------------------------------------------------------------------
+
+SHA256="$(cat "$DMG_PATH.sha256")"
+CASK_FILE="$REPO_ROOT/scripts/keychord.rb"
+if [[ -f "$CASK_FILE" ]]; then
+    sed -i '' -E "s/^  version \".*\"/  version \"$VERSION\"/" "$CASK_FILE"
+    sed -i '' -E "s/^  sha256 \".*\"/  sha256 \"$SHA256\"/" "$CASK_FILE"
+    echo "==> Updated scripts/keychord.rb (version=$VERSION, sha256=$SHA256)"
+
+    # Push to homebrew-tap if the repo exists locally as a sibling
+    TAP_DIR="$REPO_ROOT/../homebrew-tap"
+    if [[ -d "$TAP_DIR/Casks" ]]; then
+        cp "$CASK_FILE" "$TAP_DIR/Casks/keychord.rb"
+        git -C "$TAP_DIR" add Casks/keychord.rb
+        git -C "$TAP_DIR" commit -m "Update keychord to $VERSION" 2>/dev/null && \
+        git -C "$TAP_DIR" push && \
+        echo "==> Pushed homebrew-tap update"
+    fi
+fi
+
+# -----------------------------------------------------------------------------
 # Summary
 # -----------------------------------------------------------------------------
 
