@@ -1,17 +1,15 @@
 import Foundation
-import Combine
+import Observation
 
 /// Loads and saves the persistent Account list at
 /// ~/.config/keychord/accounts.json. This is the source of truth for
-/// keychord-managed accounts. AccountProjector (Commit B') turns the
-/// in-memory list into SSH config + gitconfig managed files.
-///
-/// @MainActor so mutations are serialized and SwiftUI views can
-/// observe `@Published accounts` directly.
+/// keychord-managed accounts. AccountProjector turns the in-memory
+/// list into SSH config + gitconfig managed files.
 @MainActor
-final class AccountsStore: ObservableObject {
+@Observable
+final class AccountsStore {
 
-    @Published private(set) var accounts: [Account] = []
+    private(set) var accounts: [Account] = []
 
     /// Absolute path of the accounts.json file this store owns.
     let storageURL: URL
@@ -22,7 +20,7 @@ final class AccountsStore: ObservableObject {
 
     /// Optional iCloud sync service — pushes after each save,
     /// records tombstones on delete.
-    var cloudSync: CloudSyncService?
+    @ObservationIgnored var cloudSync: CloudSyncService?
 
     // MARK: - Init / defaults
 

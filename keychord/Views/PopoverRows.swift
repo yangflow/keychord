@@ -2,7 +2,7 @@ import SwiftUI
 
 // Row components used by the popover and the accounts window.
 
-// MARK: - AccountRow (compact 2-line popover row)
+// MARK: - AccountRow (compact 2-line popover row, Mac-style)
 
 struct AccountRow: View {
     let record: Account
@@ -11,43 +11,47 @@ struct AccountRow: View {
     @State private var isHovered = false
 
     var body: some View {
-        HStack(spacing: KC.space10) {
+        HStack(spacing: 10) {
             Circle()
                 .fill(recordColor)
-                .frame(width: 10, height: 10)
+                .frame(width: 8, height: 8)
 
-            VStack(alignment: .leading, spacing: 2) {
-                HStack(spacing: KC.space6) {
-                    Text(record.label.isEmpty ? "(unnamed)" : record.label)
-                        .font(KC.rowTitle)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                    Spacer(minLength: 0)
-                    KCStatusDot(status: probe.statusDot, size: 5)
-                }
-                HStack(spacing: 4) {
-                    Text(record.sshAlias.isEmpty ? "(no alias)" : record.sshAlias)
-                        .font(KC.rowCaptionMono)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if !record.gitUserEmail.isEmpty {
-                        Text("·")
-                            .foregroundStyle(.quaternary)
-                        Text(record.gitUserEmail)
-                            .font(KC.rowCaption)
-                            .foregroundStyle(.secondary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
+            VStack(alignment: .leading, spacing: 1) {
+                Text(record.label.isEmpty ? "(unnamed)" : record.label)
+                    .font(.system(size: 13))
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                Text(subtitle)
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
             }
+
+            Spacer(minLength: 4)
+
+            KCStatusDot(status: probe.statusDot, size: 6)
+
+            Image(systemName: "chevron.right")
+                .font(.system(size: 10, weight: .semibold))
+                .foregroundStyle(.tertiary)
         }
-        .padding(.horizontal, KC.rowHPadding)
-        .padding(.vertical, KC.space8)
+        .padding(.horizontal, 14)
+        .padding(.vertical, 8)
         .contentShape(Rectangle())
-        .background(isHovered ? Color.primary.opacity(0.04) : Color.clear)
+        .background(
+            isHovered
+                ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.18)
+                : Color.clear
+        )
         .onHover { isHovered = $0 }
+    }
+
+    private var subtitle: String {
+        let alias = record.sshAlias.isEmpty ? "no alias" : record.sshAlias
+        if record.gitUserEmail.isEmpty { return alias }
+        return "\(alias) · \(record.gitUserEmail)"
     }
 
     private var recordColor: Color {
@@ -59,6 +63,39 @@ struct AccountRow: View {
         case .purple: return .purple
         case .yellow: return .yellow
         }
+    }
+}
+
+// MARK: - AddAccountRow (Mac-style add button)
+
+struct AddAccountRow: View {
+    let onTap: () -> Void
+
+    @State private var isHovered = false
+
+    var body: some View {
+        Button(action: onTap) {
+            HStack(spacing: 10) {
+                Image(systemName: "plus")
+                    .font(.system(size: 11, weight: .bold))
+                    .foregroundStyle(.tint)
+                    .frame(width: 8, height: 8)
+                Text("Add Account")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tint)
+                Spacer(minLength: 0)
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 8)
+            .contentShape(Rectangle())
+            .background(
+                isHovered
+                    ? Color(nsColor: .selectedContentBackgroundColor).opacity(0.18)
+                    : Color.clear
+            )
+        }
+        .buttonStyle(.plain)
+        .onHover { isHovered = $0 }
     }
 }
 
@@ -361,99 +398,6 @@ struct DiagnosisRow: View {
         .buttonStyle(.borderless)
         .labelStyle(.titleAndIcon)
         .disabled(isFixing)
-    }
-}
-
-// MARK: - CurrentRepoRow (hero callout)
-
-struct CurrentRepoRow: View {
-    let resolved: ResolvedRepo
-    let probe: HostProbeState
-
-    var body: some View {
-        KCHeroContainer(tint: heroTint) {
-            VStack(alignment: .leading, spacing: KC.space4) {
-                answerLine
-                contextLine
-                pathLine
-                if let cmd = resolved.effectiveURL, resolved.sshAlias != nil {
-                    Text(cmd)
-                        .font(KC.heroMeta)
-                        .foregroundStyle(.tertiary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-            }
-        }
-    }
-
-    @ViewBuilder
-    private var answerLine: some View {
-        HStack(spacing: KC.space6) {
-            Image(systemName: resolved.sshAlias == nil ? "link" : "arrow.up.right.circle.fill")
-                .font(KC.heroTitle)
-                .foregroundStyle(heroTint)
-            Text(answerText)
-                .font(KC.heroTitle)
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-        }
-    }
-
-    private var answerText: String {
-        if resolved.sshAlias == nil {
-            return "HTTPS remote"
-        }
-        switch probe {
-        case .ok(let user):    return "signs in as \(user)"
-        case .failed:          return "authentication failing"
-        case .probing:         return "probing…"
-        case .idle:
-            return resolved.userName.map { "would push as \($0)" } ?? "not yet probed"
-        }
-    }
-
-    @ViewBuilder
-    private var contextLine: some View {
-        if let name = resolved.userName, let email = resolved.userEmail {
-            HStack(spacing: 4) {
-                Text(name)
-                    .font(.system(size: 12, weight: .medium))
-                Text("·")
-                    .foregroundStyle(.tertiary)
-                Text(email)
-                    .foregroundStyle(.secondary)
-                if let alias = resolved.sshAlias {
-                    Text("·")
-                        .foregroundStyle(.tertiary)
-                    Text(alias)
-                        .font(.system(size: 12, design: .monospaced))
-                        .foregroundStyle(.secondary)
-                }
-            }
-            .font(KC.heroCaption)
-            .lineLimit(1)
-            .truncationMode(.middle)
-        }
-    }
-
-    private var pathLine: some View {
-        Text(resolved.repoRoot.abbreviatedHomePath())
-            .font(KC.heroMeta)
-            .foregroundStyle(.tertiary)
-            .lineLimit(1)
-            .truncationMode(.middle)
-    }
-
-    private var heroTint: Color {
-        switch probe {
-        case .ok:      return .green
-        case .failed:  return .red
-        case .probing: return .orange
-        case .idle:
-            return resolved.sshAlias == nil ? .secondary : .accentColor
-        }
     }
 }
 

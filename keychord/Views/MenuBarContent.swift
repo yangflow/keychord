@@ -1,96 +1,85 @@
 import SwiftUI
-import UniformTypeIdentifiers
+import AppKit
 
-struct MenuBarContent: View {
-    @ObservedObject var appState: AppState
-    var onOpenAccountsWindow: () -> Void = {}
-    var onOpenAccount: (UUID) -> Void = { _ in }
-    var onAddNewAccount: () -> Void = {}
-    var onOpenAbout: () -> Void = {}
+// MARK: - Menu bar icon (label for MenuBarExtra)
+
+struct MenuBarIconLabel: View {
+    let appState: AppState
+
+    var body: some View {
+        Image(nsImage: icon)
+    }
+
+    private var icon: NSImage {
+        let name: String
+        switch appState.highestSeverity {
+        case .error:   name = "exclamationmark.octagon.fill"
+        case .warning: name = "exclamationmark.triangle.fill"
+        case .info, .none: name = "key.horizontal.fill"
+        }
+        let config = NSImage.SymbolConfiguration(pointSize: 16, weight: .medium)
+        let image = NSImage(systemSymbolName: name, accessibilityDescription: "keychord")?
+            .withSymbolConfiguration(config) ?? NSImage()
+        image.isTemplate = true
+        return image
+    }
+}
+
+// MARK: - Popover root
+
+struct MenuBarPopoverView: View {
+    @Environment(AppState.self) private var appState
+    @Environment(\.openWindow) private var openWindow
 
     @State private var model = ConfigModel()
     @State private var probeStates: [String: HostProbeState] = [:]
     @State private var diagnoses: [Diagnosis] = []
-    @State private var resolvedRepo: ResolvedRepo?
-    @State private var repoResolveError: String?
-    @State private var isDropTargeted = false
-    @State private var loadError: String?
     @State private var isLoading = true
-    @State private var isProbing = false
-    @State private var isDoctorExpanded = false
     @State private var isFixing = false
-
-    init(
-        appState: AppState,
-        onOpenAccountsWindow: @escaping () -> Void = {},
-        onOpenAccount: @escaping (UUID) -> Void = { _ in },
-        onAddNewAccount: @escaping () -> Void = {},
-        onOpenAbout: @escaping () -> Void = {}
-    ) {
-        self.appState = appState
-        self.onOpenAccountsWindow = onOpenAccountsWindow
-        self.onOpenAccount = onOpenAccount
-        self.onAddNewAccount = onAddNewAccount
-        self.onOpenAbout = onOpenAbout
-    }
+    @State private var isDoctorExpanded = false
 
     var body: some View {
-        mainView
-        .frame(width: KC.popoverWidth, height: KC.popoverHeight)
-        .task {
-            await refresh()
-        }
-        .onChange(of: appState.droppedPath) { _, newValue in
-            guard let newValue else { return }
-            Task {
-                await resolveRepo(at: newValue)
-                appState.droppedPath = nil
-            }
-        }
-    }
-
-    // MARK: - Main view
-
-    private var mainView: some View {
         VStack(alignment: .leading, spacing: 0) {
-            header
-            Divider()
-            Group {
-                if isLoading {
-                    loadingView
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                } else if let loadError {
-                    errorView(loadError)
-                        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
-                } else {
-                    ScrollView(showsIndicators: false) {
-                        sections
-                    }
-                }
-            }
-            .frame(maxWidth: .infinity, maxHeight: .infinity)
+            content
             Divider()
             footer
         }
-        .padding(.vertical, KC.space8)
+        .frame(width: KC.popoverWidth, height: KC.popoverHeight)
+        .task { await refresh() }
     }
 
-    // MARK: - Header
+    // MARK: - Content
 
-    private var header: some View {
-        HStack(spacing: KC.space8) {
-            Image(systemName: "key.horizontal.fill")
-                .foregroundStyle(.tint)
-                .font(.body)
-            Text("KeyChord")
-                .font(.title3.weight(.semibold))
-            Spacer()
+    @ViewBuilder
+    private var content: some View {
+        if isLoading {
+            loadingView
+        } else {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    if !appState.accountsStore.accounts.isEmpty, !diagnoses.isEmpty {
+                        DoctorSummaryRow(
+                            diagnoses: diagnoses,
+                            isExpanded: isDoctorExpanded,
+                            onTap: { isDoctorExpanded.toggle() }
+                        )
+                        if isDoctorExpanded {
+                            ForEach(diagnoses) { d in
+                                DiagnosisRow(
+                                    diagnosis: d,
+                                    isFixing: isFixing,
+                                    onFix: { id in Task { await applyFix(id) } }
+                                )
+                            }
+                        }
+                    }
+                    accountsSection
+                }
+                .padding(.bottom, KC.space8)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         }
-        .padding(.horizontal, KC.rowHPadding)
-        .padding(.vertical, KC.space8)
     }
-
-    // MARK: - Loading / error
 
     private var loadingView: some View {
         HStack(spacing: 8) {
@@ -101,149 +90,39 @@ struct MenuBarContent: View {
         }
         .padding(.horizontal, KC.rowHPadding)
         .padding(.vertical, 12)
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
     }
 
-    private func errorView(_ message: String) -> some View {
-        VStack(alignment: .leading, spacing: 4) {
-            Label("Load failed", systemImage: "exclamationmark.triangle")
-                .font(.caption)
-                .foregroundStyle(.red)
-            Text(message)
-                .font(.caption2)
-                .foregroundStyle(.secondary)
-                .textSelection(.enabled)
-                .fixedSize(horizontal: false, vertical: true)
-        }
-        .padding(.horizontal, KC.rowHPadding)
-        .padding(.vertical, 10)
-    }
+    // MARK: - Accounts section
 
-    // MARK: - Sections
-
-    @ViewBuilder
-    private var sections: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            if !appState.accountsStore.accounts.isEmpty {
-                // Hero — Current Repo callout
-                if let resolved = resolvedRepo {
-                    CurrentRepoRow(
-                        resolved: resolved,
-                        probe: resolved.sshAlias.flatMap { probeStates[$0] } ?? .idle
-                    )
-                } else if let repoError = repoResolveError {
-                    Text(repoError)
-                        .font(KC.rowCaption)
-                        .foregroundStyle(.tertiary)
-                        .padding(.horizontal, KC.rowHPadding)
-                        .padding(.top, KC.space10)
-                        .padding(.bottom, KC.space4)
-                }
-
-                // Doctor summary — expand/collapse
-                if !diagnoses.isEmpty {
-                    DoctorSummaryRow(
-                        diagnoses: diagnoses,
-                        isExpanded: isDoctorExpanded,
-                        onTap: { isDoctorExpanded.toggle() }
-                    )
-                    if isDoctorExpanded {
-                        ForEach(diagnoses) { d in
-                            DiagnosisRow(
-                                diagnosis: d,
-                                isFixing: isFixing,
-                                onFix: { fixID in Task { await applyFix(fixID) } }
-                            )
-                        }
-                    }
-                }
-            }
-
-            // Accounts list — always shown so "+ Add Account" is reachable
-            accountsSection
-        }
-        .padding(.bottom, KC.space8)
-    }
-
-    @ViewBuilder
     private var accountsSection: some View {
         let records = appState.accountsStore.accounts
-        VStack(alignment: .leading, spacing: 0) {
-            Text(accountsSectionTitle(records).uppercased())
-                .font(KC.sectionLabel)
-                .kerning(0.8)
-                .foregroundStyle(.tertiary)
-                .padding(.horizontal, KC.rowHPadding)
-                .padding(.top, KC.sectionHeaderTop)
-                .padding(.bottom, KC.sectionHeaderBottom)
+        return VStack(alignment: .leading, spacing: 0) {
+            Text("Accounts")
+                .font(.system(size: 11, weight: .semibold))
+                .textCase(.uppercase)
+                .kerning(0.4)
+                .foregroundStyle(.secondary)
+                .padding(.horizontal, 14)
+                .padding(.top, 10)
+                .padding(.bottom, 4)
 
-            KCCard {
-                VStack(spacing: 0) {
-                    ForEach(Array(records.enumerated()), id: \.element.id) { idx, record in
-                        Button {
-                            onOpenAccount(record.id)
-                        } label: {
-                            AccountRow(
-                                record: record,
-                                probe: probeStates[record.sshAlias] ?? .idle
-                            )
-                        }
-                        .buttonStyle(.plain)
-                        Divider()
-                            .padding(.leading, KC.rowHPadding + 18)
+            VStack(spacing: 0) {
+                ForEach(records) { record in
+                    Button {
+                        openAccounts(selecting: record.id)
+                    } label: {
+                        AccountRow(
+                            record: record,
+                            probe: probeStates[record.sshAlias] ?? .idle
+                        )
                     }
-                    addAccountRow
+                    .buttonStyle(.plain)
+
+                    Divider().padding(.leading, 32)
                 }
+                AddAccountRow(onTap: { openAccounts(addNew: true) })
             }
-            .padding(.horizontal, KC.space10)
-        }
-    }
-
-    private var addAccountRow: some View {
-        Button {
-            onAddNewAccount()
-        } label: {
-            HStack(spacing: KC.space10) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 10))
-                    .foregroundStyle(.tint)
-                    .frame(width: 10, height: 10)
-
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Add Account")
-                        .font(KC.rowTitle)
-                        .foregroundStyle(.tint)
-                    Text("Create a new Git identity")
-                        .font(KC.rowCaption)
-                        .foregroundStyle(.tint.opacity(0.6))
-                }
-                Spacer(minLength: 0)
-            }
-            .padding(.horizontal, KC.rowHPadding)
-            .padding(.vertical, KC.space8)
-            .contentShape(Rectangle())
-            .background(Color.primary.opacity(0.02))
-        }
-        .buttonStyle(.plain)
-    }
-
-    private func accountsSectionTitle(_ records: [Account]) -> String {
-        "Accounts · \(records.count)"
-    }
-
-    private func applyFix(_ fixID: FixID) async {
-        isFixing = true
-        defer { isFixing = false }
-        do {
-            try await Fixer.execute(
-                fixID,
-                sshConfigPath: ConfigStore.expand("~/.ssh/config"),
-                gitConfigPath: ConfigStore.expand("~/.gitconfig")
-            )
-            await refresh()
-        } catch {
-            // Refresh anyway to show current state
-            await refresh()
         }
     }
 
@@ -252,7 +131,7 @@ struct MenuBarContent: View {
     private var footer: some View {
         HStack(spacing: KC.space20) {
             Button {
-                onOpenAbout()
+                openAboutWindow()
             } label: {
                 Image(systemName: "info.circle")
             }
@@ -275,6 +154,26 @@ struct MenuBarContent: View {
         .padding(.vertical, KC.space10)
     }
 
+    // MARK: - Window helpers
+
+    private func openAccounts(selecting id: UUID? = nil, addNew: Bool = false) {
+        if let id { appState.pendingAccountSelection = id }
+        if addNew { appState.pendingAddNew = true }
+        let popover = NSApp.keyWindow
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "accounts")
+        NSApp.activate(ignoringOtherApps: true)
+        popover?.close()
+    }
+
+    private func openAboutWindow() {
+        let popover = NSApp.keyWindow
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "about")
+        NSApp.activate(ignoringOtherApps: true)
+        popover?.close()
+    }
+
     // MARK: - Load + probe
 
     private func refresh() async {
@@ -283,63 +182,24 @@ struct MenuBarContent: View {
         await runDoctor()
     }
 
-    private func resolveRepo(at path: String) async {
-        let snapshot = model
-        let result = await CurrentRepoResolver.resolve(path: path, model: snapshot)
-        switch result {
-        case .success(let r):
-            resolvedRepo = r
-            repoResolveError = nil
-            if let alias = r.sshAlias {
-                appState.accountsStore.touchLastUsed(sshAlias: alias)
-            }
-        case .failure(let err):
-            resolvedRepo = nil
-            switch err {
-            case .notARepo:
-                repoResolveError = "\(path.abbreviatedHomePath()) is not a git repository"
-            default:
-                repoResolveError = String(describing: err)
-            }
-        }
-    }
-
-    private func runDoctor() async {
-        let accountAliases = Set(appState.accountsStore.accounts.map(\.sshAlias))
-        var scoped = model
-        scoped.sshHosts = scoped.sshHosts.filter { accountAliases.contains($0.alias) }
-        let probes = probeStates
-        diagnoses = await Doctor.runAgainstCurrentSystem(
-            model: scoped,
-            probeStates: probes
-        )
-        appState.highestSeverity = diagnoses.map(\.severity).max()
-    }
-
     private func reload() async {
         isLoading = true
-        loadError = nil
         do {
-            let loaded = try await Task.detached(priority: .userInitiated) {
+            model = try await Task.detached(priority: .userInitiated) {
                 try ConfigStore.loadFromDefaultLocations()
             }.value
-            model = loaded
         } catch {
-            loadError = String(describing: error)
+            // Empty model on failure — the accounts list still works.
+            model = ConfigModel()
         }
         isLoading = false
     }
 
     private func probeAll() async {
-        guard !isProbing else { return }
-        isProbing = true
-        defer { isProbing = false }
-
-        let accountAliases = Set(appState.accountsStore.accounts.map(\.sshAlias))
-        let aliases = accountAliases.filter { !$0.isEmpty }
-        for alias in aliases {
-            probeStates[alias] = .probing
-        }
+        let aliases = appState.accountsStore.accounts
+            .map(\.sshAlias)
+            .filter { !$0.isEmpty }
+        for alias in aliases { probeStates[alias] = .probing }
 
         await withTaskGroup(of: (String, HostProbeState).self) { group in
             for alias in aliases {
@@ -353,8 +213,26 @@ struct MenuBarContent: View {
             }
         }
     }
-}
 
-#Preview {
-    MenuBarContent(appState: AppState())
+    private func runDoctor() async {
+        let accountAliases = Set(appState.accountsStore.accounts.map(\.sshAlias))
+        var scoped = model
+        scoped.sshHosts = scoped.sshHosts.filter { accountAliases.contains($0.alias) }
+        diagnoses = await Doctor.runAgainstCurrentSystem(
+            model: scoped,
+            probeStates: probeStates
+        )
+        appState.highestSeverity = diagnoses.map(\.severity).max()
+    }
+
+    private func applyFix(_ fixID: FixID) async {
+        isFixing = true
+        defer { isFixing = false }
+        try? await Fixer.execute(
+            fixID,
+            sshConfigPath: ConfigStore.expand("~/.ssh/config"),
+            gitConfigPath: ConfigStore.expand("~/.gitconfig")
+        )
+        await refresh()
+    }
 }

@@ -1,5 +1,6 @@
 import Foundation
 import Combine
+import Observation
 
 /// Syncs accounts.json data via iCloud NSUbiquitousKeyValueStore.
 ///
@@ -11,7 +12,8 @@ import Combine
 /// `updatedAt` wins. Accounts deleted locally are tracked in a
 /// tombstone set so they don't reappear from a stale remote copy.
 @MainActor
-final class CloudSyncService: ObservableObject {
+@Observable
+final class CloudSyncService {
 
     enum SyncState: Equatable {
         case idle
@@ -20,14 +22,14 @@ final class CloudSyncService: ObservableObject {
         case failed(String)
     }
 
-    @Published private(set) var state: SyncState = .idle
-    @Published var isEnabled: Bool {
+    private(set) var state: SyncState = .idle
+    var isEnabled: Bool {
         didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
     }
 
-    private let kvStore = NSUbiquitousKeyValueStore.default
-    private var cancellable: AnyCancellable?
-    private weak var accountsStore: AccountsStore?
+    @ObservationIgnored private let kvStore = NSUbiquitousKeyValueStore.default
+    @ObservationIgnored private var cancellable: AnyCancellable?
+    @ObservationIgnored private weak var accountsStore: AccountsStore?
 
     private static let dataKey      = "accounts_json"
     private static let tombstoneKey = "deleted_ids"

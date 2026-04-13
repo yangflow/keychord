@@ -2,7 +2,7 @@ import SwiftUI
 
 /// Sheet that lets the user enable/disable iCloud sync and see status.
 struct CloudSyncView: View {
-    @ObservedObject var cloudSync: CloudSyncService
+    @Bindable var cloudSync: CloudSyncService
     let onDismiss: () -> Void
 
     var body: some View {

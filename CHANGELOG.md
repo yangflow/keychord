@@ -4,6 +4,17 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+### Changed
+
+- **Menubar popover** — rewritten on top of SwiftUI `MenuBarExtra` + scene-based `WindowGroup`/`Window`, replacing the hand-rolled `NSStatusItem` + `NSPopover` + `AppDelegate` wiring. App state is now a single `@Observable` injected via `.environment()`.
+- **Accounts window sidebar** — moved add/keygen/import/restore/iCloud actions into the window's `.toolbar`, removing the custom `safeAreaInset` bottom bar that was clobbering the split-view toggle and causing the `»` button to flash when expanding/collapsing the sidebar.
+- **Accounts section styling** — popover rows are restyled to match native Mac list affordances: slimmer color dots, trailing chevron, `selectedContentBackgroundColor` hover, dividers inset past the icon, and a condensed alias · email subtitle. The heavy `KCCard` + header wrapper is gone.
+
+### Removed
+
+- **Drag-folder-onto-menubar** — no longer supported. The feature relied on a custom `NSStatusItem` subview, which is incompatible with the new `MenuBarExtra` popover.
+- **"Current Repo" hero card** — the popover no longer resolves which account applies to a dropped folder, since there is no drop path to feed it. The `CurrentRepoResolver` service is retained for potential reuse.
+
 ## [0.2.1] — 2026-04-13
 
 ### Fixed

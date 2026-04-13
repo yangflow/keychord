@@ -1,10 +1,11 @@
 import SwiftUI
 
 /// The standalone macOS window for managing keychord accounts.
-/// NavigationSplitView with a sidebar (account list + add/delete +
-/// import) and a detail pane (account form).
+/// NavigationSplitView with a sidebar list and a detail pane form.
+/// Sidebar actions live in the window toolbar so the system split
+/// view toggle stays intact.
 struct AccountsWindowView: View {
-    @ObservedObject var appState: AppState
+    @Environment(AppState.self) private var appState
 
     @State private var selection: UUID?
     @State private var draft: Account?
@@ -18,21 +19,41 @@ struct AccountsWindowView: View {
 
     var body: some View {
         NavigationSplitView {
-            AccountsSidebar(
-                accounts: appState.accountsStore.accounts,
-                selection: $selection,
-                onAddNew: { beginNew() },
-                onDelete: { id in delete(id: id) },
-                onImport: { importFromExistingConfig() },
-                onKeygen: { showingKeygen = true },
-                onRestore: { showingRestore = true },
-                onCloudSync: { showingCloudSync = true }
-            )
-            .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
+            sidebar
+                .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detailContent
         }
         .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 640, minHeight: 420)
+        .toolbar {
+            ToolbarItemGroup(placement: .primaryAction) {
+                Button { beginNew() } label: {
+                    Label("Add account", systemImage: "plus")
+                }
+                .help("Add a new account")
+
+                Button { showingKeygen = true } label: {
+                    Label("New SSH key", systemImage: "key.horizontal")
+                }
+                .help("Generate a new SSH key")
+
+                Button { importFromExistingConfig() } label: {
+                    Label("Import", systemImage: "square.and.arrow.down")
+                }
+                .help("Import from existing config")
+
+                Button { showingRestore = true } label: {
+                    Label("Restore", systemImage: "clock.arrow.circlepath")
+                }
+                .help("Restore from backup")
+
+                Button { showingCloudSync = true } label: {
+                    Label("iCloud sync", systemImage: "icloud")
+                }
+                .help("iCloud Sync settings")
+            }
+        }
         .sheet(isPresented: $showingKeygen) {
             KeygenView(
                 defaultComment: draft?.gitUserEmail ?? "",
@@ -92,7 +113,20 @@ struct AccountsWindowView: View {
                 selection = first.id
             }
         }
-        .frame(minWidth: 640, minHeight: 420)
+    }
+
+    // MARK: - Sidebar
+
+    private var sidebar: some View {
+        List(selection: $selection) {
+            Section("Accounts") {
+                ForEach(appState.accountsStore.accounts) { account in
+                    AccountsSidebarRow(account: account)
+                        .tag(account.id)
+                }
+            }
+        }
+        .listStyle(.sidebar)
     }
 
     // MARK: - Detail pane
@@ -132,14 +166,10 @@ struct AccountsWindowView: View {
                     .multilineTextAlignment(.center)
                     .frame(maxWidth: 320)
                 HStack(spacing: KC.space12) {
-                    Button {
-                        importFromExistingConfig()
-                    } label: {
+                    Button { importFromExistingConfig() } label: {
                         Label("Import existing", systemImage: "square.and.arrow.down")
                     }
-                    Button {
-                        beginNew()
-                    } label: {
+                    Button { beginNew() } label: {
                         Label("Add new", systemImage: "plus")
                     }
                     .buttonStyle(.borderedProminent)
@@ -265,7 +295,6 @@ struct AccountsWindowView: View {
         var added = 0
         do {
             for account in chosen {
-                // Skip duplicates by alias
                 if existing.contains(account.sshAlias) { continue }
                 try appState.accountsStore.add(account)
                 added += 1
@@ -290,9 +319,53 @@ struct AccountsWindowView: View {
     }
 }
 
+// MARK: - Sidebar row
+
+private struct AccountsSidebarRow: View {
+    let account: Account
+
+    var body: some View {
+        HStack(spacing: KC.space10) {
+            Circle()
+                .fill(accountColor)
+                .frame(width: 10, height: 10)
+            VStack(alignment: .leading, spacing: 2) {
+                Text(account.label.isEmpty ? "(unnamed)" : account.label)
+                    .font(KC.rowTitle)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+                HStack(spacing: KC.space4) {
+                    Text(account.sshAlias.isEmpty ? "no alias" : account.sshAlias)
+                        .font(KC.rowCaptionMono)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                    if account.scope.isScoped {
+                        Image(systemName: "folder.fill")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                }
+            }
+            Spacer(minLength: 0)
+        }
+        .padding(.vertical, KC.space4)
+    }
+
+    private var accountColor: Color {
+        switch account.color {
+        case .blue:   return .blue
+        case .green:  return .green
+        case .orange: return .orange
+        case .red:    return .red
+        case .purple: return .purple
+        case .yellow: return .yellow
+        }
+    }
+}
+
 // MARK: - Import batch wrapper
 
-/// Wraps detected import candidates so `.sheet(item:)` can key on it.
 private struct ImportBatch: Identifiable {
     let id = UUID()
     let accounts: [Account]

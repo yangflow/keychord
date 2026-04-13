@@ -2,8 +2,6 @@ import SwiftUI
 import AppKit
 
 struct AboutView: View {
-    let onDismiss: () -> Void
-
     private var version: String {
         Bundle.main.infoDictionary?["CFBundleShortVersionString"] as? String ?? "–"
     }
