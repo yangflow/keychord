@@ -123,14 +123,8 @@ struct MenuBarContent: View {
 
     @ViewBuilder
     private var sections: some View {
-        if appState.accountsStore.accounts.isEmpty {
-            Text("No config found.")
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, KC.rowHPadding)
-                .padding(.vertical, KC.space12)
-        } else {
-            VStack(alignment: .leading, spacing: 0) {
+        VStack(alignment: .leading, spacing: 0) {
+            if !appState.accountsStore.accounts.isEmpty {
                 // Hero — Current Repo callout
                 if let resolved = resolvedRepo {
                     CurrentRepoRow(
@@ -163,12 +157,12 @@ struct MenuBarContent: View {
                         }
                     }
                 }
-
-                // Accounts list
-                accountsSection
             }
-            .padding(.bottom, KC.space8)
+
+            // Accounts list — always shown so "+ Add Account" is reachable
+            accountsSection
         }
+        .padding(.bottom, KC.space8)
     }
 
     @ViewBuilder

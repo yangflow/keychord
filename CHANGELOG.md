@@ -4,6 +4,12 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+## [0.2.1] — 2026-04-13
+
+### Fixed
+
+- **Add Account always reachable** — the popover's `+ Add Account` row is now shown even when there are no accounts. Previously the entire accounts section was hidden behind an `isEmpty` branch, making it impossible to add a first account from the popover.
+
 ## [0.2.0] — 2026-04-12
 
 ### Added
@@ -56,6 +62,7 @@ Initial public release. Source-of-truth is `~/.config/keychord/accounts.json`; k
 - Swift 6 `MainActor` isolation errors on `AccountsStore.defaultURL`, `AppState.init` default parameter, and `AppDelegate` observation methods.
 - `SSHConfigDocument.parse("")` and `serialize([])` round-trip asymmetry that caused `saveSSHConfig` to throw `roundTripVerificationFailed` after removing the last Host block.
 
-[Unreleased]: https://github.com/yangflow/keychord/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/yangflow/keychord/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/yangflow/keychord/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/yangflow/keychord/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yangflow/keychord/releases/tag/v0.1.0
