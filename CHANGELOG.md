@@ -4,6 +4,8 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-04-14
+
 ### Changed
 
 - **Menubar popover** — rewritten on top of SwiftUI `MenuBarExtra` + scene-based `WindowGroup`/`Window`, replacing the hand-rolled `NSStatusItem` + `NSPopover` + `AppDelegate` wiring. App state is now a single `@Observable` injected via `.environment()`.
