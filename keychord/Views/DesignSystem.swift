@@ -91,25 +91,6 @@ enum KC {
     static let diagnosisDetailSize: CGFloat = 10
 }
 
-// MARK: - Section header
-
-/// Uppercase small caps with wide kerning — recedes below the data
-/// rows so it never competes with actual content for attention.
-struct KCSectionHeader: View {
-    let title: String
-
-    var body: some View {
-        Text(title.uppercased())
-            .font(KC.sectionLabel)
-            .kerning(0.8)
-            .foregroundStyle(.tertiary)
-            .padding(.horizontal, KC.rowHPadding)
-            .padding(.top, KC.sectionHeaderTop)
-            .padding(.bottom, KC.sectionHeaderBottom)
-            .frame(maxWidth: .infinity, alignment: .leading)
-    }
-}
-
 // MARK: - Status dot (system semantic colors)
 
 struct KCStatusDot: View {
@@ -155,92 +136,17 @@ struct KCStatusDot: View {
     }
 }
 
-// MARK: - Row container
+// MARK: - Account color → SwiftUI Color
 
-struct KCRowContainer<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        content()
-            .padding(.horizontal, KC.rowHPadding)
-            .padding(.vertical, KC.rowVPadding)
-            .contentShape(Rectangle())
-    }
-}
-
-// MARK: - Card container
-
-/// Grouped inset container — controlBackgroundColor rounded rect
-/// with a subtle stroke and shadow. Use for popover sections.
-struct KCCard<Content: View>: View {
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        content()
-            .background(
-                RoundedRectangle(cornerRadius: KC.cardCornerRadius, style: .continuous)
-                    .fill(Color(nsColor: .controlBackgroundColor))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: KC.cardCornerRadius, style: .continuous)
-                    .strokeBorder(Color.primary.opacity(0.06), lineWidth: 0.5)
-            )
-            .shadow(color: .black.opacity(0.06), radius: 2, y: 1)
-    }
-}
-
-// MARK: - Grouped section  (header + card)
-
-/// Section label + KCCard wrapping content rows, with consistent margins.
-struct KCGroupedSection<Content: View>: View {
-    let title: String
-    @ViewBuilder let content: () -> Content
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: 0) {
-            KCSectionHeader(title: title)
-            KCCard {
-                content()
-            }
-            .padding(.horizontal, KC.space10)
+extension Account.AccountColor {
+    var color: Color {
+        switch self {
+        case .blue:   .blue
+        case .green:  .green
+        case .orange: .orange
+        case .red:    .red
+        case .purple: .purple
+        case .yellow: .yellow
         }
-    }
-}
-
-// MARK: - Hero container (tinted callout card)
-
-/// Floating rounded-rect card with a tinted fill. Used only for the
-/// Current Repo "answer" at the top of the popover. The tint
-/// cross-fades to green / red based on the probe state so the color
-/// itself carries the "am I about to push as the right person" signal.
-struct KCHeroContainer<Content: View>: View {
-    let tint: Color
-    let content: () -> Content
-
-    init(tint: Color, @ViewBuilder content: @escaping () -> Content) {
-        self.tint = tint
-        self.content = content
-    }
-
-    var body: some View {
-        content()
-            .padding(.horizontal, KC.space14)
-            .padding(.vertical, KC.space12)
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .background(
-                RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                    .fill(tint.opacity(0.12))
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                    .strokeBorder(tint.opacity(0.22), lineWidth: 0.5)
-            )
-            .overlay(
-                RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                    .strokeBorder(Color.white.opacity(0.06), lineWidth: 0.5)
-            )
-            .padding(.horizontal, KC.space10)
-            .padding(.top, KC.space10)
-            .animation(.easeOut(duration: 0.18), value: tint)
     }
 }

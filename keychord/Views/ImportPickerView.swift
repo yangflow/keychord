@@ -61,7 +61,7 @@ struct ImportPickerView: View {
                 Button("Cancel", action: onDismiss)
                     .keyboardShortcut(.cancelAction)
                 Spacer()
-                Button("Import \(selected.count) Account\(selected.count == 1 ? "" : "s")") {
+                Button("Import ^[\(selected.count) Account](inflect: true)") {
                     let chosen = candidates.filter { selected.contains($0.id) }
                     onImport(chosen)
                 }
@@ -77,17 +77,20 @@ struct ImportPickerView: View {
 
     // MARK: - Subviews
 
-    private func candidateRow(_ account: Account) -> some View {
-        let isOn = Binding<Bool>(
+    private func selectionBinding(for account: Account) -> Binding<Bool> {
+        Binding(
             get: { selected.contains(account.id) },
-            set: { on in
-                if on { selected.insert(account.id) }
+            set: { isOn in
+                if isOn { selected.insert(account.id) }
                 else { selected.remove(account.id) }
             }
         )
+    }
+
+    private func candidateRow(_ account: Account) -> some View {
         let isDuplicate = existingAliases.contains(account.sshAlias)
 
-        return Toggle(isOn: isOn) {
+        return Toggle(isOn: selectionBinding(for: account)) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
                     Text(account.label.isEmpty ? account.sshAlias : account.label)

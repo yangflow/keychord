@@ -41,7 +41,7 @@ struct RestoreView: View {
                             Image(systemName: "clock.arrow.circlepath")
                                 .foregroundStyle(.secondary)
                                 .frame(width: 14)
-                            Text(Self.formatted(record.timestamp))
+                            Text(record.timestamp, format: .dateTime.year().month().day().hour().minute().second())
                                 .font(.caption)
                                 .monospaced()
                             Spacer()
@@ -106,19 +106,11 @@ struct RestoreView: View {
             try AccountProjector.regenerate(
                 accounts: accountsStore.accounts
             )
-            statusMessage = "Restored to \(Self.formatted(record.timestamp))"
+            let stamp = record.timestamp.formatted(date: .abbreviated, time: .standard)
+            statusMessage = "Restored to \(stamp)"
             reload()
         } catch {
             loadError = "Restore failed: \(error)"
         }
-    }
-
-    // MARK: - Formatting
-
-    private static func formatted(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateStyle = .medium
-        fmt.timeStyle = .medium
-        return fmt.string(from: date)
     }
 }

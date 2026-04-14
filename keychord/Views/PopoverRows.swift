@@ -13,7 +13,7 @@ struct AccountRow: View {
     var body: some View {
         HStack(spacing: 10) {
             Circle()
-                .fill(recordColor)
+                .fill(record.color.color)
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 1) {
@@ -52,17 +52,6 @@ struct AccountRow: View {
         let alias = record.sshAlias.isEmpty ? "no alias" : record.sshAlias
         if record.gitUserEmail.isEmpty { return alias }
         return "\(alias) · \(record.gitUserEmail)"
-    }
-
-    private var recordColor: Color {
-        switch record.color {
-        case .blue:   return .blue
-        case .green:  return .green
-        case .orange: return .orange
-        case .red:    return .red
-        case .purple: return .purple
-        case .yellow: return .yellow
-        }
     }
 }
 
@@ -165,164 +154,6 @@ struct DoctorSummaryRow: View {
     }
 }
 
-// MARK: - HostRow
-
-struct HostRow: View {
-    let host: SSHHost
-    let probe: HostProbeState
-    let onEdit: () -> Void
-
-    var body: some View {
-        KCRowContainer {
-            HStack(spacing: KC.space8) {
-                KCStatusDot(status: probe.statusDot)
-                VStack(alignment: .leading, spacing: 2) {
-                    Text(host.alias)
-                        .font(KC.rowTitle)
-                    Text(Self.subtitle(host))
-                        .font(KC.rowCaptionMono)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if let hint = probe.hintText {
-                        Text(hint)
-                            .font(KC.meta)
-                            .foregroundStyle(probe.hintColor)
-                            .lineLimit(1)
-                            .truncationMode(.tail)
-                    }
-                }
-                Spacer(minLength: 0)
-                Button(action: onEdit) {
-                    Image(systemName: "pencil")
-                        .font(KC.rowCaption)
-                        .foregroundStyle(.tertiary)
-                }
-                .buttonStyle(.borderless)
-            }
-        }
-    }
-
-    private static func subtitle(_ host: SSHHost) -> String {
-        let hn = host.hostName ?? host.alias
-        let port = host.port.map(String.init) ?? "22"
-        var s = "\(hn):\(port)"
-        if let key = host.identityFile {
-            s += "  " + URL(fileURLWithPath: key).lastPathComponent
-        }
-        return s
-    }
-}
-
-// MARK: - IdentityRow
-
-struct IdentityRow: View {
-    let identity: GitIdentity
-
-    var body: some View {
-        KCRowContainer {
-            HStack(spacing: KC.space8) {
-                Image(systemName: "person.crop.circle")
-                    .font(.system(size: KC.rowTitleSize))
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 14)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(identity.name)
-                        .font(KC.rowTitle)
-                    Text(identity.email)
-                        .font(KC.rowCaptionMono)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    if let cond = identity.includeCondition {
-                        Text("via includeIf \(cond)")
-                            .font(KC.meta)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                    if let cmd = identity.sshCommand {
-                        Text(cmd)
-                            .font(KC.metaMono)
-                            .foregroundStyle(.tertiary)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-}
-
-// MARK: - InsteadOfRow
-
-struct InsteadOfRow: View {
-    let rule: InsteadOfRule
-
-    var body: some View {
-        KCRowContainer {
-            HStack(spacing: KC.space8) {
-                Image(systemName: "arrow.triangle.branch")
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 14)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(rule.from)
-                        .font(KC.rowCaptionMono)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    HStack(spacing: 4) {
-                        Image(systemName: "arrow.down")
-                            .font(KC.meta)
-                            .foregroundStyle(.tertiary)
-                        Text(rule.to)
-                            .font(KC.rowCaptionMono)
-                            .lineLimit(1)
-                            .truncationMode(.middle)
-                        if rule.direction == .pushInsteadOf {
-                            Text("push")
-                                .font(KC.meta)
-                                .foregroundStyle(.tertiary)
-                        }
-                    }
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-}
-
-// MARK: - IncludeIfRow
-
-struct IncludeIfRow: View {
-    let rule: IncludeIfRule
-
-    var body: some View {
-        KCRowContainer {
-            HStack(spacing: KC.space8) {
-                Image(systemName: "link")
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.tertiary)
-                    .frame(width: 14)
-                VStack(alignment: .leading, spacing: 1) {
-                    Text(rule.condition)
-                        .font(.system(size: KC.rowTitleSize, weight: .medium, design: .monospaced))
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                    Text(rule.path)
-                        .font(KC.rowCaptionMono)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.middle)
-                }
-                Spacer(minLength: 0)
-            }
-        }
-    }
-}
-
 // MARK: - DiagnosisRow (severity-tinted background + inline fix buttons)
 
 struct DiagnosisRow: View {
@@ -360,7 +191,7 @@ struct DiagnosisRow: View {
             if !diagnosis.fixes.isEmpty {
                 HStack(spacing: KC.space6) {
                     Spacer(minLength: 0)
-                    ForEach(diagnosis.fixes, id: \.self) { fix in
+                    ForEach(diagnosis.fixes) { fix in
                         fixButton(fix)
                     }
                 }

@@ -42,7 +42,6 @@ struct CloudSyncView: View {
                     Button("Sync Now") {
                         cloudSync.pull()
                     }
-                    .disabled(!cloudSync.isEnabled)
                 }
                 Spacer()
                 Button("Done") { onDismiss() }
@@ -55,17 +54,18 @@ struct CloudSyncView: View {
         .frame(minWidth: 360, minHeight: 260)
     }
 
-    @ViewBuilder
     private var statusDot: some View {
+        Circle()
+            .fill(statusDotColor)
+            .frame(width: 6, height: 6)
+    }
+
+    private var statusDotColor: Color {
         switch cloudSync.state {
-        case .idle:
-            Circle().fill(.secondary).frame(width: 6, height: 6)
-        case .syncing:
-            Circle().fill(.orange).frame(width: 6, height: 6)
-        case .synced:
-            Circle().fill(.green).frame(width: 6, height: 6)
-        case .failed:
-            Circle().fill(.red).frame(width: 6, height: 6)
+        case .idle:    .secondary
+        case .syncing: .orange
+        case .synced:  .green
+        case .failed:  .red
         }
     }
 

@@ -34,10 +34,13 @@ struct Diagnosis: Equatable, Identifiable, Hashable, Sendable {
 
 // MARK: - Fix options
 
-struct FixOption: Equatable, Hashable, Sendable {
+struct FixOption: Equatable, Hashable, Sendable, Identifiable {
     var label: String
     var fixID: FixID
     var isDestructive: Bool
+
+    var id: FixID { fixID }
+
     /// Destructive fixes use a two-state inline confirm; automatic fixes
     /// run on first click.
     var requiresConfirmation: Bool {

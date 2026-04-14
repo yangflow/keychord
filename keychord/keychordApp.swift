@@ -22,7 +22,8 @@ struct KeychordApp: App {
             AccountsWindowView()
                 .environment(appState)
                 .onReceive(NotificationCenter.default.publisher(for: NSWindow.willCloseNotification)) { _ in
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.05) {
+                    Task { @MainActor in
+                        try? await Task.sleep(for: .milliseconds(50))
                         let hasVisibleWindow = NSApp.windows.contains {
                             $0.styleMask.contains(.titled) && $0.isVisible
                         }

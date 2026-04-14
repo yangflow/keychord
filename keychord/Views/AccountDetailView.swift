@@ -42,13 +42,10 @@ struct AccountDetailView: View {
                     }
                     .pickerStyle(.segmented)
                     if case .gitdir = draft.scope {
-                        TextField("Directory", text: Binding(
-                            get: { scopeDir },
-                            set: { newValue in
-                                scopeDir = newValue
+                        TextField("Directory", text: $scopeDir, prompt: Text("~/work/"))
+                            .onChange(of: scopeDir) { _, newValue in
                                 draft.scope = .gitdir(newValue)
                             }
-                        ), prompt: Text("~/work/"))
                     }
                 }
 
@@ -71,17 +68,21 @@ struct AccountDetailView: View {
                             .foregroundStyle(.secondary)
                         Spacer()
                         ForEach(Account.AccountColor.allCases, id: \.self) { color in
-                            Circle()
-                                .fill(colorValue(color))
-                                .frame(width: 18, height: 18)
-                                .overlay(
-                                    Circle()
-                                        .strokeBorder(Color.primary.opacity(draft.color == color ? 0.6 : 0), lineWidth: 2)
-                                )
-                                .scaleEffect(draft.color == color ? 1.15 : 1.0)
-                                .animation(.easeInOut(duration: 0.15), value: draft.color)
-                                .onTapGesture { draft.color = color }
-                                .accessibilityLabel(color.rawValue.capitalized)
+                            Button {
+                                draft.color = color
+                            } label: {
+                                Circle()
+                                    .fill(color.color)
+                                    .frame(width: 18, height: 18)
+                                    .overlay {
+                                        Circle()
+                                            .strokeBorder(.primary.opacity(draft.color == color ? 0.6 : 0), lineWidth: 2)
+                                    }
+                                    .scaleEffect(draft.color == color ? 1.15 : 1.0)
+                                    .animation(.easeInOut(duration: 0.15), value: draft.color)
+                            }
+                            .buttonStyle(.plain)
+                            .accessibilityLabel(color.rawValue.capitalized)
                         }
                     }
                 }
@@ -93,9 +94,9 @@ struct AccountDetailView: View {
                 }
 
                 Section("Metadata") {
-                    MetadataRow(label: "Created", value: formatted(draft.createdAt))
-                    MetadataRow(label: "Updated", value: formatted(draft.updatedAt))
-                    MetadataRow(label: "Last used", value: draft.lastUsedAt.map(formatted) ?? "—")
+                    MetadataRow(label: "Created", date: draft.createdAt)
+                    MetadataRow(label: "Updated", date: draft.updatedAt)
+                    MetadataRow(label: "Last used", date: draft.lastUsedAt)
                 }
             }
             .formStyle(.grouped)
@@ -120,7 +121,7 @@ struct AccountDetailView: View {
     private var header: some View {
         HStack(spacing: KC.space10) {
             Circle()
-                .fill(draftColor)
+                .fill(draft.color.color)
                 .frame(width: 14, height: 14)
             Text(isNew ? "New account" : (draft.label.isEmpty ? "(unnamed)" : draft.label))
                 .font(.title3.weight(.semibold))
@@ -170,19 +171,13 @@ struct AccountDetailView: View {
     @ViewBuilder
     private func rewriteRow(index: Int) -> some View {
         HStack(spacing: KC.space6) {
-            TextField("from", text: Binding(
-                get: { draft.urlRewrites[index].from },
-                set: { draft.urlRewrites[index].from = $0 }
-            ))
-            .font(KC.rowCaptionMono)
+            TextField("from", text: $draft.urlRewrites[index].from)
+                .font(KC.rowCaptionMono)
             Image(systemName: "arrow.right")
                 .font(.caption2)
                 .foregroundStyle(.tertiary)
-            TextField("to", text: Binding(
-                get: { draft.urlRewrites[index].to },
-                set: { draft.urlRewrites[index].to = $0 }
-            ))
-            .font(KC.rowCaptionMono)
+            TextField("to", text: $draft.urlRewrites[index].to)
+                .font(KC.rowCaptionMono)
             Button(role: .destructive) {
                 draft.urlRewrites.remove(at: index)
             } label: {
@@ -210,27 +205,6 @@ struct AccountDetailView: View {
         )
     }
 
-    // MARK: - Colors
-
-    private var draftColor: Color { colorValue(draft.color) }
-
-    private func colorValue(_ c: Account.AccountColor) -> Color {
-        switch c {
-        case .blue:   return .blue
-        case .green:  return .green
-        case .orange: return .orange
-        case .red:    return .red
-        case .purple: return .purple
-        case .yellow: return .yellow
-        }
-    }
-
-    private func formatted(_ date: Date) -> String {
-        let fmt = DateFormatter()
-        fmt.dateStyle = .medium
-        fmt.timeStyle = .short
-        return fmt.string(from: date)
-    }
 }
 
 // MARK: - Helpers
@@ -248,12 +222,18 @@ private struct LabeledTextField: View {
 
 private struct MetadataRow: View {
     let label: String
-    let value: String
+    let date: Date?
 
     var body: some View {
         LabeledContent(label) {
-            Text(value)
-                .foregroundStyle(.secondary)
+            Group {
+                if let date {
+                    Text(date, format: .dateTime.year().month().day().hour().minute())
+                } else {
+                    Text("—")
+                }
+            }
+            .foregroundStyle(.secondary)
         }
     }
 }

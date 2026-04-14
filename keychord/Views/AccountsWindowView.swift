@@ -133,55 +133,41 @@ struct AccountsWindowView: View {
 
     @ViewBuilder
     private var detailContent: some View {
-        if let draft = draft {
+        if let draftBinding = Binding($draft) {
+            let draftID = draftBinding.wrappedValue.id
             AccountDetailView(
-                draft: Binding(
-                    get: { self.draft ?? draft },
-                    set: { self.draft = $0 }
-                ),
+                draft: draftBinding,
                 isNew: isNewDraft,
                 statusMessage: statusMessage,
                 statusIsError: statusIsError,
                 onSave: saveDraft,
                 onRevert: revertDraft,
-                onDelete: isNewDraft ? nil : { delete(id: draft.id) }
+                onDelete: isNewDraft ? nil : { delete(id: draftID) }
             )
         } else {
             emptyDetail
         }
     }
 
+    @ViewBuilder
     private var emptyDetail: some View {
-        VStack(spacing: KC.space16) {
-            Image(systemName: "person.2.circle")
-                .font(.system(size: 48))
-                .foregroundStyle(.tertiary)
-            Text("No account selected")
-                .font(.title3.weight(.medium))
-                .foregroundStyle(.secondary)
-            if appState.accountsStore.accounts.isEmpty {
+        if appState.accountsStore.accounts.isEmpty {
+            ContentUnavailableView {
+                Label("No accounts yet", systemImage: "person.2.circle")
+            } description: {
                 Text("Import your existing SSH + gitconfig, or add a new account to get started.")
-                    .font(.callout)
-                    .foregroundStyle(.tertiary)
-                    .multilineTextAlignment(.center)
-                    .frame(maxWidth: 320)
-                HStack(spacing: KC.space12) {
-                    Button { importFromExistingConfig() } label: {
-                        Label("Import existing", systemImage: "square.and.arrow.down")
-                    }
-                    Button { beginNew() } label: {
-                        Label("Add new", systemImage: "plus")
-                    }
+            } actions: {
+                Button("Import existing", systemImage: "square.and.arrow.down", action: importFromExistingConfig)
+                Button("Add new", systemImage: "plus", action: beginNew)
                     .buttonStyle(.borderedProminent)
-                }
-            } else {
-                Text("Pick an account in the sidebar.")
-                    .font(.callout)
-                    .foregroundStyle(.tertiary)
             }
+        } else {
+            ContentUnavailableView(
+                "No account selected",
+                systemImage: "person.2.circle",
+                description: Text("Pick an account in the sidebar.")
+            )
         }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-        .padding()
     }
 
     // MARK: - Draft lifecycle
@@ -327,7 +313,7 @@ private struct AccountsSidebarRow: View {
     var body: some View {
         HStack(spacing: KC.space10) {
             Circle()
-                .fill(accountColor)
+                .fill(account.color.color)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
                 Text(account.label.isEmpty ? "(unnamed)" : account.label)
@@ -350,17 +336,6 @@ private struct AccountsSidebarRow: View {
             Spacer(minLength: 0)
         }
         .padding(.vertical, KC.space4)
-    }
-
-    private var accountColor: Color {
-        switch account.color {
-        case .blue:   return .blue
-        case .green:  return .green
-        case .orange: return .orange
-        case .red:    return .red
-        case .purple: return .purple
-        case .yellow: return .yellow
-        }
     }
 }
 
