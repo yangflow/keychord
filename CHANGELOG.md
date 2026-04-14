@@ -4,6 +4,19 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+## [0.3.1] — 2026-04-14
+
+### Changed
+
+- **SwiftUI cleanup** — modernized the Accounts window detail pane: the optional draft binding now uses `Binding($draft)` unwrap instead of a manual `Binding(get:set:)`, eliminating a latent staleness bug. URL rewrite rows bind directly via subscript. Color swatches are now `Button` with `.plain` style so VoiceOver reads them correctly. The empty state uses `ContentUnavailableView`.
+- **Date display** — account metadata and restore backups render with `Text(_, format:)` / `Date.formatted(date:time:)` instead of a per-view `DateFormatter`.
+- **CloudSync status dot** — structural identity preserved by deriving the fill color from state rather than branching into four different `Circle` instances.
+- **Menubar app lifecycle** — `DispatchQueue.main.asyncAfter` replaced with `Task.sleep(for:)` in the willClose handler.
+
+### Removed
+
+- **Dead code** (~490 lines): `HostEditView`, unused rows (`HostRow`, `IdentityRow`, `InsteadOfRow`, `IncludeIfRow`) in `PopoverRows`, and unused containers (`KCCard`, `KCSectionHeader`, `KCRowContainer`, `KCGroupedSection`, `KCHeroContainer`) in `DesignSystem`.
+
 ## [0.3.0] — 2026-04-14
 
 ### Changed
@@ -75,7 +88,9 @@ Initial public release. Source-of-truth is `~/.config/keychord/accounts.json`; k
 - Swift 6 `MainActor` isolation errors on `AccountsStore.defaultURL`, `AppState.init` default parameter, and `AppDelegate` observation methods.
 - `SSHConfigDocument.parse("")` and `serialize([])` round-trip asymmetry that caused `saveSSHConfig` to throw `roundTripVerificationFailed` after removing the last Host block.
 
-[Unreleased]: https://github.com/yangflow/keychord/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/yangflow/keychord/compare/v0.3.1...HEAD
+[0.3.1]: https://github.com/yangflow/keychord/compare/v0.3.0...v0.3.1
+[0.3.0]: https://github.com/yangflow/keychord/compare/v0.2.1...v0.3.0
 [0.2.1]: https://github.com/yangflow/keychord/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/yangflow/keychord/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/yangflow/keychord/releases/tag/v0.1.0
