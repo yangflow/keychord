@@ -13,11 +13,11 @@ enum Fixer {
         var description: String {
             switch self {
             case .sshConfigReadFailed(let e):
-                return "Could not read SSH config: \(e.localizedDescription)"
+                return String(localized: "Could not read SSH config: \(e.localizedDescription)")
             case .hostNotFound(let a):
-                return "Host `\(a)` is no longer in the SSH config"
+                return String(localized: "Host `\(a)` is no longer in the SSH config")
             case .saveFailed(let e):
-                return "Failed to save SSH config: \(e.localizedDescription)"
+                return String(localized: "Failed to save SSH config: \(e.localizedDescription)")
             }
         }
     }

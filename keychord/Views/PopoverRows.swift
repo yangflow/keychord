@@ -55,19 +55,39 @@ struct CurrentRepoMatchedRow: View {
     var body: some View {
         KCHeroContainer(tint: heroTint) {
             VStack(alignment: .leading, spacing: KC.space4) {
-                Text(account.label.isEmpty ? "(unnamed)" : account.label)
-                    .font(KC.heroTitle)
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
+                if account.label.isEmpty {
+                    Text("(unnamed)")
+                        .font(KC.heroTitle)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else {
+                    Text(verbatim: account.label)
+                        .font(KC.heroTitle)
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
 
                 HStack(spacing: 4) {
-                    Text(account.sshAlias.isEmpty ? "no alias" : account.sshAlias)
-                        .font(.system(size: 12, design: .monospaced))
+                    Group {
+                        if account.sshAlias.isEmpty {
+                            Text("no alias")
+                        } else {
+                            Text(verbatim: account.sshAlias)
+                        }
+                    }
+                    .font(.system(size: 12, design: .monospaced))
                     Text("·")
                         .foregroundStyle(.tertiary)
-                    Text(account.gitUserEmail.isEmpty ? "no email" : account.gitUserEmail)
-                        .foregroundStyle(.secondary)
+                    Group {
+                        if account.gitUserEmail.isEmpty {
+                            Text("no email")
+                        } else {
+                            Text(verbatim: account.gitUserEmail)
+                        }
+                    }
+                    .foregroundStyle(.secondary)
                 }
                 .font(KC.heroCaption)
                 .lineLimit(1)
@@ -79,7 +99,7 @@ struct CurrentRepoMatchedRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                Text(repoRoot.abbreviatedHomePath())
+                Text(verbatim: repoRoot.abbreviatedHomePath())
                     .font(KC.heroMeta)
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
@@ -91,9 +111,9 @@ struct CurrentRepoMatchedRow: View {
     private var scopeText: String {
         switch account.scope {
         case .global:
-            return "scope: global"
+            return String(localized: "scope: global")
         case .gitdir(let dir):
-            return "scope: gitdir:\(dir)"
+            return String(localized: "scope: gitdir:\(dir)")
         }
     }
 
@@ -119,7 +139,7 @@ struct CurrentRepoUnresolvedRow: View {
                 Image(systemName: "questionmark.folder")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(.secondary)
-                Text(reason)
+                Text(verbatim: reason)
                     .font(KC.rowCaption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -156,12 +176,20 @@ struct AccountRow: View {
                 .frame(width: 8, height: 8)
 
             VStack(alignment: .leading, spacing: 1) {
-                Text(record.label.isEmpty ? "(unnamed)" : record.label)
-                    .font(.system(size: 13))
-                    .foregroundStyle(.primary)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                Text(subtitle)
+                if record.label.isEmpty {
+                    Text("(unnamed)")
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                } else {
+                    Text(verbatim: record.label)
+                        .font(.system(size: 13))
+                        .foregroundStyle(.primary)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                Text(verbatim: subtitle)
                     .font(.system(size: 11))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -188,7 +216,9 @@ struct AccountRow: View {
     }
 
     private var subtitle: String {
-        let alias = record.sshAlias.isEmpty ? "no alias" : record.sshAlias
+        let alias = record.sshAlias.isEmpty
+            ? String(localized: "no alias")
+            : record.sshAlias
         if record.gitUserEmail.isEmpty { return alias }
         return "\(alias) · \(record.gitUserEmail)"
     }
@@ -242,7 +272,7 @@ struct DoctorSummaryRow: View {
                 Image(systemName: severityIcon)
                     .font(.system(size: 12, weight: .semibold))
                     .foregroundStyle(severityColor)
-                Text(summaryText)
+                Text(verbatim: summaryText)
                     .font(KC.rowCaption)
                     .foregroundStyle(.primary)
                 Spacer(minLength: 0)
@@ -283,11 +313,19 @@ struct DoctorSummaryRow: View {
         let errors = diagnoses.filter { $0.severity == .error }.count
         let warnings = diagnoses.filter { $0.severity == .warning }.count
         var parts: [String] = []
-        if errors > 0 { parts.append("\(errors) error\(errors == 1 ? "" : "s")") }
-        if warnings > 0 { parts.append("\(warnings) warning\(warnings == 1 ? "" : "s")") }
+        if errors == 1 {
+            parts.append(String(localized: "1 error"))
+        } else if errors > 1 {
+            parts.append(String(localized: "\(errors) errors"))
+        }
+        if warnings == 1 {
+            parts.append(String(localized: "1 warning"))
+        } else if warnings > 1 {
+            parts.append(String(localized: "\(warnings) warnings"))
+        }
         if parts.isEmpty {
             let infos = diagnoses.count
-            return "\(infos) info"
+            return String(localized: "\(infos) info")
         }
         return parts.joined(separator: " · ")
     }
@@ -311,14 +349,14 @@ struct DiagnosisRow: View {
                     .frame(width: 16)
                     .padding(.top, 1)
                 VStack(alignment: .leading, spacing: 2) {
-                    Text(diagnosis.title)
+                    Text(verbatim: diagnosis.title)
                         .font(KC.diagnosisTitle)
-                    Text(diagnosis.detail)
+                    Text(verbatim: diagnosis.detail)
                         .font(KC.diagnosisDetail)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
                     if let hint = diagnosis.fixHint {
-                        Text(hint)
+                        Text(verbatim: hint)
                             .font(KC.diagnosisDetail)
                             .foregroundStyle(.tertiary)
                             .fixedSize(horizontal: false, vertical: true)
@@ -350,7 +388,7 @@ struct DiagnosisRow: View {
     @ViewBuilder
     private func fixButton(_ fix: FixOption) -> some View {
         let isPending = pendingConfirm == fix.fixID
-        let label = isPending ? "Confirm" : fix.label
+        let label = isPending ? String(localized: "Confirm") : fix.label
         let symbol = isPending ? "exclamationmark.triangle.fill"
                                : (fix.isDestructive ? "trash" : "wand.and.stars")
         Button {
@@ -361,9 +399,13 @@ struct DiagnosisRow: View {
                 onFix(fix.fixID)
             }
         } label: {
-            Label(label, systemImage: symbol)
-                .font(.system(size: KC.diagnosisDetailSize, weight: .medium))
-                .foregroundStyle(isPending ? diagnosis.severity.tint : .primary)
+            Label {
+                Text(verbatim: label)
+            } icon: {
+                Image(systemName: symbol)
+            }
+            .font(.system(size: KC.diagnosisDetailSize, weight: .medium))
+            .foregroundStyle(isPending ? diagnosis.severity.tint : .primary)
         }
         .buttonStyle(.borderless)
         .labelStyle(.titleAndIcon)
@@ -386,8 +428,8 @@ extension HostProbeState {
     var hintText: String? {
         switch self {
         case .idle:                 return nil
-        case .probing:              return "probing…"
-        case .ok(let user):         return "signed in as \(user)"
+        case .probing:              return String(localized: "probing…")
+        case .ok(let user):         return String(localized: "signed in as \(user)")
         case .failed(let reason):   return reason
         }
     }

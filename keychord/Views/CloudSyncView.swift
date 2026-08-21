@@ -8,7 +8,7 @@ struct CloudSyncView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("iCloud Sync") {
+                Section {
                     Toggle("Enable iCloud Sync", isOn: $cloudSync.isEnabled)
                         .toggleStyle(.switch)
                         .onChange(of: cloudSync.isEnabled) { _, enabled in
@@ -18,13 +18,17 @@ struct CloudSyncView: View {
                                 cloudSync.deactivate()
                             }
                         }
+                } header: {
+                    Text("iCloud Sync")
                 }
 
-                Section("Status") {
+                Section {
                     HStack(spacing: KC.space8) {
                         statusDot
                         statusText
                     }
+                } header: {
+                    Text("Status")
                 }
 
                 Section {

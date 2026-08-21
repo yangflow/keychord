@@ -59,19 +59,8 @@ final class UpdaterService {
 
     func checkForUpdates() {
         let alert = NSAlert()
-        alert.messageText = "Updates not configured"
-        alert.informativeText = """
-            keychord was built without the Sparkle auto-update framework.
-
-            To enable in-app updates:
-              1. Xcode → File → Add Package Dependencies
-              2. Paste https://github.com/sparkle-project/Sparkle
-              3. Add the `Sparkle` library to the keychord app target
-              4. Set SUFeedURL and SUPublicEDKey in Info.plist
-              5. Rebuild
-
-            See UpdaterService.swift for the full runbook.
-            """
+        alert.messageText = String(localized: "Updates not configured")
+        alert.informativeText = String(localized: "updater.notConfigured.body")
         alert.alertStyle = .informational
         alert.runModal()
     }

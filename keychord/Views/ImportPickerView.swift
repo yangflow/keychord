@@ -33,7 +33,7 @@ struct ImportPickerView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("Detected Accounts") {
+                Section {
                     if candidates.isEmpty {
                         Text("No accounts found in your existing SSH / gitconfig.")
                             .font(.caption)
@@ -43,6 +43,8 @@ struct ImportPickerView: View {
                             candidateRow(account)
                         }
                     }
+                } header: {
+                    Text("Detected Accounts")
                 }
 
                 if !candidates.isEmpty {
@@ -93,7 +95,7 @@ struct ImportPickerView: View {
         return Toggle(isOn: selectionBinding(for: account)) {
             VStack(alignment: .leading, spacing: 2) {
                 HStack(spacing: 6) {
-                    Text(account.label.isEmpty ? account.sshAlias : account.label)
+                    Text(verbatim: account.label.isEmpty ? account.sshAlias : account.label)
                         .font(KC.rowTitle)
                         .lineLimit(1)
                     if isDuplicate {
@@ -104,12 +106,12 @@ struct ImportPickerView: View {
                 }
                 HStack(spacing: 8) {
                     if !account.sshAlias.isEmpty {
-                        Text(account.sshAlias)
+                        Text(verbatim: account.sshAlias)
                             .font(KC.rowCaptionMono)
                             .foregroundStyle(.secondary)
                     }
                     if !account.gitUserEmail.isEmpty {
-                        Text(account.gitUserEmail)
+                        Text(verbatim: account.gitUserEmail)
                             .font(.caption)
                             .foregroundStyle(.tertiary)
                     }

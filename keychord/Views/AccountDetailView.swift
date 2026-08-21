@@ -18,14 +18,16 @@ struct AccountDetailView: View {
             Divider()
 
             Form {
-                Section("Identity") {
+                Section {
                     LabeledTextField(label: "Label", text: $draft.label, placeholder: "Personal")
                     LabeledTextField(label: "GitHub username", text: $draft.githubUsername, placeholder: "octocat")
                     LabeledTextField(label: "Git name", text: $draft.gitUserName, placeholder: "Your Name")
                     LabeledTextField(label: "Git email", text: $draft.gitUserEmail, placeholder: "you@example.com")
+                } header: {
+                    Text("Identity")
                 }
 
-                Section("SSH") {
+                Section {
                     LabeledTextField(label: "Alias", text: $draft.sshAlias, placeholder: "github-work")
                     HStack(spacing: KC.space6) {
                         TextField("Private key", text: $draft.keyPath, prompt: Text("~/.ssh/id_ed25519"))
@@ -37,7 +39,7 @@ struct AccountDetailView: View {
                         }
                         .buttonStyle(.borderless)
                         .help("Choose private key…")
-                        .accessibilityLabel("Choose private key")
+                        .accessibilityLabel(Text("Choose private key"))
                     }
                     Picker("Port", selection: $draft.sshPort) {
                         ForEach(Account.SSHPort.allCases, id: \.self) { port in
@@ -45,9 +47,11 @@ struct AccountDetailView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                } header: {
+                    Text("SSH")
                 }
 
-                Section("Scope") {
+                Section {
                     Picker("Mode", selection: scopeBinding) {
                         Text("Global").tag(0)
                         Text("gitdir scoped").tag(1)
@@ -67,12 +71,14 @@ struct AccountDetailView: View {
                             }
                             .buttonStyle(.borderless)
                             .help("Choose directory…")
-                            .accessibilityLabel("Choose gitdir directory")
+                            .accessibilityLabel(Text("Choose gitdir directory"))
                         }
                     }
+                } header: {
+                    Text("Scope")
                 }
 
-                Section("URL Rewrites") {
+                Section {
                     ForEach(draft.urlRewrites.indices, id: \.self) { idx in
                         rewriteRow(index: idx)
                     }
@@ -83,9 +89,11 @@ struct AccountDetailView: View {
                     } label: {
                         Label("Add rewrite", systemImage: "plus.circle")
                     }
+                } header: {
+                    Text("URL Rewrites")
                 }
 
-                Section("Appearance") {
+                Section {
                     HStack(spacing: KC.space8) {
                         Text("Color")
                             .foregroundStyle(.secondary)
@@ -105,21 +113,27 @@ struct AccountDetailView: View {
                                     .animation(.easeInOut(duration: 0.15), value: draft.color)
                             }
                             .buttonStyle(.plain)
-                            .accessibilityLabel(color.rawValue.capitalized)
+                            .accessibilityLabel(Text(color.localizedAccessibilityLabel))
                         }
                     }
+                } header: {
+                    Text("Appearance")
                 }
 
-                Section("Notes") {
+                Section {
                     TextEditor(text: $draft.notes)
                         .font(.system(size: 12))
                         .frame(minHeight: 80, maxHeight: 120)
+                } header: {
+                    Text("Notes")
                 }
 
-                Section("Metadata") {
+                Section {
                     MetadataRow(label: "Created", date: draft.createdAt)
                     MetadataRow(label: "Updated", date: draft.updatedAt)
                     MetadataRow(label: "Last used", date: draft.lastUsedAt)
+                } header: {
+                    Text("Metadata")
                 }
             }
             .formStyle(.grouped)
@@ -146,10 +160,18 @@ struct AccountDetailView: View {
             Circle()
                 .fill(draft.color.color)
                 .frame(width: 14, height: 14)
-            Text(isNew ? "New account" : (draft.label.isEmpty ? "(unnamed)" : draft.label))
-                .font(.title3.weight(.semibold))
-                .lineLimit(1)
-                .truncationMode(.tail)
+            Group {
+                if isNew {
+                    Text("New account")
+                } else if draft.label.isEmpty {
+                    Text("(unnamed)")
+                } else {
+                    Text(verbatim: draft.label)
+                }
+            }
+            .font(.title3.weight(.semibold))
+            .lineLimit(1)
+            .truncationMode(.tail)
             Spacer()
             Text(draft.scope.isScoped ? "SCOPED" : "GLOBAL")
                 .font(KC.sectionLabel)
@@ -168,9 +190,13 @@ struct AccountDetailView: View {
     private var footer: some View {
         HStack {
             if let status = statusMessage {
-                Label(status, systemImage: statusIsError ? "xmark.circle" : "checkmark.circle")
-                    .font(.caption)
-                    .foregroundStyle(statusIsError ? Color.red : Color.green)
+                Label {
+                    Text(verbatim: status)
+                } icon: {
+                    Image(systemName: statusIsError ? "xmark.circle" : "checkmark.circle")
+                }
+                .font(.caption)
+                .foregroundStyle(statusIsError ? Color.red : Color.green)
             }
             Spacer()
             if let onDelete = onDelete {
@@ -196,8 +222,8 @@ struct AccountDetailView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose the directory this account gitdir scope applies to."
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose the directory this account gitdir scope applies to.")
         if !scopeDir.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: ConfigStore.expand(scopeDir), isDirectory: true)
         }
@@ -212,8 +238,8 @@ struct AccountDetailView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose an SSH private key file."
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose an SSH private key file.")
         let sshDir = (NSHomeDirectory() as NSString).appendingPathComponent(".ssh")
         panel.directoryURL = URL(fileURLWithPath: sshDir, isDirectory: true)
         if !draft.keyPath.isEmpty {
@@ -268,9 +294,9 @@ struct AccountDetailView: View {
 // MARK: - Helpers
 
 private struct LabeledTextField: View {
-    let label: String
+    let label: LocalizedStringKey
     @Binding var text: String
-    let placeholder: String
+    let placeholder: LocalizedStringKey
 
     var body: some View {
         TextField(label, text: $text, prompt: Text(placeholder))
@@ -279,7 +305,7 @@ private struct LabeledTextField: View {
 }
 
 private struct MetadataRow: View {
-    let label: String
+    let label: LocalizedStringKey
     let date: Date?
 
     var body: some View {
@@ -292,6 +318,19 @@ private struct MetadataRow: View {
                 }
             }
             .foregroundStyle(.secondary)
+        }
+    }
+}
+
+private extension Account.AccountColor {
+    var localizedAccessibilityLabel: LocalizedStringKey {
+        switch self {
+        case .blue: return "Blue"
+        case .green: return "Green"
+        case .orange: return "Orange"
+        case .red: return "Red"
+        case .purple: return "Purple"
+        case .yellow: return "Yellow"
         }
     }
 }

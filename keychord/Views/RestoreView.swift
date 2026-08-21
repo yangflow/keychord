@@ -14,16 +14,24 @@ struct RestoreView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section("Backups") {
+                Section {
                     if let statusMessage {
-                        Label(statusMessage, systemImage: "checkmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.green)
+                        Label {
+                            Text(verbatim: statusMessage)
+                        } icon: {
+                            Image(systemName: "checkmark.circle")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.green)
                     }
                     if let loadError {
-                        Label(loadError, systemImage: "exclamationmark.triangle")
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                        Label {
+                            Text(verbatim: loadError)
+                        } icon: {
+                            Image(systemName: "exclamationmark.triangle")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.red)
                     }
 
                     if records.isEmpty
@@ -53,6 +61,8 @@ struct RestoreView: View {
                             .disabled(isBusy)
                         }
                     }
+                } header: {
+                    Text("Backups")
                 }
 
                 Section {
@@ -89,7 +99,7 @@ struct RestoreView: View {
         do {
             records = try backups.list(for: path)
         } catch {
-            loadError = "Failed to list backups: \(error)"
+            loadError = String(localized: "Failed to list backups: \(String(describing: error))")
         }
         hasLoaded = true
     }
@@ -107,10 +117,10 @@ struct RestoreView: View {
                 accounts: accountsStore.accounts
             )
             let stamp = record.timestamp.formatted(date: .abbreviated, time: .standard)
-            statusMessage = "Restored to \(stamp)"
+            statusMessage = String(localized: "Restored to \(stamp)")
             reload()
         } catch {
-            loadError = "Restore failed: \(error)"
+            loadError = String(localized: "Restore failed: \(String(describing: error))")
         }
     }
 }

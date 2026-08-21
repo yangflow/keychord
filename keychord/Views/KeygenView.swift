@@ -50,23 +50,27 @@ struct KeygenView: View {
     private var formView: some View {
         VStack(spacing: 0) {
             Form {
-                Section("Key Type") {
+                Section {
                     Picker("Type", selection: $keyType) {
                         ForEach(KeygenService.KeyType.allCases) { type in
-                            Text(type.displayName).tag(type)
+                            Text(verbatim: type.displayName).tag(type)
                         }
                     }
                     .pickerStyle(.segmented)
                     .disabled(isGenerating)
+                } header: {
+                    Text("Key Type")
                 }
 
-                Section("Details") {
+                Section {
                     TextField("File name", text: $keyName, prompt: Text("id_keychord"))
                         .disableAutocorrection(true)
                         .disabled(isGenerating)
                     TextField("Comment", text: $comment, prompt: Text("you@example.com"))
                         .disableAutocorrection(true)
                         .disabled(isGenerating)
+                } header: {
+                    Text("Details")
                 }
 
                 Section {
@@ -75,9 +79,13 @@ struct KeygenView: View {
                         .foregroundStyle(.tertiary)
 
                     if let errorMessage {
-                        Label(errorMessage, systemImage: "xmark.circle")
-                            .font(.caption)
-                            .foregroundStyle(.red)
+                        Label {
+                            Text(verbatim: errorMessage)
+                        } icon: {
+                            Image(systemName: "xmark.circle")
+                        }
+                        .font(.caption)
+                        .foregroundStyle(.red)
                     }
                 }
             }
@@ -108,10 +116,10 @@ struct KeygenView: View {
     private func resultView(_ result: KeygenResult) -> some View {
         VStack(spacing: 0) {
             Form {
-                Section("Public Key") {
+                Section {
                     ZStack(alignment: .topTrailing) {
                         ScrollView(.horizontal, showsIndicators: false) {
-                            Text(result.publicKeyContent)
+                            Text(verbatim: result.publicKeyContent)
                                 .font(.system(.caption, design: .monospaced))
                                 .textSelection(.enabled)
                                 .padding(KC.space8)
@@ -128,17 +136,19 @@ struct KeygenView: View {
                         .padding(KC.space6)
                         .help("Copy public key")
                     }
+                } header: {
+                    Text("Public Key")
                 }
 
                 Section {
                     LabeledContent("Path") {
-                        Text(result.privateKeyPath.abbreviatedHomePath())
+                        Text(verbatim: result.privateKeyPath.abbreviatedHomePath())
                             .font(.system(.caption, design: .monospaced))
                             .foregroundStyle(.secondary)
                     }
                     if let fingerprint = result.fingerprint {
                         LabeledContent("Fingerprint") {
-                            Text(fingerprint)
+                            Text(verbatim: fingerprint)
                                 .font(.system(.caption2, design: .monospaced))
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
@@ -203,7 +213,7 @@ struct KeygenView: View {
     private func attachPickerView(_ result: KeygenResult) -> some View {
         VStack(spacing: 0) {
             Form {
-                Section("Use with this account") {
+                Section {
                     if accounts.isEmpty {
                         Text("No accounts yet. Create a new one to attach this key.")
                             .font(.caption)
@@ -218,6 +228,8 @@ struct KeygenView: View {
                             .buttonStyle(.plain)
                         }
                     }
+                } header: {
+                    Text("Use with this account")
                 }
 
                 Section {
@@ -261,13 +273,26 @@ struct KeygenView: View {
                 .fill(account.color.color)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
-                Text(account.label.isEmpty ? "(unnamed)" : account.label)
-                    .font(KC.rowTitle)
-                    .lineLimit(1)
-                Text(account.sshAlias.isEmpty ? "no alias" : account.sshAlias)
-                    .font(KC.rowCaptionMono)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(1)
+                if account.label.isEmpty {
+                    Text("(unnamed)")
+                        .font(KC.rowTitle)
+                        .lineLimit(1)
+                } else {
+                    Text(verbatim: account.label)
+                        .font(KC.rowTitle)
+                        .lineLimit(1)
+                }
+                if account.sshAlias.isEmpty {
+                    Text("no alias")
+                        .font(KC.rowCaptionMono)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                } else {
+                    Text(verbatim: account.sshAlias)
+                        .font(KC.rowCaptionMono)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
             }
             Spacer(minLength: 0)
             Image(systemName: "chevron.right")
