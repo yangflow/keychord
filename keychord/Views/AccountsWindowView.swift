@@ -56,11 +56,16 @@ struct AccountsWindowView: View {
         }
         .sheet(isPresented: $showingKeygen) {
             KeygenView(
-                defaultComment: draft?.gitUserEmail ?? "",
+                defaultComment: draft?.gitUserEmail
+                    ?? appState.accountsStore.accounts.first?.gitUserEmail
+                    ?? "",
+                accounts: appState.accountsStore.accounts,
                 onDismiss: { showingKeygen = false },
-                onKeyCreated: { }
+                onAttached: { account, isNew in
+                    attachGeneratedKey(account, isNew: isNew)
+                }
             )
-            .frame(width: 420, height: 400)
+            .frame(width: 420, height: 440)
         }
         .sheet(isPresented: $showingRestore) {
             RestoreView(
@@ -294,6 +299,29 @@ struct AccountsWindowView: View {
         } catch {
             statusIsError = true
             statusMessage = "Import failed: \(error)"
+        }
+    }
+
+    private func attachGeneratedKey(_ account: Account, isNew: Bool) {
+        do {
+            try KeyAttachment.commit(
+                account: account,
+                isNew: isNew,
+                store: appState.accountsStore,
+                regenerate: { accounts in
+                    try AccountProjector.regenerate(accounts: accounts, paths: .default)
+                }
+            )
+            selection = account.id
+            draft = account
+            isNewDraft = false
+            statusIsError = false
+            statusMessage = isNew
+                ? "Key attached · new account — fill in alias & identity"
+                : "Key attached · \(account.label.isEmpty ? account.sshAlias : account.label)"
+        } catch {
+            statusIsError = true
+            statusMessage = "Attach failed: \(error)"
         }
     }
 

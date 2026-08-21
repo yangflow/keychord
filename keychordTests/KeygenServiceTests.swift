@@ -131,4 +131,24 @@ struct KeygenServiceTests {
             #expect(result.privateKeyPath.hasSuffix("id_whitespace"))
         }
     }
+
+    @Test func parseFingerprintExtractsSHA256Token() {
+        let line = "256 SHA256:AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcd comment (ED25519)\n"
+        #expect(KeygenService.parseFingerprint(from: line) == "SHA256:AbCdEfGhIjKlMnOpQrStUvWxYz0123456789abcd")
+        #expect(KeygenService.parseFingerprint(from: "") == nil)
+        #expect(KeygenService.parseFingerprint(from: "garbage only") == nil)
+    }
+
+    @Test func generatesFingerprintWhenKeygenSucceeds() throws {
+        try Self.withTempDir { dir in
+            let result = try KeygenService.generateSync(
+                type: .ed25519,
+                name: "id_fp_test",
+                comment: "fp@example.com",
+                directory: dir
+            )
+            let fingerprint = try #require(result.fingerprint)
+            #expect(fingerprint.hasPrefix("SHA256:"))
+        }
+    }
 }
