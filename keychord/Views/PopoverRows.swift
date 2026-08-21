@@ -684,7 +684,7 @@ struct UndoBindToast: View {
 
     var body: some View {
         TimelineView(.periodic(from: .now, by: 1)) { context in
-            let remaining = Self.remainingSeconds(until: undo.expiresAt, now: context.date)
+            let remaining = undo.remainingSeconds(at: context.date)
             HStack(spacing: KC.space8) {
                 Image(systemName: "arrow.uturn.backward")
                     .font(.system(size: 11, weight: .medium))
@@ -718,10 +718,6 @@ struct UndoBindToast: View {
             )
             .opacity(remaining > 0 ? 1 : 0)
         }
-    }
-
-    static func remainingSeconds(until deadline: Date, now: Date) -> Int {
-        max(0, Int(deadline.timeIntervalSince(now).rounded(.up)))
     }
 }
 

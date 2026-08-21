@@ -54,7 +54,8 @@ struct AppStateCurrentRepoMatchTests {
         state.staleGitdir = StaleGitdirRepair.Candidate(
             account: account,
             stalePath: "~/src/old-app/",
-            replacementPath: "~/src/new-app/"
+            replacementPath: "~/src/new-app/",
+            reason: .sameParent
         )
 
         state.clearAccountMatch()
@@ -78,7 +79,8 @@ struct AppStateCurrentRepoMatchTests {
                 scope: .gitdir("~/src/old-app/")
             ),
             stalePath: "~/src/old-app/",
-            replacementPath: "~/src/renamed-app/"
+            replacementPath: "~/src/renamed-app/",
+            reason: .sameParent
         )
 
         state.dismissStaleGitdir()
@@ -157,25 +159,16 @@ struct AppStateCurrentRepoMatchTests {
     }
 
     @Test func toastCountdownRoundsUpAndFloorsAtZero() {
-        let deadline = Date(timeIntervalSince1970: 1_000_005)
-        #expect(
-            UndoBindToast.remainingSeconds(
-                until: deadline,
-                now: Date(timeIntervalSince1970: 1_000_000)
-            ) == 5
+        let undo = AppState.ScopeUndo(
+            id: UUID(),
+            previousAccounts: [],
+            boundLabel: "work",
+            repoRoot: "/tmp/repo",
+            expiresAt: Date(timeIntervalSince1970: 1_000_005)
         )
-        #expect(
-            UndoBindToast.remainingSeconds(
-                until: deadline,
-                now: Date(timeIntervalSince1970: 1_000_004.2)
-            ) == 1
-        )
-        #expect(
-            UndoBindToast.remainingSeconds(
-                until: deadline,
-                now: Date(timeIntervalSince1970: 1_000_009)
-            ) == 0
-        )
+        #expect(undo.remainingSeconds(at: Date(timeIntervalSince1970: 1_000_000)) == 5)
+        #expect(undo.remainingSeconds(at: Date(timeIntervalSince1970: 1_000_004.2)) == 1)
+        #expect(undo.remainingSeconds(at: Date(timeIntervalSince1970: 1_000_009)) == 0)
     }
 
     // MARK: - New identity from a failed drop (#41)

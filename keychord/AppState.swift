@@ -68,6 +68,13 @@ final class AppState {
         let expiresAt: Date
 
         static let window: TimeInterval = 5
+
+        /// Whole seconds left on the offer, rounded up and floored at zero.
+        /// Lives here rather than in the toast so the countdown is testable and
+        /// the view only renders it.
+        func remainingSeconds(at now: Date) -> Int {
+            max(0, Int(expiresAt.timeIntervalSince(now).rounded(.up)))
+        }
     }
 
     let accountsStore: AccountsStore
