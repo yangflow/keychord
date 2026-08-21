@@ -12,6 +12,38 @@ struct ResolvedRepo: Equatable, Sendable {
     var identityFile: String?      // from matchedHost
 }
 
+/// Which keychord account would apply to a working directory, based on
+/// `gitdir:` scopes (and falling back to a single global account).
+enum AccountMatchResult: Equatable, Sendable {
+    case matched(account: Account, repoRoot: String)
+    case notARepo(path: String)
+    case noMatchingGitdir(repoRoot: String)
+    case conflictingGlobals(repoRoot: String, accounts: [Account])
+
+    /// Short, user-facing explanation for unresolved cases.
+    var unresolvedReason: String? {
+        switch self {
+        case .matched:
+            return nil
+        case .notARepo(let path):
+            return "\(Self.displayPath(path)) is not a git repository"
+        case .noMatchingGitdir(let root):
+            return "No matching gitdir for \(Self.displayPath(root))"
+        case .conflictingGlobals(let root, let accounts):
+            let labels = accounts.map { $0.label.isEmpty ? "(unnamed)" : $0.label }
+            return "Conflicting global accounts (\(labels.joined(separator: ", "))) for \(Self.displayPath(root))"
+        }
+    }
+
+    private static func displayPath(_ path: String) -> String {
+        let home = NSHomeDirectory()
+        if path.hasPrefix(home) {
+            return "~" + path.dropFirst(home.count)
+        }
+        return path
+    }
+}
+
 enum CurrentRepoResolver {
 
     enum ResolveError: Swift.Error, Equatable, CustomStringConvertible {
@@ -91,6 +123,91 @@ enum CurrentRepoResolver {
             matchedHost: matched,
             identityFile: matched?.identityFile
         ))
+    }
+
+    // MARK: - Account match (gitdir scope)
+
+    /// Resolve which keychord account would apply to `path`, using the
+    /// same `gitdir:` prefix rules the projector writes into managed
+    /// gitconfig. Does not rewrite any user config files.
+    static func matchAccount(
+        path: String,
+        accounts: [Account],
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) async -> AccountMatchResult {
+        await Task.detached(priority: .userInitiated) {
+            matchAccountSync(path: path, accounts: accounts, env: env, runner: runner)
+        }.value
+    }
+
+    static func matchAccountSync(
+        path: String,
+        accounts: [Account],
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) -> AccountMatchResult {
+        let rootResult = runGit(at: path, args: ["rev-parse", "--show-toplevel"], env: env, runner: runner)
+        guard case .success(let rootOut) = rootResult else {
+            return .notARepo(path: path)
+        }
+        let repoRoot = rootOut.trimmingCharacters(in: .whitespacesAndNewlines)
+        return matchAccounts(forRepoRoot: repoRoot, accounts: accounts)
+    }
+
+    /// Pure matching against an already-known repo root. Prefer the most
+    /// specific (longest) `gitdir:` prefix; otherwise fall back to a single
+    /// global account; multiple globals with no scoped hit → conflict.
+    static func matchAccounts(
+        forRepoRoot repoRoot: String,
+        accounts: [Account]
+    ) -> AccountMatchResult {
+        let scopedHits = accounts.compactMap { account -> (Account, String)? in
+            guard case .gitdir(let raw) = account.scope else { return nil }
+            let pattern = normalizeGitdirPattern(raw)
+            guard gitdirMatches(repoRoot: repoRoot, pattern: pattern) else { return nil }
+            return (account, pattern)
+        }
+
+        if let best = scopedHits.max(by: { $0.1.count < $1.1.count }) {
+            return .matched(account: best.0, repoRoot: repoRoot)
+        }
+
+        let globals = accounts.filter { $0.scope == .global }
+        switch globals.count {
+        case 0:
+            return .noMatchingGitdir(repoRoot: repoRoot)
+        case 1:
+            return .matched(account: globals[0], repoRoot: repoRoot)
+        default:
+            return .conflictingGlobals(repoRoot: repoRoot, accounts: globals)
+        }
+    }
+
+    /// `gitdir:` patterns ending in `/` are prefixes of the `.git` path.
+    /// Mirrors AccountProjector's trailing-slash normalization. Symlinks
+    /// are resolved so `/var/...` and `/private/var/...` compare equal.
+    static func normalizeGitdirPattern(_ raw: String) -> String {
+        var expanded = resolveFilesystemPath(ConfigStore.expand(raw))
+        if !expanded.hasSuffix("/") {
+            expanded += "/"
+        }
+        return expanded
+    }
+
+    static func gitdirMatches(repoRoot: String, pattern: String) -> Bool {
+        // git includeIf "gitdir:<pattern>/" matches when the repository's
+        // .git directory path starts with <pattern>/.
+        var root = resolveFilesystemPath(ConfigStore.expand(repoRoot))
+        if root.hasSuffix("/") {
+            root = String(root.dropLast())
+        }
+        let gitDirPath = root + "/.git"
+        return gitDirPath.hasPrefix(pattern)
+    }
+
+    private static func resolveFilesystemPath(_ path: String) -> String {
+        URL(fileURLWithPath: path).resolvingSymlinksInPath().path
     }
 
     // MARK: - URL → alias

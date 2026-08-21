@@ -91,6 +91,38 @@ enum KC {
     static let diagnosisDetailSize: CGFloat = 10
 }
 
+// MARK: - Hero container (tinted callout)
+
+/// Floating rounded-rect card with a tinted fill. Used for the Current
+/// Repo answer at the top of the popover.
+struct KCHeroContainer<Content: View>: View {
+    let tint: Color
+    let content: () -> Content
+
+    init(tint: Color, @ViewBuilder content: @escaping () -> Content) {
+        self.tint = tint
+        self.content = content
+    }
+
+    var body: some View {
+        content()
+            .padding(.horizontal, KC.space14)
+            .padding(.vertical, KC.space12)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
+                    .fill(tint.opacity(0.12))
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
+                    .strokeBorder(tint.opacity(0.22), lineWidth: 0.5)
+            )
+            .padding(.horizontal, KC.space10)
+            .padding(.top, KC.space10)
+            .animation(.easeOut(duration: 0.18), value: tint)
+    }
+}
+
 // MARK: - Status dot (system semantic colors)
 
 struct KCStatusDot: View {

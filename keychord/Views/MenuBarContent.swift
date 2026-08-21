@@ -1,5 +1,6 @@
 import SwiftUI
 import AppKit
+import UniformTypeIdentifiers
 
 // MARK: - Menu bar icon (label for MenuBarExtra)
 
@@ -38,6 +39,10 @@ struct MenuBarPopoverView: View {
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
 
+    @State private var accountMatch: AccountMatchResult?
+    @State private var isDropTargeted = false
+    @State private var didAttemptFinderResolve = false
+
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             content
@@ -45,6 +50,9 @@ struct MenuBarPopoverView: View {
             footer
         }
         .frame(width: KC.popoverWidth, height: KC.popoverHeight)
+        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+            handleDrop(providers)
+        }
         .task { await refresh() }
     }
 
@@ -57,6 +65,8 @@ struct MenuBarPopoverView: View {
         } else {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
+                    currentRepoSection
+
                     if !appState.accountsStore.accounts.isEmpty, !diagnoses.isEmpty {
                         DoctorSummaryRow(
                             diagnoses: diagnoses,
@@ -78,6 +88,24 @@ struct MenuBarPopoverView: View {
                 .padding(.bottom, KC.space8)
             }
             .frame(maxWidth: .infinity, maxHeight: .infinity)
+        }
+    }
+
+    @ViewBuilder
+    private var currentRepoSection: some View {
+        switch accountMatch {
+        case .matched(let account, let repoRoot):
+            CurrentRepoMatchedRow(
+                account: account,
+                repoRoot: repoRoot,
+                probe: probeStates[account.sshAlias] ?? .idle
+            )
+        case .notARepo, .noMatchingGitdir, .conflictingGlobals:
+            if let reason = accountMatch?.unresolvedReason {
+                CurrentRepoUnresolvedRow(reason: reason, onChooseFolder: chooseFolder)
+            }
+        case nil:
+            CurrentRepoDropZone(isTargeted: isDropTargeted, onChooseFolder: chooseFolder)
         }
     }
 
@@ -174,12 +202,70 @@ struct MenuBarPopoverView: View {
         popover?.close()
     }
 
+    // MARK: - Drop / choose folder / Finder
+
+    private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
+        guard let provider = providers.first else { return false }
+        provider.loadItem(forTypeIdentifier: UTType.fileURL.identifier, options: nil) { item, _ in
+            let url: URL?
+            if let data = item as? Data {
+                url = URL(dataRepresentation: data, relativeTo: nil)
+            } else if let maybeURL = item as? URL {
+                url = maybeURL
+            } else {
+                url = nil
+            }
+            guard let url else { return }
+            var isDir: ObjCBool = false
+            guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDir),
+                  isDir.boolValue else {
+                return
+            }
+            Task { @MainActor in
+                await resolveAccount(at: url.path)
+            }
+        }
+        return true
+    }
+
+    private func chooseFolder() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.message = "Choose a folder or git working copy to resolve which account applies."
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        Task { await resolveAccount(at: url.path) }
+    }
+
+    private func resolveAccount(at path: String) async {
+        let accounts = appState.accountsStore.accounts
+        let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
+        accountMatch = result
+        if case .matched(let account, _) = result, !account.sshAlias.isEmpty {
+            appState.accountsStore.touchLastUsed(sshAlias: account.sshAlias)
+        }
+    }
+
+    /// Best-effort: if Finder's front window is a directory, resolve it.
+    /// Failures (no window, no Automation permission, AppleScript error)
+    /// stay quiet — no alerts.
+    private func tryResolveFromFinder() async {
+        guard !didAttemptFinderResolve else { return }
+        didAttemptFinderResolve = true
+        guard accountMatch == nil else { return }
+        guard let path = await FinderContext.frontmostDirectory() else { return }
+        await resolveAccount(at: path)
+    }
+
     // MARK: - Load + probe
 
     private func refresh() async {
         await reload()
         await probeAll()
         await runDoctor()
+        await tryResolveFromFinder()
     }
 
     private func reload() async {
