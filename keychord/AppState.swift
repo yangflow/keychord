@@ -16,19 +16,23 @@ final class AppState {
     /// When true the Accounts window should immediately begin a new draft.
     var pendingAddNew = false
 
-    /// When true, ``MenuBarPopoverView`` must not clear ``accountMatch`` on
-    /// disappear — opening the MenuBarExtra after an icon drop can recreate
-    /// the hosting view and would otherwise wipe the just-resolved match.
-    var suppressAccountMatchClear = false
-
     /// Current-repo match from a folder drop onto the menu bar icon (or the
-    /// open popover). Cleared when the user dismisses the popover (or clears
-    /// the match card).
+    /// open popover). It outlives the popover: only the next drop, the card's
+    /// clear control, or an unbind that drops the path replaces it. Finder's
+    /// front window is never resolved behind the user's back.
     var accountMatch: AccountMatchResult?
 
     /// Author-vs-key comparison for the matched repository, if it has one.
     /// Recomputed with every resolve; `nil` while there is no match.
     var identityAudit: IdentityAudit?
+
+    /// Set when more than one account's `gitdir:` scope covers the matched
+    /// repository, so the card can explain which one git actually uses.
+    var gitdirOverlap: GitdirOverlap?
+
+    /// A missing `gitdir:` path that looks like the matched folder's previous
+    /// name, offered as a one-tap retarget. `nil` once dismissed or repaired.
+    var staleGitdir: StaleGitdirRepair.Candidate?
 
     /// Settings pane to select when the Settings window opens. Set by the
     /// popover's empty state so Import is reachable without the gear.
@@ -48,6 +52,8 @@ final class AppState {
     func clearAccountMatch() {
         accountMatch = nil
         identityAudit = nil
+        gitdirOverlap = nil
+        staleGitdir = nil
     }
 
     /// Shared resolve path used by menu-bar icon drops and popover `.onDrop`.
@@ -56,17 +62,31 @@ final class AppState {
         let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
         accountMatch = result
         identityAudit = nil
-        guard case .matched(let account, let repoRoot, _) = result else { return }
-        if !account.sshAlias.isEmpty {
-            accountsStore.touchLastUsed(sshAlias: account.sshAlias)
+        gitdirOverlap = nil
+        staleGitdir = nil
+
+        switch result {
+        case .matched(let account, let repoRoot, _):
+            if !account.sshAlias.isEmpty {
+                accountsStore.touchLastUsed(sshAlias: account.sshAlias)
+            }
+            gitdirOverlap = GitdirOverlap.detect(repoRoot: repoRoot, accounts: accounts)
+            let identity = await CurrentRepoResolver.readEffectiveIdentity(at: repoRoot)
+            identityAudit = IdentityAudit.audit(
+                account: account,
+                repoRoot: repoRoot,
+                identity: identity,
+                accounts: accounts
+            )
+        case .noMatchingGitdir(let repoRoot):
+            // A folder that matches nothing is where a renamed project shows up.
+            staleGitdir = StaleGitdirRepair.candidate(
+                forDroppedFolder: repoRoot,
+                accounts: accounts
+            )
+        case .notARepo, .conflictingGlobals:
+            break
         }
-        let identity = await CurrentRepoResolver.readEffectiveIdentity(at: repoRoot)
-        identityAudit = IdentityAudit.audit(
-            account: account,
-            repoRoot: repoRoot,
-            identity: identity,
-            accounts: accounts
-        )
     }
 
     /// One-tap `gitdir:` bind for the folder in the current unresolved match.
@@ -131,6 +151,64 @@ final class AppState {
             return String(localized: "Rebind failed: \(String(describing: error))")
         }
         await resolveCurrentRepo(at: repoRoot)
+        return nil
+    }
+
+    /// Point a stale `gitdir:` path at the folder that was just dropped,
+    /// keeping the account's other paths. Only the one dead path changes.
+    func repairStaleGitdir() async -> String? {
+        guard let candidate = staleGitdir else { return nil }
+        let updated = StaleGitdirRepair.repair(candidate)
+        do {
+            try accountsStore.update(updated)
+            try AccountProjector.regenerate(accounts: accountsStore.accounts)
+        } catch {
+            return String(localized: "Could not update the gitdir path: \(String(describing: error))")
+        }
+        await resolveCurrentRepo(at: ConfigStore.expand(candidate.replacementPath))
+        return nil
+    }
+
+    /// Keep the suggestion out of the way without touching any account.
+    func dismissStaleGitdir() {
+        staleGitdir = nil
+    }
+
+    /// Scope the matched folder to `account` explicitly, so it wins the overlap
+    /// on its own most-specific path instead of relying on block order.
+    func claimMatchedFolder(for account: Account) async -> String? {
+        guard case .matched(_, let repoRoot, _) = accountMatch else { return nil }
+        let result = GitdirBinder.bind(folderPath: repoRoot, to: account)
+        if result.changedScope {
+            do {
+                try accountsStore.update(result.account)
+                try AccountProjector.regenerate(accounts: accountsStore.accounts)
+            } catch {
+                return String(localized: "Bind failed: \(String(describing: error))")
+            }
+        }
+        await resolveCurrentRepo(at: repoRoot)
+        return nil
+    }
+
+    /// Drop one overlapping `gitdir:` path from the account that loses, e.g.
+    /// `personal`'s `~/`, leaving its other scopes alone.
+    func releaseGitdirPath(_ path: String, from account: Account) async -> String? {
+        let repoRoot: String?
+        if case .matched(_, let root, _) = accountMatch { repoRoot = root } else { repoRoot = nil }
+
+        let result = GitdirBinder.removePath(path, from: account)
+        if result.changedScope {
+            do {
+                try accountsStore.update(result.account)
+                try AccountProjector.regenerate(accounts: accountsStore.accounts)
+            } catch {
+                return String(localized: "Unbind failed: \(String(describing: error))")
+            }
+        }
+        if let repoRoot {
+            await resolveCurrentRepo(at: repoRoot)
+        }
         return nil
     }
 

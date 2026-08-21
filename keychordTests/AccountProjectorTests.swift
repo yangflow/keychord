@@ -329,6 +329,27 @@ struct AccountProjectorTests {
         #expect(output.gitConfig.contains("[includeIf \"gitdir:~/side/\"]"))
     }
 
+    /// git applies every matching `includeIf` in file order and the last one
+    /// wins, so the broad scope has to be written before the narrow one.
+    @Test func includeIfBlocksAreOrderedLeastSpecificFirst() {
+        var personal = Self.globalAccount()
+        personal.scope = .gitdir("~/")
+        var work = Self.scopedAccount()
+        work.scope = .gitdir(paths: ["~/work/client/", "~/work/"])
+
+        // Declared narrow-first on purpose; the projection must reorder.
+        let output = AccountProjector.project([work, personal], generatedAt: Self.fixedDate)
+        let broad = output.gitConfig.range(of: "[includeIf \"gitdir:~/\"]")?.lowerBound
+        let mid = output.gitConfig.range(of: "[includeIf \"gitdir:~/work/\"]")?.lowerBound
+        let narrow = output.gitConfig.range(of: "[includeIf \"gitdir:~/work/client/\"]")?.lowerBound
+
+        #expect(broad != nil && mid != nil && narrow != nil)
+        if let broad, let mid, let narrow {
+            #expect(broad < mid)
+            #expect(mid < narrow)
+        }
+    }
+
     @Test func scopeWithNoUsablePathProjectsNothing() {
         var account = Self.scopedAccount()
         account.scope = .gitdir(paths: ["", "   "])

@@ -248,21 +248,12 @@ enum CurrentRepoResolver {
         accounts: [Account],
         originURL: String? = nil
     ) -> AccountMatchResult {
-        // Every gitdir path of every account competes; the longest matching
-        // prefix wins, so a leaf scope still beats its parent.
-        let scopedHits = accounts.flatMap { account in
-            account.scope.directories.compactMap { raw -> (Account, String)? in
-                guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
-                    return nil
-                }
-                let pattern = normalizeGitdirPattern(raw)
-                guard gitdirMatches(repoRoot: repoRoot, pattern: pattern) else { return nil }
-                return (account, pattern)
-            }
-        }
-
-        if let best = scopedHits.max(by: { $0.1.count < $1.1.count }) {
-            return .matched(account: best.0, repoRoot: repoRoot, originURL: originURL)
+        // Ask the same ordering the projector writes: git applies every matching
+        // includeIf in file order and the last one wins, so the winner is the
+        // last matching block, not simply the longest path.
+        if let winner = GitdirPrecedence.winningBlock(forRepoRoot: repoRoot, accounts: accounts),
+           let account = accounts.first(where: { $0.id == winner.accountID }) {
+            return .matched(account: account, repoRoot: repoRoot, originURL: originURL)
         }
 
         let globals = accounts.filter { $0.scope == .global }

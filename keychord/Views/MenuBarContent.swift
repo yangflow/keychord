@@ -89,10 +89,6 @@ struct MenuBarPopoverView: View {
             handleDrop(providers)
         }
         .task { await refresh() }
-        .onDisappear {
-            guard !appState.suppressAccountMatchClear else { return }
-            appState.clearAccountMatch()
-        }
     }
 
     // MARK: - Content
@@ -164,6 +160,19 @@ struct MenuBarPopoverView: View {
     private var currentRepoSection: some View {
         switch appState.accountMatch {
         case .matched(let account, let repoRoot, let originURL):
+            if let overlap = appState.gitdirOverlap {
+                GitdirOverlapCard(
+                    overlap: overlap,
+                    isBusy: isMatchActionRunning,
+                    errorMessage: matchActionError,
+                    onClaimWinner: { winner in
+                        Task { await claimMatchedFolder(for: winner) }
+                    },
+                    onReleaseLoser: { path, loser in
+                        Task { await releaseGitdirPath(path, from: loser) }
+                    }
+                )
+            }
             CurrentRepoMatchedRow(
                 account: account,
                 repoRoot: repoRoot,
@@ -182,6 +191,15 @@ struct MenuBarPopoverView: View {
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
+            if let candidate = appState.staleGitdir {
+                StaleGitdirCard(
+                    candidate: candidate,
+                    isBusy: isMatchActionRunning,
+                    errorMessage: matchActionError,
+                    onRetarget: { Task { await repairStaleGitdir() } },
+                    onKeepOldPath: { appState.dismissStaleGitdir() }
+                )
+            }
             if let reason = appState.accountMatch?.unresolvedReason {
                 CurrentRepoUnresolvedRow(
                     reason: reason,
@@ -366,6 +384,34 @@ struct MenuBarPopoverView: View {
         matchActionError = nil
         defer { isMatchActionRunning = false }
         matchActionError = await appState.rebindMatchedFolder(to: account)
+        guard matchActionError == nil else { return }
+        await probeAll()
+        await runDoctor()
+    }
+
+    // MARK: - Overlapping and stale scopes
+
+    private func claimMatchedFolder(for account: Account) async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.claimMatchedFolder(for: account)
+        await runDoctor()
+    }
+
+    private func releaseGitdirPath(_ path: String, from account: Account) async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.releaseGitdirPath(path, from: account)
+        await runDoctor()
+    }
+
+    private func repairStaleGitdir() async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.repairStaleGitdir()
         guard matchActionError == nil else { return }
         await probeAll()
         await runDoctor()

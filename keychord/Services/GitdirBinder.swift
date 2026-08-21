@@ -69,6 +69,25 @@ enum GitdirBinder {
         return Result(account: next, outcome: .removed(path: stored))
     }
 
+    /// Remove one stored `gitdir:` entry by value — used to unbind the broader
+    /// scope that loses an overlap (`personal`'s `~/`), which is not the folder
+    /// the user dropped.
+    static func removePath(_ storedPath: String, from account: Account) -> Result {
+        let target = CurrentRepoResolver.normalizeGitdir(storedPath)
+        guard !target.isEmpty else {
+            return Result(account: account, outcome: .invalidPath)
+        }
+        let remaining = account.scope.directories.filter {
+            CurrentRepoResolver.normalizeGitdir($0) != target
+        }
+        guard remaining.count != account.scope.directories.count else {
+            return Result(account: account, outcome: .notBoundExactly)
+        }
+        var next = account
+        next.scope = .gitdir(paths: remaining)
+        return Result(account: next, outcome: .removed(path: target))
+    }
+
     /// The stored `gitdir:` entry that points at exactly `folderPath` (after
     /// normalization), if the scope has one. Parent scopes do not count.
     static func exactPath(forFolderPath folderPath: String, in scope: Account.Scope) -> String? {

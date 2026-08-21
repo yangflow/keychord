@@ -61,25 +61,11 @@ final class StatusItemDropTargetController {
         guard let appState, let path = urls.first?.path else { return }
 
         await appState.resolveCurrentRepo(at: path)
-        let snapshot = appState.accountMatch
 
-        // Opening MenuBarExtra can fire onDisappear on a transient host and
-        // would clear the match; suppress until the popover is showing.
-        appState.suppressAccountMatchClear = true
-        defer { appState.suppressAccountMatchClear = false }
-
-        // Let the drag session finish before mimicking a status-item click.
+        // Let the drag session finish before mimicking a status-item click. The
+        // match now outlives the popover, so nothing has to be restored here.
         try? await Task.sleep(for: .milliseconds(150))
         await openPopoverShowingMatch()
-
-        try? await Task.sleep(for: .milliseconds(50))
-        if appState.accountMatch == nil {
-            if let snapshot {
-                appState.accountMatch = snapshot
-            } else {
-                await appState.resolveCurrentRepo(at: path)
-            }
-        }
     }
 
     /// Opens the MenuBarExtra window if it is not already presented.

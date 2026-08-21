@@ -134,6 +134,19 @@ struct LocalizationCatalogTests {
         "%@ is not a regular file.",
         "%@ also uses this key, so it is kept.",
         "Could not delete the private key: %@",
+        // Stale gitdir path (#38)
+        "The old path is gone",
+        "%@ still points at %@",
+        "Point it at this folder",
+        "Keep the old path",
+        "Could not update the gitdir path: %@",
+        // Overlapping gitdir scopes (#39)
+        "%lld identities match this folder",
+        "git uses this one",
+        "read first, then overridden",
+        "%@ overrides %@",
+        "Only use %@ here",
+        "Unbind %@ from %@",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

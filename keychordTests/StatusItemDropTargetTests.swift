@@ -29,3 +29,47 @@ struct StatusItemFolderDropFilteringTests {
         #expect(folders == [tmp])
     }
 }
+
+@Suite("StatusItemDropHighlight")
+struct StatusItemDropHighlightTests {
+
+    @Test func startsIdle() {
+        #expect(!StatusItemDropHighlight().isActive)
+    }
+
+    @Test func hoveringAFolderArmsTheIcon() {
+        var highlight = StatusItemDropHighlight()
+        #expect(highlight.dragUpdated(acceptsDrop: true))
+        #expect(highlight.isActive)
+    }
+
+    @Test func hoveringSomethingWeCannotAcceptStaysIdle() {
+        var highlight = StatusItemDropHighlight()
+        #expect(!highlight.dragUpdated(acceptsDrop: false))
+        #expect(!highlight.isActive)
+    }
+
+    @Test func repeatedUpdatesDoNotAskForARedraw() {
+        var highlight = StatusItemDropHighlight()
+        #expect(highlight.dragUpdated(acceptsDrop: true))
+        // `draggingUpdated` fires continuously while the pointer moves.
+        #expect(!highlight.dragUpdated(acceptsDrop: true))
+        #expect(highlight.isActive)
+    }
+
+    @Test func leavingTheIconDisarmsIt() {
+        var highlight = StatusItemDropHighlight()
+        highlight.dragUpdated(acceptsDrop: true)
+        #expect(highlight.dragEnded())
+        #expect(!highlight.isActive)
+        // Ending twice (exit + ended) must not request a second redraw.
+        #expect(!highlight.dragEnded())
+    }
+
+    @Test func rejectedHoverAfterAnAcceptedOneDisarms() {
+        var highlight = StatusItemDropHighlight()
+        highlight.dragUpdated(acceptsDrop: true)
+        #expect(highlight.dragUpdated(acceptsDrop: false))
+        #expect(!highlight.isActive)
+    }
+}

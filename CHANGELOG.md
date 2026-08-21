@@ -19,10 +19,19 @@ All notable changes to keychord are documented here. The format is based on [Kee
 - **Probe failures pick their own next action** — a red row is classified before it offers a button: a passphrase-protected key that `ssh-agent` does not hold shows **Unlock in Keychain** (`ssh-add --apple-use-keychain`, never prompting), a missing key file points at **Generate a key**, an unreachable host or host-key mismatch only offers a retry, and a rejected key keeps **Copy public key** + **Open … SSH settings**. A healthy account whose matched repository has an HTTPS remote with no `insteadOf` rule gets **Add SSH rewrite**. Healthy rows show nothing at all — no “all good” banner — and Doctor stays a summary that never repeats these buttons. (#34)
 - **Filter the identity list** — with three or more accounts the popover shows a search field matching label, alias, email, username and provider, plus provider chips when more than one forge is in use. No avatars; the add row stays put. (#35)
 - **Delete tells you what it leaves behind** — the delete confirmation names the private key path and every `gitdir:` path, and offers an opt-in (default off) **Also delete the private key** that refuses symlinks, missing files, and keys another account still uses. Managed files are regenerated; folders on disk are left alone. (#36)
+- **The menu-bar icon lights up during a drag** — while a Finder folder hovers the status item it draws an accent-colored dashed ring and glow around the existing glyph. The symbol is never swapped, and the highlight clears on drop, exit, or a cancelled drag. (#37)
+- **Stale `gitdir:` paths can be retargeted** — drop a renamed project and, when an account still points at a missing folder in the same parent directory, the card says the old path is gone, names the account, and offers **Point it at this folder** (replaces just that one path) or **Keep the old path**. No other account is touched. (#38)
+- **Overlapping scopes are explained** — when several accounts scope the same repository the card lists them in the order git reads them, marks the one git actually uses, says who overrides whom, and offers **Only use {winner} here** (scope the exact folder) or **Unbind {loser} from {path}**. (#39)
+- **The last drop sticks around** — a match now survives closing the popover and is only replaced by the next drop, the card's clear control, or an unbind, so the tooltip from #32 keeps naming the identity between clicks. (#40)
 
 ### Fixed
 
+- **`includeIf` order now matches what the app claims** — git applies *every* matching `includeIf` in file order and the last one wins; specificity is irrelevant. The projector wrote one block per account in `accounts.json` order, so with `gitdir:~/` and `gitdir:~/work/` the effective identity depended on account order and could disagree with the account the popover named. `gitconfig.managed` now emits blocks least-specific-first (shared `GitdirPrecedence`, which the resolver also reads), so the most specific scope really is the one git uses. Covered by a test that runs the real `git` binary.
 - **Backups taken in the same second disappeared from Restore** — the timestamp parser dropped collision-suffixed file names, so a pre-restore snapshot written in the same second as an existing one was unlistable (and never pruned). Restore's pre-restore snapshot is now always recoverable.
+
+### Removed
+
+- **Finder front-window reader** — `FinderContext` was unreachable dead code and the app still shipped an Apple Events usage description for it. Both are gone; keychord only resolves folders the user drops (#40).
 
 ## [0.5.0] — 2026-08-22
 
