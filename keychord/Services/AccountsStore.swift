@@ -14,8 +14,8 @@ final class AccountsStore {
     /// Absolute path of the accounts.json file this store owns.
     let storageURL: URL
 
-    /// Snapshots accounts.json before each save so the user can
-    /// roll back from the Restore view.
+    /// Snapshots accounts.json before adding a new account so the user can
+    /// roll back from the Restore view. Updates / deletes do not create backups.
     let backups: BackupService
 
     // MARK: - Init / defaults
@@ -77,15 +77,16 @@ final class AccountsStore {
         }
     }
 
-    func save() throws {
+    /// Writes `accounts.json`. When `createBackup` is true and a file already
+    /// exists, snapshots it first (used only by ``add``).
+    func save(createBackup: Bool = false) throws {
         do {
             let parent = storageURL.deletingLastPathComponent()
             try FileManager.default.createDirectory(
                 at: parent,
                 withIntermediateDirectories: true
             )
-            // Snapshot the current accounts.json before overwriting.
-            if FileManager.default.fileExists(atPath: storageURL.path) {
+            if createBackup, FileManager.default.fileExists(atPath: storageURL.path) {
                 _ = try backups.backup(originalPath: storageURL.path)
             }
             let file = StorageFile(version: 1, accounts: accounts)
@@ -106,7 +107,7 @@ final class AccountsStore {
             throw StoreError.duplicateID(account.id)
         }
         accounts.append(account)
-        try save()
+        try save(createBackup: true)
     }
 
     func update(_ account: Account) throws {

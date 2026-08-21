@@ -28,6 +28,7 @@ struct LocalizationCatalogTests {
         "Show backup contents",
         "Hide backup contents",
         "No accounts in this snapshot",
+        "No backups yet — a snapshot is taken when you add a new account.",
         "No URL rewrites",
         "%lld URL rewrites",
         "Port %@",

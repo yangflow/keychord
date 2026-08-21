@@ -75,7 +75,7 @@ Squash your PR into one commit per logical change before requesting review. We d
 
 - **`IncludeInstaller`** — idempotency matters. A second `installSSHInclude` must not double-inject. Test both the first-install and second-install path.
 - **`AccountProjector`** — `project` is pure. Never introduce I/O there; keep `write` as the only side effect.
-- **`BackupService`** — every save path must snapshot `accounts.json` before writing. Not negotiable.
+- **`BackupService`** — `AccountsStore.add` snapshots `accounts.json` before writing when a file already exists. Updates / deletes / `touchLastUsed` write without a new backup.
 - **Swift 6 concurrency** — when you add a new service that touches shared state, ask whether it needs `@MainActor`, `Sendable`, or both. When in doubt, read `AccountsStore.swift` for the pattern.
 
 ## Security

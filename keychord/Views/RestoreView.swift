@@ -36,7 +36,7 @@ struct RestoreView: View {
                     && loadError == nil
                     && statusMessage == nil
                     && hasLoaded {
-                    Text("No backups yet — edits will appear here once you save changes.")
+                    Text("No backups yet — a snapshot is taken when you add a new account.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)

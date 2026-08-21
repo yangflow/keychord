@@ -33,7 +33,7 @@ keychord makes the identity set a first-class thing you can CRUD from a window, 
 - **Doctor & Fixer** — diagnose common config problems (missing keys, wrong permissions, dangling `Include`, conflicting `IdentityFile`) and apply one-click fixes.
 - **SSH port selection** — per-account Direct 22 / SSL 443 toggle. Useful on networks where port 22 is blocked.
 - **SSH key generator** — create an ed25519 or RSA key from the app with safe filenames and correct permissions.
-- **Atomic backups** — every write is preceded by a snapshot of `accounts.json` in `~/.config/keychord/backups/`, browsable from the Restore view.
+- **Atomic backups** — adding a new account snapshots `accounts.json` into `~/.config/keychord/backups/` first (browsable from Settings → Backups). Edits and deletes do not create new snapshots.
 - **Probes** — per-host `ssh -T git@<alias>` probes so you can see at a glance which accounts authenticate.
 - **Menubar-only** — `LSUIElement = YES`. No dock icon, no window stealing focus. Drag a folder onto the menubar icon to resolve which account would push from there.
 

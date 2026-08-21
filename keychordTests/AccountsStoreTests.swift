@@ -163,6 +163,56 @@ struct AccountsStoreTests {
         }
     }
 
+    // MARK: - Backup policy
+
+    @Test func addCreatesBackupWhenFileAlreadyExists() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            try store.add(Self.sample(label: "First"))
+            let backupRoot = url.deletingLastPathComponent().appendingPathComponent("backups")
+            let before = (try? FileManager.default.contentsOfDirectory(atPath: backupRoot.path)) ?? []
+
+            try store.add(Self.sample(label: "Second"))
+            let after = try FileManager.default.contentsOfDirectory(atPath: backupRoot.path)
+            #expect(after.count == before.count + 1)
+        }
+    }
+
+    @Test func updateDoesNotCreateBackup() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            let acc = Self.sample()
+            try store.add(acc)
+            // Second add creates the only expected backup of the first write.
+            try store.add(Self.sample(label: "Other"))
+            let backupRoot = url.deletingLastPathComponent().appendingPathComponent("backups")
+            let before = try FileManager.default.contentsOfDirectory(atPath: backupRoot.path)
+
+            var edited = acc
+            edited.label = "Renamed"
+            try store.update(edited)
+
+            let after = try FileManager.default.contentsOfDirectory(atPath: backupRoot.path)
+            #expect(after.count == before.count)
+        }
+    }
+
+    @Test func deleteDoesNotCreateBackup() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            let a = Self.sample(label: "A")
+            try store.add(a)
+            try store.add(Self.sample(label: "B"))
+            let backupRoot = url.deletingLastPathComponent().appendingPathComponent("backups")
+            let before = try FileManager.default.contentsOfDirectory(atPath: backupRoot.path)
+
+            try store.delete(id: a.id)
+
+            let after = try FileManager.default.contentsOfDirectory(atPath: backupRoot.path)
+            #expect(after.count == before.count)
+        }
+    }
+
     // MARK: - Scope Codable round-trip
 
     @Test func scopeEnumRoundTripsViaJSON() async throws {
