@@ -16,9 +16,15 @@ final class AppState {
     /// When true the Accounts window should immediately begin a new draft.
     var pendingAddNew = false
 
-    /// Current-repo match from a folder drop / Choose Folder / Finder probe.
+    /// When true, `MenuBarPopoverView` must not clear ``accountMatch`` on
+    /// disappear — `NSOpenPanel` (Choose Folder) steals focus and tears down
+    /// the MenuBarExtra window without the user dismissing a result.
+    var isChoosingFolder = false
+
+    /// Current-repo match from a folder drop / Choose Folder.
     /// Stored here so a status-item drop can resolve while the popover is
-    /// closed, then survive popover recreation when it opens.
+    /// closed, then survive popover recreation when it opens. Cleared when
+    /// the user dismisses the popover (or clears the match card).
     var accountMatch: AccountMatchResult?
 
     let accountsStore: AccountsStore
@@ -32,8 +38,12 @@ final class AppState {
         self.probeCache = probeCache ?? ProbeCache()
     }
 
-    /// Shared resolve path used by popover drops, Choose Folder, Finder, and
-    /// the menu-bar icon drag destination.
+    func clearAccountMatch() {
+        accountMatch = nil
+    }
+
+    /// Shared resolve path used by popover drops, Choose Folder, and the
+    /// menu-bar icon drag destination.
     func resolveCurrentRepo(at path: String) async {
         let accounts = accountsStore.accounts
         let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)

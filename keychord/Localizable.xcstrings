@@ -290,6 +290,23 @@
         }
       }
     },
+    "Clear current repo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Clear current repo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "清除当前仓库"
+          }
+        }
+      }
+    },
     "Accounts": {
       "extractionState": "manual",
       "localizations": {

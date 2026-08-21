@@ -40,7 +40,6 @@ struct MenuBarPopoverView: View {
     @State private var isDoctorExpanded = false
 
     @State private var isDropTargeted = false
-    @State private var didAttemptFinderResolve = false
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -53,6 +52,12 @@ struct MenuBarPopoverView: View {
             handleDrop(providers)
         }
         .task { await refresh() }
+        .onDisappear {
+            // NSOpenPanel tears down the MenuBarExtra window; keep the match
+            // so Choose Folder can reopen with the new result.
+            guard !appState.isChoosingFolder else { return }
+            appState.clearAccountMatch()
+        }
     }
 
     // MARK: - Content
@@ -97,11 +102,16 @@ struct MenuBarPopoverView: View {
             CurrentRepoMatchedRow(
                 account: account,
                 repoRoot: repoRoot,
-                probe: probeStates[account.sshAlias] ?? .idle
+                probe: probeStates[account.sshAlias] ?? .idle,
+                onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
             if let reason = appState.accountMatch?.unresolvedReason {
-                CurrentRepoUnresolvedRow(reason: reason, onChooseFolder: chooseFolder)
+                CurrentRepoUnresolvedRow(
+                    reason: reason,
+                    onChooseFolder: chooseFolder,
+                    onClear: { appState.clearAccountMatch() }
+                )
             }
         case nil:
             CurrentRepoDropZone(isTargeted: isDropTargeted, onChooseFolder: chooseFolder)
@@ -242,24 +252,23 @@ struct MenuBarPopoverView: View {
         panel.allowsMultipleSelection = false
         panel.prompt = String(localized: "Choose")
         panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
+
+        appState.isChoosingFolder = true
+        let response = panel.runModal()
+        guard response == .OK, let url = panel.url else {
+            // Panel dismissed the popover; Cancel means no new match to show.
+            appState.isChoosingFolder = false
+            appState.clearAccountMatch()
+            return
+        }
+
         Task {
             await appState.resolveCurrentRepo(at: url.path)
             // NSOpenPanel dismisses the MenuBarExtra window; reopen like icon drop.
             try? await Task.sleep(for: .milliseconds(50))
             StatusItemDropTargetController.shared.openPopoverShowingMatch()
+            appState.isChoosingFolder = false
         }
-    }
-
-    /// Best-effort: if Finder's front window is a directory, resolve it.
-    /// Failures (no window, no Automation permission, AppleScript error)
-    /// stay quiet — no alerts.
-    private func tryResolveFromFinder() async {
-        guard !didAttemptFinderResolve else { return }
-        didAttemptFinderResolve = true
-        guard appState.accountMatch == nil else { return }
-        guard let path = await FinderContext.frontmostDirectory() else { return }
-        await appState.resolveCurrentRepo(at: path)
     }
 
     // MARK: - Load + probe
@@ -271,7 +280,6 @@ struct MenuBarPopoverView: View {
         await reload()
         await probeAll(force: forceProbe)
         await runDoctor()
-        await tryResolveFromFinder()
     }
 
     private func reload() async {

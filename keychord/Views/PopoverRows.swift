@@ -55,22 +55,39 @@ struct CurrentRepoMatchedRow: View {
     let account: Account
     let repoRoot: String
     let probe: HostProbeState
+    var onClear: (() -> Void)? = nil
 
     var body: some View {
         KCHeroContainer(tint: heroTint) {
             VStack(alignment: .leading, spacing: KC.space4) {
-                if account.label.isEmpty {
-                    Text("(unnamed)")
-                        .font(KC.heroTitle)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                } else {
-                    Text(verbatim: account.label)
-                        .font(KC.heroTitle)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                HStack(alignment: .top, spacing: KC.space6) {
+                    Group {
+                        if account.label.isEmpty {
+                            Text("(unnamed)")
+                                .font(KC.heroTitle)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        } else {
+                            Text(verbatim: account.label)
+                                .font(KC.heroTitle)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let onClear {
+                        Button(action: onClear) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .help("Clear current repo")
+                        .accessibilityLabel(Text("Clear current repo"))
+                    }
                 }
 
                 HStack(spacing: 4) {
@@ -141,6 +158,7 @@ struct CurrentRepoMatchedRow: View {
 struct CurrentRepoUnresolvedRow: View {
     let reason: String
     let onChooseFolder: () -> Void
+    var onClear: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: KC.space8) {
@@ -152,6 +170,18 @@ struct CurrentRepoUnresolvedRow: View {
                     .font(KC.rowCaption)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let onClear {
+                    Button(action: onClear) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Clear current repo")
+                    .accessibilityLabel(Text("Clear current repo"))
+                }
             }
             Button("Choose Folder…", action: onChooseFolder)
                 .buttonStyle(.borderless)
