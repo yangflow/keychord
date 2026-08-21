@@ -233,8 +233,8 @@ struct MenuBarPopoverView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = "Choose"
-        panel.message = "Choose a folder or git working copy to resolve which account applies."
+        panel.prompt = String(localized: "Choose")
+        panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
         Task { await resolveAccount(at: url.path) }
     }

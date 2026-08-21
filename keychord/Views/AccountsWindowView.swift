@@ -124,11 +124,13 @@ struct AccountsWindowView: View {
 
     private var sidebar: some View {
         List(selection: $selection) {
-            Section("Accounts") {
+            Section {
                 ForEach(appState.accountsStore.accounts) { account in
                     AccountsSidebarRow(account: account)
                         .tag(account.id)
                 }
+            } header: {
+                Text("Accounts")
             }
         }
         .listStyle(.sidebar)
@@ -241,10 +243,10 @@ struct AccountsWindowView: View {
             try regenerate()
             draft = updated
             statusIsError = false
-            statusMessage = "Saved · \(updated.label)"
+            statusMessage = String(localized: "Saved · \(updated.label)")
         } catch {
             statusIsError = true
-            statusMessage = "Save failed: \(error)"
+            statusMessage = String(localized: "Save failed: \(String(describing: error))")
         }
     }
 
@@ -257,10 +259,10 @@ struct AccountsWindowView: View {
                 draft = nil
             }
             statusIsError = false
-            statusMessage = "Deleted"
+            statusMessage = String(localized: "Deleted")
         } catch {
             statusIsError = true
-            statusMessage = "Delete failed: \(error)"
+            statusMessage = String(localized: "Delete failed: \(String(describing: error))")
         }
     }
 
@@ -270,13 +272,13 @@ struct AccountsWindowView: View {
             let records = AccountImporter.importFromExistingConfig(current)
             if records.isEmpty {
                 statusIsError = false
-                statusMessage = "No accounts found to import"
+                statusMessage = String(localized: "No accounts found to import")
                 return
             }
             importBatch = ImportBatch(accounts: records)
         } catch {
             statusIsError = true
-            statusMessage = "Import failed: \(error)"
+            statusMessage = String(localized: "Import failed: \(String(describing: error))")
         }
     }
 
@@ -295,10 +297,14 @@ struct AccountsWindowView: View {
                 selection = first.id
             }
             statusIsError = false
-            statusMessage = "Imported \(added) account\(added == 1 ? "" : "s")"
+            if added == 1 {
+                statusMessage = String(localized: "Imported 1 account")
+            } else {
+                statusMessage = String(localized: "Imported \(added) accounts")
+            }
         } catch {
             statusIsError = true
-            statusMessage = "Import failed: \(error)"
+            statusMessage = String(localized: "Import failed: \(String(describing: error))")
         }
     }
 
@@ -316,12 +322,15 @@ struct AccountsWindowView: View {
             draft = account
             isNewDraft = false
             statusIsError = false
-            statusMessage = isNew
-                ? "Key attached · new account — fill in alias & identity"
-                : "Key attached · \(account.label.isEmpty ? account.sshAlias : account.label)"
+            if isNew {
+                statusMessage = String(localized: "Key attached · new account — fill in alias & identity")
+            } else {
+                let name = account.label.isEmpty ? account.sshAlias : account.label
+                statusMessage = String(localized: "Key attached · \(name)")
+            }
         } catch {
             statusIsError = true
-            statusMessage = "Attach failed: \(error)"
+            statusMessage = String(localized: "Attach failed: \(String(describing: error))")
         }
     }
 
@@ -344,16 +353,31 @@ private struct AccountsSidebarRow: View {
                 .fill(account.color.color)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
-                Text(account.label.isEmpty ? "(unnamed)" : account.label)
-                    .font(KC.rowTitle)
-                    .lineLimit(1)
-                    .truncationMode(.tail)
-                HStack(spacing: KC.space4) {
-                    Text(account.sshAlias.isEmpty ? "no alias" : account.sshAlias)
-                        .font(KC.rowCaptionMono)
-                        .foregroundStyle(.secondary)
+                if account.label.isEmpty {
+                    Text("(unnamed)")
+                        .font(KC.rowTitle)
                         .lineLimit(1)
-                        .truncationMode(.middle)
+                        .truncationMode(.tail)
+                } else {
+                    Text(verbatim: account.label)
+                        .font(KC.rowTitle)
+                        .lineLimit(1)
+                        .truncationMode(.tail)
+                }
+                HStack(spacing: KC.space4) {
+                    if account.sshAlias.isEmpty {
+                        Text("no alias")
+                            .font(KC.rowCaptionMono)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    } else {
+                        Text(verbatim: account.sshAlias)
+                            .font(KC.rowCaptionMono)
+                            .foregroundStyle(.secondary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                    }
                     if account.scope.isScoped {
                         Image(systemName: "folder.fill")
                             .font(.system(size: 9))

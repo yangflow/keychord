@@ -26,12 +26,15 @@ enum AccountMatchResult: Equatable, Sendable {
         case .matched:
             return nil
         case .notARepo(let path):
-            return "\(Self.displayPath(path)) is not a git repository"
+            return String(localized: "\(Self.displayPath(path)) is not a git repository")
         case .noMatchingGitdir(let root):
-            return "No matching gitdir for \(Self.displayPath(root))"
+            return String(localized: "No matching gitdir for \(Self.displayPath(root))")
         case .conflictingGlobals(let root, let accounts):
-            let labels = accounts.map { $0.label.isEmpty ? "(unnamed)" : $0.label }
-            return "Conflicting global accounts (\(labels.joined(separator: ", "))) for \(Self.displayPath(root))"
+            let labels = accounts.map {
+                $0.label.isEmpty ? String(localized: "(unnamed)") : $0.label
+            }
+            let joined = labels.joined(separator: ", ")
+            return String(localized: "Conflicting global accounts (\(joined)) for \(Self.displayPath(root))")
         }
     }
 
