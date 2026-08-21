@@ -12,11 +12,11 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
 
     var title: String {
         switch self {
-        case .general: return String(localized: "General")
-        case .keys: return String(localized: "Keys")
-        case .importAccounts: return String(localized: "Import")
-        case .backups: return String(localized: "Backups")
-        case .config: return String(localized: "Config")
+        case .general: return String.loc("General")
+        case .keys: return String.loc("Keys")
+        case .importAccounts: return String.loc("Import")
+        case .backups: return String.loc("Backups")
+        case .config: return String.loc("Config")
         }
     }
 
@@ -36,7 +36,9 @@ enum SettingsPane: String, CaseIterable, Identifiable, Hashable {
 struct SettingsWindowView: View {
     @Environment(AppState.self) private var appState
 
-    @State private var selection: SettingsPane? = .general
+    /// Resolved in `onAppear` from the remembered pane (#50), so the window
+    /// reopens where the user left it.
+    @State private var selection: SettingsPane?
     @State private var keygenResetID = UUID()
     @State private var importCandidates: [Account] = []
     @State private var importStatus: String?
@@ -58,12 +60,11 @@ struct SettingsWindowView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 640, minHeight: 420)
         .onAppear {
-            if let requested = appState.pendingSettingsPane {
-                appState.pendingSettingsPane = nil
-                selection = requested
-            } else if selection == nil {
-                selection = .general
-            }
+            // A pane the popover asked for wins over the remembered one: the
+            // user just said where they wanted to go.
+            let requested = appState.pendingSettingsPane
+            appState.pendingSettingsPane = nil
+            selection = SettingsPaneMemory.paneOnOpen(pending: requested ?? selection)
         }
         .onChange(of: appState.pendingSettingsPane) { _, newValue in
             guard let requested = newValue else { return }
@@ -71,6 +72,8 @@ struct SettingsWindowView: View {
             selection = requested
         }
         .onChange(of: selection) { _, newValue in
+            guard let newValue else { return }
+            SettingsPaneMemory.remember(newValue)
             if newValue == .importAccounts, !importScanDone {
                 scanForImport()
             }
@@ -125,12 +128,12 @@ struct SettingsWindowView: View {
             let current = try ConfigStore.loadFromDefaultLocations()
             importCandidates = AccountImporter.importFromExistingConfig(current)
             if importCandidates.isEmpty {
-                importStatus = String(localized: "No accounts found to import")
+                importStatus = String.loc("No accounts found to import")
             }
         } catch {
             importCandidates = []
             importIsError = true
-            importStatus = String(localized: "Import failed: \(String(describing: error))")
+            importStatus = String.loc("Import failed: \(String(describing: error))")
         }
         importScanDone = true
     }
@@ -154,11 +157,11 @@ struct SettingsWindowView: View {
             }
             importIsError = false
             if added == 0 {
-                importStatus = String(localized: "No accounts found to import")
+                importStatus = String.loc("No accounts found to import")
             } else if added == 1 {
-                importStatus = String(localized: "Imported 1 account")
+                importStatus = String.loc("Imported 1 account")
             } else {
-                importStatus = String(localized: "Imported \(added) accounts")
+                importStatus = String.loc("Imported \(added) accounts")
             }
             // Refresh checkboxes / “exists” tags without wiping the status line.
             let current = try ConfigStore.loadFromDefaultLocations()
@@ -166,7 +169,7 @@ struct SettingsWindowView: View {
             importScanDone = true
         } catch {
             importIsError = true
-            importStatus = String(localized: "Import failed: \(String(describing: error))")
+            importStatus = String.loc("Import failed: \(String(describing: error))")
         }
     }
 
@@ -208,14 +211,12 @@ struct SettingsGeneralPane: View {
                     Text(verbatim: "简体中文").tag(AppLanguagePreference.simplifiedChinese)
                 }
 
-                if languageStore.pendingRelaunch {
-                    Text("Relaunch KeyChord to apply the language everywhere.")
+                // The open windows relabel themselves; window titles and the app
+                // menu were built from the launch catalog and cannot (#51).
+                if languageStore.showsLaunchCatalogNote {
+                    Text("Some text updates the next time you open KeyChord.")
                         .font(.caption)
-                        .foregroundStyle(.orange)
-
-                    Button("Relaunch") {
-                        AppLanguageStore.relaunch()
-                    }
+                        .foregroundStyle(.secondary)
                 }
             } header: {
                 Text("Language")
@@ -297,10 +298,10 @@ struct SettingsConfigPane: View {
                 gitConfigPath: paths.userGitConfig
             )
             statusIsError = false
-            statusMessage = String(localized: "Include markers removed")
+            statusMessage = String.loc("Include markers removed")
         } catch {
             statusIsError = true
-            statusMessage = String(localized: "Remove failed: \(String(describing: error))")
+            statusMessage = String.loc("Remove failed: \(String(describing: error))")
         }
     }
 }
