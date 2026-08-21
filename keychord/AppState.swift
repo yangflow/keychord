@@ -18,12 +18,18 @@ final class AppState {
 
     let accountsStore: AccountsStore
     let cloudSync: CloudSyncService
+    let probeCache: ProbeCache
 
-    init(accountsStore: AccountsStore? = nil, cloudSync: CloudSyncService? = nil) {
+    init(
+        accountsStore: AccountsStore? = nil,
+        cloudSync: CloudSyncService? = nil,
+        probeCache: ProbeCache? = nil
+    ) {
         let store = accountsStore ?? AccountsStore()
         let sync = cloudSync ?? CloudSyncService()
         self.accountsStore = store
         self.cloudSync = sync
+        self.probeCache = probeCache ?? ProbeCache()
         store.cloudSync = sync
         sync.start(store: store)
     }
