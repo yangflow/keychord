@@ -2,8 +2,8 @@ import SwiftUI
 
 /// The standalone macOS window for managing keychord accounts.
 /// NavigationSplitView with a sidebar list and a detail pane form.
-/// Sidebar actions live in the window toolbar so the system split
-/// view toggle stays intact.
+/// Primary actions are pinned on the *detail* toolbar only so collapsing
+/// the sidebar does not reparent them beside the automatic sidebar toggle.
 struct AccountsWindowView: View {
     @Environment(AppState.self) private var appState
 
@@ -23,42 +23,46 @@ struct AccountsWindowView: View {
                 .navigationSplitViewColumnWidth(min: 200, ideal: 240, max: 320)
         } detail: {
             detailContent
+                .toolbar {
+                    // Keep these on the detail column (not the split view /
+                    // sidebar). Otherwise AppKit injects the sidebar-toggle
+                    // chevron into the same primaryAction cluster on collapse
+                    // and the action icons hitch/jump.
+                    ToolbarItemGroup(placement: .primaryAction) {
+                        Button { beginNew() } label: {
+                            Label("Add account", systemImage: "plus")
+                                .accountsToolbarSymbol()
+                        }
+                        .help("Add a new account")
+
+                        Button { showingKeygen = true } label: {
+                            Label("New SSH key", systemImage: "key.horizontal")
+                                .accountsToolbarSymbol()
+                        }
+                        .help("Generate a new SSH key")
+
+                        Button { importFromExistingConfig() } label: {
+                            Label("Import", systemImage: "square.and.arrow.down")
+                                .accountsToolbarSymbol()
+                        }
+                        .help("Import from existing config")
+
+                        Button { showingRestore = true } label: {
+                            Label("Restore", systemImage: "clock.arrow.circlepath")
+                                .accountsToolbarSymbol()
+                        }
+                        .help("Restore from backup")
+
+                        Button { showingSettings = true } label: {
+                            Label("Settings", systemImage: "gearshape")
+                                .accountsToolbarSymbol()
+                        }
+                        .help("Settings")
+                    }
+                }
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 640, minHeight: 420)
-        .toolbar {
-            ToolbarItemGroup(placement: .primaryAction) {
-                Button { beginNew() } label: {
-                    Label("Add account", systemImage: "plus")
-                        .accountsToolbarSymbol()
-                }
-                .help("Add a new account")
-
-                Button { showingKeygen = true } label: {
-                    Label("New SSH key", systemImage: "key.horizontal")
-                        .accountsToolbarSymbol()
-                }
-                .help("Generate a new SSH key")
-
-                Button { importFromExistingConfig() } label: {
-                    Label("Import", systemImage: "square.and.arrow.down")
-                        .accountsToolbarSymbol()
-                }
-                .help("Import from existing config")
-
-                Button { showingRestore = true } label: {
-                    Label("Restore", systemImage: "clock.arrow.circlepath")
-                        .accountsToolbarSymbol()
-                }
-                .help("Restore from backup")
-
-                Button { showingSettings = true } label: {
-                    Label("Settings", systemImage: "gearshape")
-                        .accountsToolbarSymbol()
-                }
-                .help("Settings")
-            }
-        }
         .sheet(isPresented: $showingKeygen) {
             KeygenView(
                 defaultComment: draft?.gitUserEmail
