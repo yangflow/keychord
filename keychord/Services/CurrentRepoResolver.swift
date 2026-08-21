@@ -146,6 +146,29 @@ enum CurrentRepoResolver {
         }.value
     }
 
+    /// Read `remote.origin.url`, falling back to `ls-remote --get-url origin`.
+    static func readOriginURL(
+        at path: String,
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) async -> String? {
+        await Task.detached(priority: .userInitiated) {
+            readOriginURLSync(at: path, env: env, runner: runner)
+        }.value
+    }
+
+    static func readOriginURLSync(
+        at path: String,
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) -> String? {
+        stringOrNil(
+            runGit(at: path, args: ["config", "--get", "remote.origin.url"], env: env, runner: runner)
+        ) ?? stringOrNil(
+            runGit(at: path, args: ["ls-remote", "--get-url", "origin"], env: env, runner: runner)
+        )
+    }
+
     static func matchAccountSync(
         path: String,
         accounts: [Account],
@@ -157,13 +180,7 @@ enum CurrentRepoResolver {
             return .notARepo(path: path)
         }
         let repoRoot = rootOut.trimmingCharacters(in: .whitespacesAndNewlines)
-        // Prefer the configured origin URL for clone prefill; fall back to the
-        // insteadOf-resolved URL when config is oddly empty but ls-remote works.
-        let originURL = stringOrNil(
-            runGit(at: path, args: ["config", "--get", "remote.origin.url"], env: env, runner: runner)
-        ) ?? stringOrNil(
-            runGit(at: path, args: ["ls-remote", "--get-url", "origin"], env: env, runner: runner)
-        )
+        let originURL = readOriginURLSync(at: path, env: env, runner: runner)
         return matchAccounts(forRepoRoot: repoRoot, accounts: accounts, originURL: originURL)
     }
 

@@ -58,6 +58,8 @@ struct CurrentRepoMatchedRow: View {
     var originURL: String? = nil
     var onClear: (() -> Void)? = nil
 
+    @State private var clonePrefill: String = ""
+
     var body: some View {
         KCHeroContainer(tint: heroTint) {
             VStack(alignment: .leading, spacing: KC.space4) {
@@ -131,13 +133,47 @@ struct CurrentRepoMatchedRow: View {
                     CloneAsIdentityView(
                         account: account,
                         compact: true,
-                        initialInput: originURL ?? ""
+                        initialInput: clonePrefill
                     )
+                    // Recreate when prefill arrives so @State picks it up.
+                    .id("clone-\(account.id.uuidString)-\(clonePrefill)")
                     .padding(.top, KC.space4)
                 }
             }
         }
+        .task(id: repoRoot) {
+            await loadClonePrefill()
+        }
     }
+
+    private func loadClonePrefill() async {
+        if let originURL, !originURL.isEmpty {
+            clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: originURL)
+            if !clonePrefill.isEmpty { return }
+        }
+        if let origin = await CurrentRepoResolver.readOriginURL(at: repoRoot) {
+            clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: origin)
+        }
+    }
+
+    private var scopeText: String {
+        switch account.scope {
+        case .global:
+            return String(localized: "scope: global")
+        case .gitdir(let dir):
+            return String(localized: "scope: gitdir:\(dir)")
+        }
+    }
+
+    private var heroTint: Color {
+        switch probe {
+        case .ok:      return .green
+        case .failed:  return .red
+        case .probing: return .orange
+        case .idle:    return account.color.color
+        }
+    }
+}
 
     private var scopeText: String {
         switch account.scope {

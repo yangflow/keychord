@@ -7,6 +7,7 @@ import AppKit
 struct CloneAsIdentityView: View {
     let account: Account
     var compact: Bool = false
+    private let initialInput: String
 
     @State private var input: String
     @State private var didCopy = false
@@ -14,6 +15,7 @@ struct CloneAsIdentityView: View {
     init(account: Account, compact: Bool = false, initialInput: String = "") {
         self.account = account
         self.compact = compact
+        self.initialInput = initialInput
         self._input = State(initialValue: initialInput)
     }
 
@@ -52,6 +54,16 @@ struct CloneAsIdentityView: View {
                     .foregroundStyle(.tertiary)
             }
         }
+        .onAppear {
+            applyInitialInputIfNeeded()
+        }
+        .onChange(of: initialInput) { _, newValue in
+            if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                input = newValue
+                didCopy = false
+            }
+        }
     }
 
     @ViewBuilder
@@ -71,6 +83,13 @@ struct CloneAsIdentityView: View {
 
     private var cloneCommand: String? {
         account.cloneCommand(for: input)
+    }
+
+    private func applyInitialInputIfNeeded() {
+        let seed = initialInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !seed.isEmpty else { return }
+        input = seed
     }
 
     private func copyCommand() {
