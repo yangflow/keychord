@@ -10,6 +10,7 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ### Added
 
+- **Open at Login** — Accounts window → Settings offers **Open at Login** via `SMAppService.mainApp`. The toggle follows live registration status; register/unregister failures show a visible error and do not leave the switch claiming success. Unit tests cover the controller with a fake service (no real login-item writes).
 - **Clone as this identity** — Account detail (and the current-repo hero) accepts `org/repo` or a pasted original URL and copies a rewritten `git clone git@<alias>:…` command. Pure `CloneURLRewriter` over alias + provider host + `urlRewrites`; read-only, no config writes.
 - **Remove Include from Settings** — Accounts window → Settings offers **Remove Include (keep accounts.json)** with a confirmation dialog. Calls `IncludeInstaller.uninstallUserIncludes` to strip only the `# --- keychord managed ---` marker blocks from `~/.ssh/config` and `~/.gitconfig`; `accounts.json`, managed files, and private keys are left alone.
 - **SSH probe cache** — popover opens reuse the last `ssh -T` result for each alias (10-minute TTL). Successful probes stay cached until **Refresh**; failures and never-probed aliases auto-reprobe after the TTL. The menu-bar icon keeps the cached worst severity instead of flashing key → warning on every open.

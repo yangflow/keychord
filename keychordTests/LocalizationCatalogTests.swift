@@ -32,6 +32,11 @@ struct LocalizationCatalogTests {
         "Clone as this identity",
         "org/repo or paste URL",
         "Copy rewritten clone command",
+        "Startup",
+        "Open at Login",
+        "Launch keychord in the menu bar when you log in to this Mac.",
+        "Open at Login needs approval in System Settings → General → Login Items.",
+        "Could not enable Open at Login. Check System Settings → Login Items.",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

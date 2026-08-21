@@ -157,7 +157,8 @@ keychord/
    ```bash
    rm -rf ~/.config/keychord
    ```
-4. 删除 keychord 注入的 `Include` 块——打开 **账号窗口 → 设置 → 移除 Include（保留 accounts.json）**，或手动删除 `~/.ssh/config` 与 `~/.gitconfig` 中 `# --- keychord managed ---` 到 `# --- keychord managed end ---` 的内容。
+4. 如果开过「登录时启动」，到「系统设置 → 通用 → 登录项」里去掉 keychord（或退出前在「账号窗口 → 设置」关掉开关）。
+5. 删除 keychord 注入的 `Include` 块——退出前打开 **账号窗口 → 设置 → 移除 Include（保留 accounts.json）**，或手动删除 `~/.ssh/config` 与 `~/.gitconfig` 中 `# --- keychord managed ---` 到 `# --- keychord managed end ---` 的内容。
 
 如果通过 Homebrew 安装: `brew uninstall --cask keychord`。
 

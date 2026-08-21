@@ -90,7 +90,7 @@ struct AccountsWindowView: View {
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(onDismiss: { showingSettings = false })
-                .frame(width: 420, height: 280)
+                .frame(width: 420, height: 360)
         }
         .sheet(item: $importBatch) { batch in
             ImportPickerView(
