@@ -104,6 +104,11 @@ struct CurrentRepoMatchedRow: View {
                     .foregroundStyle(.tertiary)
                     .lineLimit(1)
                     .truncationMode(.middle)
+
+                if !account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    CloneAsIdentityView(account: account, compact: true)
+                        .padding(.top, KC.space4)
+                }
             }
         }
     }
