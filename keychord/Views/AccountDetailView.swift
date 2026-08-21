@@ -114,33 +114,6 @@ struct AccountDetailView: View {
                 }
 
                 Section {
-                    HStack(spacing: KC.space8) {
-                        Text("Color")
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        ForEach(Account.AccountColor.allCases, id: \.self) { color in
-                            Button {
-                                draft.color = color
-                            } label: {
-                                Circle()
-                                    .fill(color.color)
-                                    .frame(width: 18, height: 18)
-                                    .overlay {
-                                        Circle()
-                                            .strokeBorder(.primary.opacity(draft.color == color ? 0.6 : 0), lineWidth: 2)
-                                    }
-                                    .scaleEffect(draft.color == color ? 1.15 : 1.0)
-                                    .animation(.easeInOut(duration: 0.15), value: draft.color)
-                            }
-                            .buttonStyle(.plain)
-                            .accessibilityLabel(Text(color.localizedAccessibilityLabel))
-                        }
-                    }
-                } header: {
-                    Text("Appearance")
-                }
-
-                Section {
                     TextEditor(text: $draft.notes)
                         .font(.system(size: 12))
                         .frame(minHeight: 80, maxHeight: 120)
@@ -177,9 +150,20 @@ struct AccountDetailView: View {
 
     private var header: some View {
         HStack(spacing: KC.space10) {
-            Circle()
-                .fill(draft.color.color)
-                .frame(width: 14, height: 14)
+            Button {
+                AccountColorPanelController.shared.present(initial: draft.color) { newColor in
+                    draft.color = newColor
+                }
+            } label: {
+                Circle()
+                    .fill(draft.color.color)
+                    .frame(width: 14, height: 14)
+                    .contentShape(Circle())
+            }
+            .buttonStyle(.plain)
+            .help("Account color")
+            .accessibilityLabel(Text("Account color"))
+
             Group {
                 if isNew {
                     Text("New account")
@@ -338,19 +322,6 @@ private struct MetadataRow: View {
                 }
             }
             .foregroundStyle(.secondary)
-        }
-    }
-}
-
-private extension Account.AccountColor {
-    var localizedAccessibilityLabel: LocalizedStringKey {
-        switch self {
-        case .blue: return "Blue"
-        case .green: return "Green"
-        case .orange: return "Orange"
-        case .red: return "Red"
-        case .purple: return "Purple"
-        case .yellow: return "Yellow"
         }
     }
 }

@@ -132,14 +132,25 @@ struct AccountsWindowView: View {
         List(selection: $selection) {
             Section {
                 ForEach(appState.accountsStore.accounts) { account in
-                    AccountsSidebarRow(account: account)
-                        .tag(account.id)
+                    AccountsSidebarRow(
+                        account: account,
+                        color: sidebarColor(for: account)
+                    )
+                    .tag(account.id)
                 }
             } header: {
                 Text("Accounts")
             }
         }
         .listStyle(.sidebar)
+    }
+
+    /// Prefer the in-edit draft color so the sidebar dot tracks the color panel live.
+    private func sidebarColor(for account: Account) -> Account.AccountColor {
+        if let draft, draft.id == account.id {
+            return draft.color
+        }
+        return account.color
     }
 
     // MARK: - Detail pane
@@ -353,11 +364,12 @@ struct AccountsWindowView: View {
 
 private struct AccountsSidebarRow: View {
     let account: Account
+    let color: Account.AccountColor
 
     var body: some View {
         HStack(spacing: KC.space10) {
             Circle()
-                .fill(account.color.color)
+                .fill(color.color)
                 .frame(width: 10, height: 10)
             VStack(alignment: .leading, spacing: 2) {
                 if account.label.isEmpty {

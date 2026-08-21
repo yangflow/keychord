@@ -51,6 +51,7 @@ struct LocalizationCatalogTests {
         "Overrides the system language for KeyChord only.",
         "Relaunch KeyChord to apply the language everywhere.",
         "Relaunch",
+        "Account color",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

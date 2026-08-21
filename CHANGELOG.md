@@ -15,6 +15,7 @@ All notable changes to keychord are documented here. The format is based on [Kee
 ### Changed
 
 - **Clone row copy/layout** — Account detail section is plain “Clone” / “克隆” with a Form-style repository field and icon-only copy control; dropped the slogan helper line. Menubar compact clone field still works.
+- **Account color** — removed the Appearance swatch row; click the title marker to open the system color panel. Colors store as `#RRGGBB` (legacy `blue`/`green`/… names still decode). Sidebar dots track the draft color live.
 
 ## [0.4.0] — 2026-08-22
 

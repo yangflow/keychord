@@ -155,7 +155,7 @@ enum AccountImporter {
         let primaryAlias = c.aliases.first ?? ""
         let label = (c.userName?.isEmpty == false) ? c.userName! : primaryAlias
 
-        let palette = Account.AccountColor.allCases
+        let palette = Account.AccountColor.presets
         let color = palette[colorIndex % palette.count]
 
         return Account(
