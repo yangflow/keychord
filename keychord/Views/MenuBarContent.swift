@@ -243,7 +243,12 @@ struct MenuBarPopoverView: View {
         panel.prompt = String(localized: "Choose")
         panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task { await appState.resolveCurrentRepo(at: url.path) }
+        Task {
+            await appState.resolveCurrentRepo(at: url.path)
+            // NSOpenPanel dismisses the MenuBarExtra window; reopen like icon drop.
+            try? await Task.sleep(for: .milliseconds(50))
+            StatusItemDropTargetController.shared.openPopoverShowingMatch()
+        }
     }
 
     /// Best-effort: if Finder's front window is a directory, resolve it.

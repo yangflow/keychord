@@ -16,7 +16,7 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 - **Clone row copy/layout** — Account detail section is plain “Clone” / “克隆” with a Form-style repository field and icon-only copy control; dropped the slogan helper line. Menubar compact clone field still works.
 - **Account color** — removed the Appearance swatch row; click the title marker to open the system color panel. Colors store as `#RRGGBB` (legacy `blue`/`green`/… names still decode). Sidebar dots track the draft color live.
-- **Menu bar icon folder drop** — drag a folder onto the KeyChord menu bar icon (popover need not stay open). Resolves via `CurrentRepoResolver`, stores the match on `AppState`, and opens the popover. Idle copy no longer claims you can drop into the dashed box.
+- **Menu bar icon folder drop** — drag a folder onto the KeyChord menu bar icon (popover need not stay open). Resolves via `CurrentRepoResolver`, stores the match on `AppState`, and opens the popover. Idle copy no longer claims you can drop into the dashed box. **Choose Folder…** likewise reopens the popover after a confirmed pick (Cancel leaves it closed).
 
 ## [0.4.0] — 2026-08-22
 
