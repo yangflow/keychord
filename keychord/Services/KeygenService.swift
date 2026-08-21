@@ -18,8 +18,8 @@ enum KeygenService {
 
         var displayName: String {
             switch self {
-            case .ed25519: return String(localized: "Ed25519")
-            case .rsa4096: return String(localized: "RSA 4096-bit")
+            case .ed25519: return String.loc("Ed25519")
+            case .rsa4096: return String.loc("RSA 4096-bit")
             }
         }
 
@@ -42,17 +42,17 @@ enum KeygenService {
         var description: String {
             switch self {
             case .invalidName(let n):
-                return String(localized: "Invalid key file name: \(n)")
+                return String.loc("Invalid key file name: \(n)")
             case .fileExists(let p):
-                return String(localized: "A key file already exists at \(p)")
+                return String.loc("A key file already exists at \(p)")
             case .directoryCreateFailed(let p):
-                return String(localized: "Failed to create directory \(p)")
+                return String.loc("Failed to create directory \(p)")
             case .commandFailed(let err):
-                return String(localized: "ssh-keygen failed: \(err)")
+                return String.loc("ssh-keygen failed: \(err)")
             case .publicKeyUnreadable(let p):
-                return String(localized: "Generated key but could not read \(p)")
+                return String.loc("Generated key but could not read \(p)")
             case .fingerprintFailed(let err):
-                return String(localized: "ssh-keygen -lf failed: \(err)")
+                return String.loc("ssh-keygen -lf failed: \(err)")
             }
         }
     }

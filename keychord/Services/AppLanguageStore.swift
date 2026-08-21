@@ -1,4 +1,3 @@
-import AppKit
 import Foundation
 import Observation
 
@@ -31,11 +30,14 @@ enum AppLanguagePreference: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// Persists the language choice, mirrors it into `AppleLanguages` for
-/// `String(localized:)`, and exposes a SwiftUI `Locale` for live `Text` updates.
+/// Persists the language choice, mirrors it into `AppleLanguages` for the next
+/// launch, points ``AppLocalization`` at the chosen catalog for strings built in
+/// code, and exposes a SwiftUI `Locale` so open windows relabel themselves.
 ///
-/// Catalog lookups via `String(localized:)` generally need a process relaunch
-/// after `AppleLanguages` changes; the Settings UI surfaces that and offers relaunch.
+/// What a change cannot reach is the chrome AppKit built from the launch
+/// catalog — window titles and the app menu. ``showsLaunchCatalogNote`` says
+/// when that is the case, and Settings mentions it in one quiet line instead of
+/// demanding a relaunch.
 @MainActor
 @Observable
 final class AppLanguageStore {
@@ -48,35 +50,42 @@ final class AppLanguageStore {
             guard oldValue != preference else { return }
             defaults.set(preference.rawValue, forKey: Self.preferenceKey)
             Self.applyAppleLanguages(preference, defaults: defaults)
-            pendingRelaunch = true
+            AppLocalization.apply(preference)
         }
     }
 
-    /// True after the user changes language until they relaunch (or dismiss).
-    var pendingRelaunch = false
+    /// Language this process started in. Window titles and the app menu are
+    /// bound to it for the life of the process.
+    let launchPreference: AppLanguagePreference
+
+    /// True once the choice differs from the one the app launched with, which is
+    /// exactly when some chrome is still reading from the launch catalog.
+    /// Switching back makes it false again — nothing is stale then.
+    var showsLaunchCatalogNote: Bool { preference != launchPreference }
 
     var locale: Locale { preference.locale }
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
-        if let raw = defaults.string(forKey: Self.preferenceKey),
-           let stored = AppLanguagePreference(rawValue: raw) {
-            self.preference = stored
-        } else {
-            self.preference = .system
-        }
+        let stored = Self.storedPreference(defaults: defaults)
+        self.preference = stored
+        self.launchPreference = stored
     }
 
-    /// Call once at process start so `String(localized:)` matches the saved choice.
+    /// Call once at process start so strings built in code match the saved
+    /// choice, whether or not `AppleLanguages` landed in time for `Bundle.main`.
     static func bootstrapAppleLanguages(defaults: UserDefaults = .standard) {
-        let preference: AppLanguagePreference
-        if let raw = defaults.string(forKey: preferenceKey),
-           let stored = AppLanguagePreference(rawValue: raw) {
-            preference = stored
-        } else {
-            preference = .system
-        }
+        let preference = storedPreference(defaults: defaults)
         applyAppleLanguages(preference, defaults: defaults)
+        AppLocalization.apply(preference)
+    }
+
+    static func storedPreference(defaults: UserDefaults = .standard) -> AppLanguagePreference {
+        guard let raw = defaults.string(forKey: preferenceKey),
+              let stored = AppLanguagePreference(rawValue: raw) else {
+            return .system
+        }
+        return stored
     }
 
     static func applyAppleLanguages(
@@ -87,18 +96,6 @@ final class AppLanguageStore {
             defaults.set([code], forKey: "AppleLanguages")
         } else {
             defaults.removeObject(forKey: "AppleLanguages")
-        }
-    }
-
-    /// Relaunches the app bundle, then terminates this process.
-    static func relaunch() {
-        let url = Bundle.main.bundleURL
-        let configuration = NSWorkspace.OpenConfiguration()
-        configuration.createsNewApplicationInstance = true
-        NSWorkspace.shared.openApplication(at: url, configuration: configuration) { _, _ in
-            DispatchQueue.main.async {
-                NSApp.terminate(nil)
-            }
         }
     }
 }

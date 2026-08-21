@@ -13,10 +13,10 @@ enum MenuBarTooltip {
         switch match {
         case .matched(let account, _, _):
             let label = account.label.trimmingCharacters(in: .whitespacesAndNewlines)
-            let name = label.isEmpty ? String(localized: "(unnamed)") : label
+            let name = label.isEmpty ? String.loc("(unnamed)") : label
             return "\(appName) · \(name)"
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
-            return "\(appName) · \(String(localized: "no match"))"
+            return "\(appName) · \(String.loc("no match"))"
         }
     }
 

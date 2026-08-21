@@ -139,7 +139,7 @@ final class AppState {
             }
             try AccountProjector.regenerate(accounts: accountsStore.accounts)
         } catch {
-            return String(localized: "Undo failed: \(String(describing: error))")
+            return String.loc("Undo failed: \(String(describing: error))")
         }
         await resolveCurrentRepo(at: undo.repoRoot)
         return nil
@@ -148,7 +148,7 @@ final class AppState {
     /// Label the toast shows for the account a folder was bound to.
     private func displayLabel(of account: Account) -> String {
         account.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            ? String(localized: "(unnamed)")
+            ? String.loc("(unnamed)")
             : account.label
     }
 
@@ -196,7 +196,7 @@ final class AppState {
                 try accountsStore.update(result.account)
                 try AccountProjector.regenerate(accounts: accountsStore.accounts)
             } catch {
-                return String(localized: "Bind failed: \(String(describing: error))")
+                return String.loc("Bind failed: \(String(describing: error))")
             }
             recordScopeUndo(
                 previousAccounts: snapshot,
@@ -255,7 +255,7 @@ final class AppState {
             try accountsStore.update(result.account)
             try AccountProjector.regenerate(accounts: accountsStore.accounts)
         } catch {
-            return String(localized: "Unbind failed: \(String(describing: error))")
+            return String.loc("Unbind failed: \(String(describing: error))")
         }
         await resolveCurrentRepo(at: repoRoot)
         return nil
@@ -282,7 +282,7 @@ final class AppState {
                 try AccountProjector.regenerate(accounts: accountsStore.accounts)
             }
         } catch {
-            return String(localized: "Rebind failed: \(String(describing: error))")
+            return String.loc("Rebind failed: \(String(describing: error))")
         }
         if removal.changedScope || addition.changedScope {
             recordScopeUndo(
@@ -305,7 +305,7 @@ final class AppState {
             try accountsStore.update(updated)
             try AccountProjector.regenerate(accounts: accountsStore.accounts)
         } catch {
-            return String(localized: "Could not update the gitdir path: \(String(describing: error))")
+            return String.loc("Could not update the gitdir path: \(String(describing: error))")
         }
         await resolveCurrentRepo(at: ConfigStore.expand(candidate.replacementPath))
         return nil
@@ -327,7 +327,7 @@ final class AppState {
                 try accountsStore.update(result.account)
                 try AccountProjector.regenerate(accounts: accountsStore.accounts)
             } catch {
-                return String(localized: "Bind failed: \(String(describing: error))")
+                return String.loc("Bind failed: \(String(describing: error))")
             }
             recordScopeUndo(
                 previousAccounts: snapshot,
@@ -352,7 +352,7 @@ final class AppState {
                 try accountsStore.update(result.account)
                 try AccountProjector.regenerate(accounts: accountsStore.accounts)
             } catch {
-                return String(localized: "Unbind failed: \(String(describing: error))")
+                return String.loc("Unbind failed: \(String(describing: error))")
             }
         }
         if let repoRoot {
@@ -371,7 +371,7 @@ final class AppState {
             try accountsStore.update(updated)
             try AccountProjector.regenerate(accounts: accountsStore.accounts)
         } catch {
-            return String(localized: "Could not add the SSH rewrite: \(String(describing: error))")
+            return String.loc("Could not add the SSH rewrite: \(String(describing: error))")
         }
         if case .matched(_, let repoRoot, _) = accountMatch {
             await resolveCurrentRepo(at: repoRoot)

@@ -19,6 +19,9 @@ struct AccountsWindowView: View {
     /// Timestamp of the last successful write, which makes the Save button
     /// flash its acknowledgement (#45).
     @State private var lastSavedAt: Date?
+    /// True while the new draft's git author is the one `git config --global`
+    /// reported, so the form can say where those two values came from (#49).
+    @State private var identityFromGlobalConfig = false
 
     var body: some View {
         NavigationSplitView {
@@ -143,7 +146,8 @@ struct AccountsWindowView: View {
                 onSave: saveDraft,
                 onRevert: revertDraft,
                 onDelete: isNewDraft ? nil : { requestDelete(id: draftID) },
-                savedAt: lastSavedAt
+                savedAt: lastSavedAt,
+                identityFromGlobalConfig: isNewDraft && identityFromGlobalConfig
             )
         } else {
             emptyDetail
@@ -201,7 +205,9 @@ struct AccountsWindowView: View {
     // MARK: - Draft lifecycle
 
     /// `prefilled` comes from a failed drop (#41): already scoped to that
-    /// folder, with the global git identity and port 443 filled in.
+    /// folder, with the global git identity and port 443 filled in. The plain
+    /// `+` path starts blank and fills the author in from `git config --global`
+    /// as soon as git answers (#49).
     private func beginNew(prefilled: Account? = nil) {
         draft = prefilled ?? Account(
             id: UUID(),
@@ -225,6 +231,28 @@ struct AccountsWindowView: View {
         isNewDraft = true
         selection = nil
         statusMessage = nil
+
+        if let prefilled {
+            identityFromGlobalConfig =
+                !prefilled.gitUserName.isEmpty || !prefilled.gitUserEmail.isEmpty
+        } else {
+            identityFromGlobalConfig = false
+            let draftID = draft?.id
+            Task { await prefillIdentityFromGlobalConfig(draftID: draftID) }
+        }
+    }
+
+    /// Fill the empty Git name / email of the draft that is still open with the
+    /// global author. Anything the user typed in the meantime wins, and a draft
+    /// that was replaced or saved while git ran is left alone.
+    private func prefillIdentityFromGlobalConfig(draftID: UUID?) async {
+        let identity = await GitGlobalIdentity.read()
+        guard !identity.isEmpty else { return }
+        guard isNewDraft, let current = draft, current.id == draftID else { return }
+        let prefill = GitGlobalIdentity.prefill(current, with: identity)
+        guard prefill.didFill else { return }
+        draft = prefill.account
+        identityFromGlobalConfig = true
     }
 
     private func loadDraftForSelection(_ newSelection: UUID?) {
@@ -235,6 +263,7 @@ struct AccountsWindowView: View {
         if let acc = appState.accountsStore.accounts.first(where: { $0.id == id }) {
             draft = acc
             isNewDraft = false
+            identityFromGlobalConfig = false
             statusMessage = nil
         }
     }
@@ -248,6 +277,7 @@ struct AccountsWindowView: View {
             draft = nil
             isNewDraft = false
         }
+        identityFromGlobalConfig = false
         statusMessage = nil
     }
 
@@ -268,11 +298,11 @@ struct AccountsWindowView: View {
             try regenerate()
             draft = updated
             statusIsError = false
-            statusMessage = String(localized: "Saved · \(updated.label)")
+            statusMessage = String.loc("Saved · \(updated.label)")
             lastSavedAt = Date()
         } catch {
             statusIsError = true
-            statusMessage = String(localized: "Save failed: \(String(describing: error))")
+            statusMessage = String.loc("Save failed: \(String(describing: error))")
             return
         }
 
@@ -302,10 +332,10 @@ struct AccountsWindowView: View {
                 draft = nil
             }
             statusIsError = false
-            statusMessage = String(localized: "Deleted")
+            statusMessage = String.loc("Deleted")
         } catch {
             statusIsError = true
-            statusMessage = String(localized: "Delete failed: \(String(describing: error))")
+            statusMessage = String.loc("Delete failed: \(String(describing: error))")
             return
         }
 
@@ -317,10 +347,10 @@ struct AccountsWindowView: View {
                 of: account,
                 in: appState.accountsStore.accounts
             )
-            statusMessage = String(localized: "Deleted · private key removed")
+            statusMessage = String.loc("Deleted · private key removed")
         } catch {
             statusIsError = true
-            statusMessage = String(localized: "Deleted, but the private key was kept: \(String(describing: error))")
+            statusMessage = String.loc("Deleted, but the private key was kept: \(String(describing: error))")
         }
     }
 
@@ -330,13 +360,13 @@ struct AccountsWindowView: View {
             let records = AccountImporter.importFromExistingConfig(current)
             if records.isEmpty {
                 statusIsError = false
-                statusMessage = String(localized: "No accounts found to import")
+                statusMessage = String.loc("No accounts found to import")
                 return
             }
             importBatch = ImportBatch(accounts: records)
         } catch {
             statusIsError = true
-            statusMessage = String(localized: "Import failed: \(String(describing: error))")
+            statusMessage = String.loc("Import failed: \(String(describing: error))")
         }
     }
 
@@ -356,13 +386,13 @@ struct AccountsWindowView: View {
             }
             statusIsError = false
             if added == 1 {
-                statusMessage = String(localized: "Imported 1 account")
+                statusMessage = String.loc("Imported 1 account")
             } else {
-                statusMessage = String(localized: "Imported \(added) accounts")
+                statusMessage = String.loc("Imported \(added) accounts")
             }
         } catch {
             statusIsError = true
-            statusMessage = String(localized: "Import failed: \(String(describing: error))")
+            statusMessage = String.loc("Import failed: \(String(describing: error))")
         }
     }
 

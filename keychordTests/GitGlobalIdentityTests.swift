@@ -38,6 +38,95 @@ struct GitGlobalIdentityTests {
     }
 }
 
+/// #49: the Accounts-window `+` form starts on the global author. The read is
+/// async, so “the user typed something meanwhile” is the case that matters.
+@Suite("GitGlobalIdentity.prefill")
+struct GitGlobalIdentityPrefillTests {
+
+    private static let global = GitGlobalIdentity.Identity(
+        name: "Alex Doe",
+        email: "alex@example.com"
+    )
+
+    private static func blankDraft() -> Account {
+        Account.new(
+            label: "",
+            sshAlias: "",
+            keyPath: "",
+            gitUserName: "",
+            gitUserEmail: ""
+        )
+    }
+
+    @Test func emptyFieldsTakeTheGlobalAuthor() {
+        let prefill = GitGlobalIdentity.prefill(Self.blankDraft(), with: Self.global)
+        #expect(prefill.didFill)
+        #expect(prefill.account.gitUserName == "Alex Doe")
+        #expect(prefill.account.gitUserEmail == "alex@example.com")
+    }
+
+    @Test func aTypedNameIsNeverOverwritten() {
+        var draft = Self.blankDraft()
+        draft.gitUserName = "Typed Name"
+
+        let prefill = GitGlobalIdentity.prefill(draft, with: Self.global)
+        #expect(prefill.account.gitUserName == "Typed Name")
+        // The still-empty field is fair game.
+        #expect(prefill.account.gitUserEmail == "alex@example.com")
+        #expect(prefill.didFill)
+    }
+
+    @Test func aFullyTypedIdentityIsLeftAlone() {
+        var draft = Self.blankDraft()
+        draft.gitUserName = "Typed Name"
+        draft.gitUserEmail = "typed@example.com"
+
+        let prefill = GitGlobalIdentity.prefill(draft, with: Self.global)
+        #expect(!prefill.didFill)
+        #expect(prefill.account == draft)
+    }
+
+    @Test func noGlobalAuthorLeavesTheFormBlank() {
+        let draft = Self.blankDraft()
+        let prefill = GitGlobalIdentity.prefill(draft, with: .empty)
+        #expect(!prefill.didFill)
+        #expect(prefill.account == draft)
+    }
+
+    /// Only `user.name` is set globally — that half still gets filled.
+    @Test func aPartialGlobalIdentityFillsWhatItHas() {
+        let identity = GitGlobalIdentity.Identity(name: "Alex Doe", email: "")
+        let prefill = GitGlobalIdentity.prefill(Self.blankDraft(), with: identity)
+        #expect(prefill.didFill)
+        #expect(prefill.account.gitUserName == "Alex Doe")
+        #expect(prefill.account.gitUserEmail.isEmpty)
+    }
+
+    /// A field holding only spaces counts as empty; the user did not mean that.
+    @Test func whitespaceOnlyFieldsCountAsEmpty() {
+        var draft = Self.blankDraft()
+        draft.gitUserName = "   "
+        draft.gitUserEmail = "\n"
+
+        let prefill = GitGlobalIdentity.prefill(draft, with: Self.global)
+        #expect(prefill.account.gitUserName == "Alex Doe")
+        #expect(prefill.account.gitUserEmail == "alex@example.com")
+    }
+
+    @Test func prefillTouchesNothingElseOnTheDraft() {
+        var draft = Self.blankDraft()
+        draft.scope = .gitdir(paths: ["~/src/app/"])
+        draft.sshPort = .port443
+
+        let prefill = GitGlobalIdentity.prefill(draft, with: Self.global)
+        #expect(prefill.account.id == draft.id)
+        #expect(prefill.account.scope == .gitdir(paths: ["~/src/app/"]))
+        #expect(prefill.account.sshPort == .port443)
+        #expect(prefill.account.label.isEmpty)
+        #expect(prefill.account.sshAlias.isEmpty)
+    }
+}
+
 @Suite("DroppedFolderAccountDraft")
 struct DroppedFolderAccountDraftTests {
 

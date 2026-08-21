@@ -661,7 +661,7 @@ struct AccountRow: View {
 
     private var subtitle: String {
         let alias = record.sshAlias.isEmpty
-            ? String(localized: "no alias")
+            ? String.loc("no alias")
             : record.sshAlias
         if record.gitUserEmail.isEmpty { return alias }
         return "\(alias) · \(record.gitUserEmail)"
@@ -857,8 +857,8 @@ struct AccountIssueStrip: View {
             copied.reset()
             let path = KeyAttachment.publicKeyPath(forPrivateKeyPath: account.keyPath)
             copyError = path.isEmpty
-                ? String(localized: "This account has no private key yet.")
-                : String(localized: "No public key at \(path.abbreviatedHomePath())")
+                ? String.loc("This account has no private key yet.")
+                : String.loc("No public key at \(path.abbreviatedHomePath())")
             return
         }
         NSPasteboard.general.clearContents()
@@ -1037,18 +1037,18 @@ struct DoctorSummaryRow: View {
         let warnings = diagnoses.filter { $0.severity == .warning }.count
         var parts: [String] = []
         if errors == 1 {
-            parts.append(String(localized: "1 error"))
+            parts.append(String.loc("1 error"))
         } else if errors > 1 {
-            parts.append(String(localized: "\(errors) errors"))
+            parts.append(String.loc("\(errors) errors"))
         }
         if warnings == 1 {
-            parts.append(String(localized: "1 warning"))
+            parts.append(String.loc("1 warning"))
         } else if warnings > 1 {
-            parts.append(String(localized: "\(warnings) warnings"))
+            parts.append(String.loc("\(warnings) warnings"))
         }
         if parts.isEmpty {
             let infos = diagnoses.count
-            return String(localized: "\(infos) info")
+            return String.loc("\(infos) info")
         }
         return parts.joined(separator: " · ")
     }
@@ -1135,7 +1135,7 @@ struct DiagnosisRow: View {
     @ViewBuilder
     private func fixButton(_ fix: FixOption) -> some View {
         let isPending = pendingConfirm == fix.fixID
-        let label = isPending ? String(localized: "Confirm") : fix.label
+        let label = isPending ? String.loc("Confirm") : fix.label
         let symbol = isPending ? "exclamationmark.triangle.fill"
                                : (fix.isDestructive ? "trash" : "wand.and.stars")
         Button {
@@ -1175,8 +1175,8 @@ extension HostProbeState {
     var hintText: String? {
         switch self {
         case .idle:                 return nil
-        case .probing:              return String(localized: "probing…")
-        case .ok(let user):         return String(localized: "signed in as \(user)")
+        case .probing:              return String.loc("probing…")
+        case .ok(let user):         return String.loc("signed in as \(user)")
         case .failed(let reason):   return reason
         }
     }

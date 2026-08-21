@@ -30,6 +30,13 @@ All notable changes to keychord are documented here. The format is based on [Kee
 - **Brief acknowledgements** — one shared ~1.2s flash: **Copied** on clone / public-key / path / set-url copies, and **Written** on the Save button after an account is written to disk. No modals, and a checkmark can no longer linger from a copy made minutes ago. (#45)
 - **Keyboard** — Escape dismisses the popover (menus and sheets still consume it first), and Return copies the clone command while that field has focus and a rewritten URL exists. (#46)
 - **Scope on hover** — hovering a popover account row (or reading it with VoiceOver) shows its `gitdir:` paths, or **Global**, with no change in row height. (#47)
+- **First-launch hint** — the very first launch pulses a soft accent glow around the existing status-bar symbol (never swapped for another glyph) and hangs a small native callout under it: **KeyChord is up here** / **Click the icon to manage Git identities**. It goes away on the first click anywhere or after a few seconds, and a stored flag keeps every later launch quiet. No first-run window, no Dock bounce; Reduce Motion gets the glow without the pulse. (#48)
+- **The `+` form starts on your global git author** — opening a new identity in the Accounts window fills Git name / email from `git config --global` when those fields are empty, captioned **From git config --global**. A value typed while git was answering is never overwritten, and the rest of the form is untouched. The drop-driven create path (#41) keeps the same prefill. (#49)
+- **Settings reopens on the pane you left** — the last selected sidebar pane (General / Keys / Import / Backups / Config) is remembered per app and restored on the next open, falling back to General if that pane no longer exists. A pane the popover asks for — Import from the empty state — still wins. (#50)
+
+### Changed
+
+- **Language changes apply in place** — switching Follow System / English / 简体中文 now relabels the open popover, Settings and Accounts windows without quitting: strings built in code go through `String.loc`, which reads the chosen language's catalog instead of the one the process launched with. The Relaunch button is gone; when the choice differs from the launch language, Settings adds one quiet line — **Some text updates the next time you open KeyChord.** — because window titles and the app menu are built once by AppKit. (#51)
 
 ### Fixed
 

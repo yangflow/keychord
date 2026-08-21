@@ -22,6 +22,8 @@ struct KeychordApp: App {
             MenuBarIconLabel(appState: appState)
                 .onAppear {
                     StatusItemDropTargetController.shared.start(appState: appState)
+                    // First launch only: point at the icon that just appeared.
+                    MenuBarHintController.shared.startIfNeeded()
                 }
         }
         .menuBarExtraStyle(.window)

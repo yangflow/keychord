@@ -29,16 +29,16 @@ enum KeyFileRemover {
         var localizedMessage: String {
             switch self {
             case .noKeyPath:
-                return String(localized: "This account has no private key yet.")
+                return String.loc("This account has no private key yet.")
             case .missing(let path):
-                return String(localized: "No private key at \(path.abbreviatedHomePath())")
+                return String.loc("No private key at \(path.abbreviatedHomePath())")
             case .symlink(let path):
-                return String(localized: "\(path.abbreviatedHomePath()) is a symlink, so keychord will not delete it.")
+                return String.loc("\(path.abbreviatedHomePath()) is a symlink, so keychord will not delete it.")
             case .notARegularFile(let path):
-                return String(localized: "\(path.abbreviatedHomePath()) is not a regular file.")
+                return String.loc("\(path.abbreviatedHomePath()) is not a regular file.")
             case .sharedWith(let labels):
                 let joined = labels.joined(separator: ", ")
-                return String(localized: "\(joined) also uses this key, so it is kept.")
+                return String.loc("\(joined) also uses this key, so it is kept.")
             }
         }
     }
@@ -52,7 +52,7 @@ enum KeyFileRemover {
             case .blocked(let blocker):
                 return blocker.localizedMessage
             case .removeFailed(let message):
-                return String(localized: "Could not delete the private key: \(message)")
+                return String.loc("Could not delete the private key: \(message)")
             }
         }
     }
@@ -84,7 +84,7 @@ enum KeyFileRemover {
                 ConfigStore.expand($0.keyPath.trimmingCharacters(in: .whitespacesAndNewlines))
                     == ConfigStore.expand(stored)
             }
-            .map { $0.label.isEmpty ? String(localized: "(unnamed)") : $0.label }
+            .map { $0.label.isEmpty ? String.loc("(unnamed)") : $0.label }
         if !sharing.isEmpty { return .sharedWith(sharing) }
 
         let expanded = ConfigStore.expand(stored)

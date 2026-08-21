@@ -182,11 +182,11 @@ enum SSHAgentService {
         var localizedMessage: String {
             switch self {
             case .noKeyPath:
-                return String(localized: "This account has no private key yet.")
+                return String.loc("This account has no private key yet.")
             case .keyMissing(let path):
-                return String(localized: "No private key at \(path.abbreviatedHomePath())")
+                return String.loc("No private key at \(path.abbreviatedHomePath())")
             case .commandFailed(let command, let detail):
-                return String(localized: "Could not unlock the key: \(detail). Run \(command) in Terminal to type the passphrase.")
+                return String.loc("Could not unlock the key: \(detail). Run \(command) in Terminal to type the passphrase.")
             }
         }
     }

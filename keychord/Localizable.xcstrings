@@ -3401,36 +3401,19 @@
         }
       }
     },
-    "Relaunch KeyChord to apply the language everywhere.": {
+    "Some text updates the next time you open KeyChord.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Relaunch KeyChord to apply the language everywhere."
+            "value": "Some text updates the next time you open KeyChord."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "重新启动 KeyChord 后，语言才会完全生效。"
-          }
-        }
-      }
-    },
-    "Relaunch": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Relaunch"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "重新启动"
+            "value": "部分文案需重新打开 KeyChord 才会更新"
           }
         }
       }
@@ -5233,6 +5216,57 @@
           "stringUnit": {
             "state": "translated",
             "value": "已写入"
+          }
+        }
+      }
+    },
+    "KeyChord is up here": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyChord is up here"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyChord 在这里"
+          }
+        }
+      }
+    },
+    "Click the icon to manage Git identities": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Click the icon to manage Git identities"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "点图标管理 Git 身份"
+          }
+        }
+      }
+    },
+    "From git config --global": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "From git config --global"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "来自 git config --global"
           }
         }
       }

@@ -66,8 +66,8 @@ final class UpdaterService {
         NSApp.setActivationPolicy(.regular)
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
-        alert.messageText = String(localized: "Updates not configured")
-        alert.informativeText = String(localized: "updater.notConfigured.body")
+        alert.messageText = String.loc("Updates not configured")
+        alert.informativeText = String.loc("updater.notConfigured.body")
         alert.alertStyle = .informational
         alert.runModal()
         ActivationPolicyController.shared.restoreAccessoryIfNeeded()

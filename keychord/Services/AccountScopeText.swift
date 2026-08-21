@@ -24,7 +24,7 @@ enum AccountScopeText {
     /// `gitdir: ~/work/ · ~/src/new-app/`, or the localized “Global”.
     static func summary(of scope: Account.Scope) -> String {
         let dirs = paths(of: scope)
-        guard !dirs.isEmpty else { return String(localized: "Global") }
+        guard !dirs.isEmpty else { return String.loc("Global") }
         return "gitdir: " + dirs.joined(separator: pathSeparator)
     }
 
@@ -35,8 +35,8 @@ enum AccountScopeText {
     /// Longer form for cards and forms that spell out “scope:”.
     static func scopeLine(of scope: Account.Scope) -> String {
         let dirs = paths(of: scope)
-        guard !dirs.isEmpty else { return String(localized: "scope: global") }
-        return String(localized: "scope: gitdir:\(dirs.joined(separator: pathSeparator))")
+        guard !dirs.isEmpty else { return String.loc("scope: global") }
+        return String.loc("scope: gitdir:\(dirs.joined(separator: pathSeparator))")
     }
 
     static func scopeLine(for account: Account) -> String {

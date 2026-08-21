@@ -79,18 +79,18 @@ struct RestoreView: View {
     private func confirmationMessage(for entry: BackupListEntry) -> String {
         let current = accountsStore.accounts.count
         let head = current == 1
-            ? String(localized: "1 current identity will be replaced with:")
-            : String(localized: "\(current) current identities will be replaced with:")
+            ? String.loc("1 current identity will be replaced with:")
+            : String.loc("\(current) current identities will be replaced with:")
 
         let lines = entry.accounts.map { account -> String in
             let label = account.label.isEmpty
-                ? String(localized: "(unnamed)")
+                ? String.loc("(unnamed)")
                 : account.label
             let email = account.gitUserEmail.trimmingCharacters(in: .whitespacesAndNewlines)
             return email.isEmpty ? label : "\(label) · \(email)"
         }
         guard !lines.isEmpty else {
-            return head + "\n" + String(localized: "No accounts in this snapshot")
+            return head + "\n" + String.loc("No accounts in this snapshot")
         }
         return ([head] + lines).joined(separator: "\n")
     }
@@ -125,7 +125,7 @@ struct RestoreView: View {
         do {
             entries = try backups.listEntries(for: path)
         } catch {
-            loadError = String(localized: "Failed to list backups: \(String(describing: error))")
+            loadError = String.loc("Failed to list backups: \(String(describing: error))")
         }
         hasLoaded = true
     }
@@ -143,10 +143,10 @@ struct RestoreView: View {
                 accounts: accountsStore.accounts
             )
             let stamp = record.timestamp.formatted(date: .abbreviated, time: .standard)
-            statusMessage = String(localized: "Restored to \(stamp)")
+            statusMessage = String.loc("Restored to \(stamp)")
             reload()
         } catch {
-            loadError = String(localized: "Restore failed: \(String(describing: error))")
+            loadError = String.loc("Restore failed: \(String(describing: error))")
         }
     }
 
@@ -162,7 +162,7 @@ struct RestoreView: View {
             loadError = nil
             reload()
         } catch {
-            loadError = String(localized: "Delete failed: \(String(describing: error))")
+            loadError = String.loc("Delete failed: \(String(describing: error))")
         }
     }
 }
@@ -302,21 +302,21 @@ private struct BackupRestoreCard: View {
 
         if let count = entry.accountCount {
             if count == 0 {
-                parts.append(String(localized: "0 accounts"))
+                parts.append(String.loc("0 accounts"))
             } else if count == 1 {
-                parts.append(String(localized: "1 account"))
+                parts.append(String.loc("1 account"))
             } else {
-                parts.append(String(localized: "\(count) accounts"))
+                parts.append(String.loc("\(count) accounts"))
             }
 
             let labelText = entry.labels
-                .map { $0.isEmpty ? String(localized: "(unnamed)") : $0 }
+                .map { $0.isEmpty ? String.loc("(unnamed)") : $0 }
                 .joined(separator: ", ")
             if !labelText.isEmpty {
                 parts.append(labelText)
             }
         } else {
-            parts.append(String(localized: "Unreadable snapshot"))
+            parts.append(String.loc("Unreadable snapshot"))
         }
 
         if let bytes = entry.byteCount {
@@ -361,7 +361,7 @@ private struct BackupAccountPreviewRow: View {
     }
 
     private var displayLabel: String {
-        account.label.isEmpty ? String(localized: "(unnamed)") : account.label
+        account.label.isEmpty ? String.loc("(unnamed)") : account.label
     }
 
     private var detailLine: String {
@@ -440,7 +440,7 @@ private struct BackupAccountDetailSheet: View {
     }
 
     private var displayLabel: String {
-        account.label.isEmpty ? String(localized: "(unnamed)") : account.label
+        account.label.isEmpty ? String.loc("(unnamed)") : account.label
     }
 
     private var keyPathDisplay: String {
@@ -451,7 +451,7 @@ private struct BackupAccountDetailSheet: View {
 
     private var scopeDisplay: String {
         AccountScopeText.paths(of: account.scope).isEmpty
-            ? String(localized: "Global")
+            ? String.loc("Global")
             : AccountScopeText.scopeLine(of: account.scope)
     }
 
@@ -473,10 +473,10 @@ private struct BackupAccountDetailSheet: View {
 private extension Account.Provider {
     var localizedLabel: String {
         switch self {
-        case .github: return String(localized: "GitHub")
-        case .gitlab: return String(localized: "GitLab")
-        case .gitea: return String(localized: "Gitea")
-        case .custom: return String(localized: "Custom")
+        case .github: return String.loc("GitHub")
+        case .gitlab: return String.loc("GitLab")
+        case .gitea: return String.loc("Gitea")
+        case .custom: return String.loc("Custom")
         }
     }
 }
