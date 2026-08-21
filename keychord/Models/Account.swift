@@ -36,6 +36,16 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
 
         var id: String { rawValue }
 
+        /// Forge name for filter chips. Brand names stay untranslated.
+        var displayName: String {
+            switch self {
+            case .github: return "GitHub"
+            case .gitlab: return "GitLab"
+            case .gitea:  return "Gitea"
+            case .custom: return String(localized: "Custom")
+            }
+        }
+
         /// Canonical public hostname used by rewrite presets (nil for custom).
         var host: String? {
             switch self {

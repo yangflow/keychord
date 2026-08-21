@@ -97,6 +97,76 @@ struct GitdirBinderTests {
         #expect(GitdirBinder.coveringPath(forFolderPath: "/tmp/repo", in: scope) == nil)
     }
 
+    // MARK: - Unbind
+
+    @Test func unbindRemovesOnlyTheFoldersOwnEntry() {
+        let home = NSHomeDirectory()
+        let account = Self.account(scope: .gitdir(paths: ["~/work/", "~/src/new-app/"]))
+        let result = GitdirBinder.unbind(folderPath: "\(home)/src/new-app", from: account)
+
+        #expect(result.outcome == .removed(path: "~/src/new-app/"))
+        #expect(result.changedScope)
+        #expect(result.account.scope.directories == ["~/work/"])
+    }
+
+    @Test func unbindLeavesAParentScopeAlone() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keychord-unbind-\(UUID().uuidString)")
+        let child = root.appendingPathComponent("project")
+        try FileManager.default.createDirectory(at: child, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let account = Self.account(scope: .gitdir(root.path + "/"))
+        let result = GitdirBinder.unbind(folderPath: child.path, from: account)
+
+        #expect(result.outcome == .notBoundExactly)
+        #expect(!result.changedScope)
+        #expect(result.account.scope.directories == [root.path + "/"])
+    }
+
+    @Test func unbindingTheLastPathKeepsTheAccountScopedNotGlobal() {
+        let home = NSHomeDirectory()
+        let account = Self.account(scope: .gitdir("~/work/"))
+        let result = GitdirBinder.unbind(folderPath: "\(home)/work", from: account)
+
+        #expect(result.changedScope)
+        #expect(result.account.scope.directories.isEmpty)
+        // Going global here would silently claim every other repository.
+        #expect(result.account.scope != .global)
+        #expect(result.account.scope.isScoped)
+    }
+
+    @Test func exactPathIgnoresParentsAndBlanks() {
+        let scope = Account.Scope.gitdir(paths: ["", "~/work/", "~/src/new-app/"])
+        #expect(
+            GitdirBinder.exactPath(
+                forFolderPath: "\(NSHomeDirectory())/src/new-app",
+                in: scope
+            ) == "~/src/new-app/"
+        )
+        #expect(
+            GitdirBinder.exactPath(
+                forFolderPath: "\(NSHomeDirectory())/work/api",
+                in: scope
+            ) == nil
+        )
+        #expect(GitdirBinder.exactPath(forFolderPath: "  ", in: scope) == nil)
+        #expect(GitdirBinder.exactPath(forFolderPath: "~/work/", in: .global) == nil)
+    }
+
+    @Test func unbindThenBindMovesAFolderBetweenAccounts() {
+        let home = NSHomeDirectory()
+        let from = Self.account(scope: .gitdir(paths: ["~/work/", "~/src/new-app/"]))
+        var to = Self.account(scope: .global)
+        to.label = "personal"
+
+        let removal = GitdirBinder.unbind(folderPath: "\(home)/src/new-app", from: from)
+        let addition = GitdirBinder.bind(folderPath: "\(home)/src/new-app", to: to)
+
+        #expect(removal.account.scope.directories == ["~/work/"])
+        #expect(addition.account.scope.directories == ["~/src/new-app/"])
+    }
+
     // MARK: - Invalid input
 
     @Test func blankFolderPathIsRejected() {

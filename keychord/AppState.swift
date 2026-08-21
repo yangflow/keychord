@@ -87,4 +87,68 @@ final class AppState {
         await resolveCurrentRepo(at: path)
         return nil
     }
+
+    /// Drop the matched folder's own `gitdir:` entry from the account that owns
+    /// it, then re-resolve. A parent scope is left alone, so this only appears
+    /// when the folder has an entry of its own.
+    func unbindMatchedFolder() async -> String? {
+        guard case .matched(let account, let repoRoot, _) = accountMatch else { return nil }
+        let result = GitdirBinder.unbind(folderPath: repoRoot, from: account)
+        guard result.changedScope else {
+            await resolveCurrentRepo(at: repoRoot)
+            return nil
+        }
+        do {
+            try accountsStore.update(result.account)
+            try AccountProjector.regenerate(accounts: accountsStore.accounts)
+        } catch {
+            return String(localized: "Unbind failed: \(String(describing: error))")
+        }
+        await resolveCurrentRepo(at: repoRoot)
+        return nil
+    }
+
+    /// Move the matched folder to another identity: remove its own entry from
+    /// the current owner (if it has one) and add it to `account`. One save, one
+    /// projection, then re-resolve.
+    func rebindMatchedFolder(to account: Account) async -> String? {
+        guard case .matched(let current, let repoRoot, _) = accountMatch else { return nil }
+        guard current.id != account.id else { return nil }
+
+        let removal = GitdirBinder.unbind(folderPath: repoRoot, from: current)
+        let addition = GitdirBinder.bind(folderPath: repoRoot, to: account)
+        do {
+            if removal.changedScope {
+                try accountsStore.update(removal.account)
+            }
+            if addition.changedScope {
+                try accountsStore.update(addition.account)
+            }
+            if removal.changedScope || addition.changedScope {
+                try AccountProjector.regenerate(accounts: accountsStore.accounts)
+            }
+        } catch {
+            return String(localized: "Rebind failed: \(String(describing: error))")
+        }
+        await resolveCurrentRepo(at: repoRoot)
+        return nil
+    }
+
+    /// Add this provider's `insteadOf` presets so an HTTPS remote goes through
+    /// the account's SSH alias, then re-resolve any active match.
+    func applySSHRewrites(to account: Account) async -> String? {
+        var updated = account
+        updated.applyInsteadOfPreset()
+        guard updated.urlRewrites != account.urlRewrites else { return nil }
+        do {
+            try accountsStore.update(updated)
+            try AccountProjector.regenerate(accounts: accountsStore.accounts)
+        } catch {
+            return String(localized: "Could not add the SSH rewrite: \(String(describing: error))")
+        }
+        if case .matched(_, let repoRoot, _) = accountMatch {
+            await resolveCurrentRepo(at: repoRoot)
+        }
+        return nil
+    }
 }

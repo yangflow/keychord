@@ -98,6 +98,42 @@ struct LocalizationCatalogTests {
         "Set this account's git email, or give it a gitdir scope that covers this folder.",
         // Menu-bar tooltip (#32)
         "no match",
+        // Match-card folder actions (#33)
+        "Open in Finder",
+        "Unbind",
+        "Rebind to",
+        "Unbind failed: %@",
+        "Rebind failed: %@",
+        // Reason-specific probe actions (#34)
+        "Key is locked",
+        "Private key is missing",
+        "Could not reach the host",
+        "Remote is HTTPS, so clone and push take different paths",
+        "ssh-agent does not hold %@.",
+        "Nothing at %@.",
+        "Unlock in Keychain",
+        "Generate a key",
+        "Add SSH rewrite",
+        "No private key at %@",
+        "Could not unlock the key: %@. Run %@ in Terminal to type the passphrase.",
+        "Could not add the SSH rewrite: %@",
+        // Identity filter (#35)
+        "Filter identities",
+        "Clear filter",
+        "No identity matches this filter",
+        // Delete leftovers (#36)
+        "Delete identity %@?",
+        "This removes the identity from KeyChord. These are not deleted for you:",
+        "Also delete the private key",
+        "Managed SSH and git config are regenerated. Folders on disk stay where they are.",
+        "Delete identity",
+        "Private key",
+        "Deleted · private key removed",
+        "Deleted, but the private key was kept: %@",
+        "%@ is a symlink, so keychord will not delete it.",
+        "%@ is not a regular file.",
+        "%@ also uses this key, so it is kept.",
+        "Could not delete the private key: %@",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

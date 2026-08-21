@@ -51,6 +51,13 @@ struct MenuBarPopoverView: View {
     @State private var reprobingAliases: Set<String> = []
     @State private var isBinding = false
     @State private var bindError: String?
+    @State private var matchActionError: String?
+    @State private var isMatchActionRunning = false
+    @State private var keyStates: [UUID: SSHKeyState] = [:]
+    @State private var issueErrors: [UUID: String] = [:]
+    @State private var fixingAccountIDs: Set<UUID> = []
+    @State private var filterQuery = ""
+    @State private var filterProvider: Account.Provider?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -110,6 +117,19 @@ struct MenuBarPopoverView: View {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     currentRepoSection
+
+                    if AccountFilter.shouldOfferSearch(
+                        accountCount: appState.accountsStore.accounts.count
+                    ) {
+                        AccountFilterBar(
+                            query: $filterQuery,
+                            provider: $filterProvider,
+                            providers: AccountFilter.chipProviders(
+                                for: appState.accountsStore.accounts
+                            )
+                        )
+                    }
+
                     accountsSection
 
                     // Illustration only: drops land on the status-item icon.
@@ -150,6 +170,15 @@ struct MenuBarPopoverView: View {
                 probe: probeStates[account.sshAlias] ?? .idle,
                 originURL: originURL,
                 audit: appState.identityAudit,
+                rebindTargets: appState.accountsStore.accounts.filter { $0.id != account.id },
+                canUnbind: GitdirBinder.exactPath(
+                    forFolderPath: repoRoot,
+                    in: account.scope
+                ) != nil,
+                isBusy: isMatchActionRunning,
+                actionError: matchActionError,
+                onUnbind: { Task { await unbindMatchedFolder() } },
+                onRebind: { target in Task { await rebindMatchedFolder(to: target) } },
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
@@ -184,25 +213,65 @@ struct MenuBarPopoverView: View {
     // MARK: - Accounts section
 
     private var accountsSection: some View {
-        let records = appState.accountsStore.accounts
+        let records = visibleAccounts
         return VStack(spacing: 0) {
             ForEach(records) { record in
                 AccountRow(
                     record: record,
                     probe: probeStates[record.sshAlias] ?? .idle,
+                    issue: issue(for: record),
+                    issueError: issueErrors[record.id],
                     isExpanded: expandedAccountID == record.id,
                     isReprobing: reprobingAliases.contains(record.sshAlias),
+                    isFixingIssue: fixingAccountIDs.contains(record.id),
                     onOpenDetail: { openAccounts(selecting: record.id) },
                     onToggleExpanded: {
                         expandedAccountID = expandedAccountID == record.id ? nil : record.id
                     },
-                    onReprobe: { Task { await reprobe(record.sshAlias) } }
+                    onReprobe: { Task { await reprobe(record.sshAlias) } },
+                    onUnlockKey: { Task { await unlockKey(for: record) } },
+                    onApplySSHRewrite: { Task { await applySSHRewrite(to: record) } },
+                    onOpenKeySettings: { openSettingsWindow(pane: .keys) }
                 )
 
                 Divider().padding(.leading, 32)
             }
+
+            if records.isEmpty {
+                Text("No identity matches this filter")
+                    .font(KC.rowCaption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, KC.rowHPadding)
+                    .padding(.vertical, KC.space10)
+            }
+
             AddAccountRow(onTap: { openAccounts(addNew: true) })
         }
+    }
+
+    private var visibleAccounts: [Account] {
+        AccountFilter.apply(
+            accounts: appState.accountsStore.accounts,
+            query: filterQuery,
+            provider: filterProvider
+        )
+    }
+
+    /// The single next action for a row: a classified probe failure, or an HTTPS
+    /// remote on the repository this account currently owns.
+    private func issue(for account: Account) -> AccountIssue? {
+        var matchedOrigin: String?
+        if case .matched(let matched, _, let originURL) = appState.accountMatch,
+           matched.id == account.id {
+            matchedOrigin = originURL
+        }
+        return AccountIssueClassifier.classify(
+            account: account,
+            probe: probeStates[account.sshAlias] ?? .idle,
+            keyState: keyStates[account.id],
+            matchedOriginURL: matchedOrigin
+        )
     }
 
     // MARK: - Footer
@@ -282,6 +351,58 @@ struct MenuBarPopoverView: View {
         await runDoctor()
     }
 
+    // MARK: - Match card actions (open / unbind / rebind)
+
+    private func unbindMatchedFolder() async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.unbindMatchedFolder()
+        await runDoctor()
+    }
+
+    private func rebindMatchedFolder(to account: Account) async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.rebindMatchedFolder(to: account)
+        guard matchActionError == nil else { return }
+        await probeAll()
+        await runDoctor()
+    }
+
+    // MARK: - Account row fixes (unlock key / add SSH rewrite)
+
+    private func unlockKey(for account: Account) async {
+        fixingAccountIDs.insert(account.id)
+        issueErrors[account.id] = nil
+        defer { fixingAccountIDs.remove(account.id) }
+
+        let outcome = await SSHAgentService.unlockWithKeychain(
+            privateKeyPath: account.keyPath
+        )
+        switch outcome {
+        case .success:
+            // The agent holds the key now; a fresh probe is the proof, and it
+            // re-reads key state on the way through.
+            await reprobe(account.sshAlias)
+        case .failure(let error):
+            issueErrors[account.id] = error.localizedMessage
+        }
+    }
+
+    private func applySSHRewrite(to account: Account) async {
+        fixingAccountIDs.insert(account.id)
+        issueErrors[account.id] = nil
+        defer { fixingAccountIDs.remove(account.id) }
+
+        if let message = await appState.applySSHRewrites(to: account) {
+            issueErrors[account.id] = message
+            return
+        }
+        await runDoctor()
+    }
+
     // MARK: - Manual per-alias re-probe
 
     /// Re-probes one alias immediately, ignoring the cache TTL, so returning
@@ -297,6 +418,7 @@ struct MenuBarPopoverView: View {
             await Prober.probeAlias(target)
         }
         probeStates[trimmed] = state
+        await gatherKeyStates()
         await runDoctor()
     }
 
@@ -334,7 +456,23 @@ struct MenuBarPopoverView: View {
         hydrateProbeStatesFromCache()
         await reload()
         await probeAll(force: forceProbe)
+        await gatherKeyStates()
         await runDoctor()
+    }
+
+    /// Inspect key material only for accounts whose probe failed — that is the
+    /// only case where “locked agent” vs “rejected key” changes the button, and
+    /// it keeps `ssh-add` / `ssh-keygen` off the healthy path.
+    private func gatherKeyStates() async {
+        let failing = appState.accountsStore.accounts.filter { account in
+            if case .failed = probeStates[account.sshAlias] ?? .idle { return true }
+            return false
+        }
+        for account in failing {
+            keyStates[account.id] = await SSHAgentService.keyState(for: account)
+        }
+        let failingIDs = Set(failing.map(\.id))
+        keyStates = keyStates.filter { failingIDs.contains($0.key) }
     }
 
     private func reload() async {

@@ -177,6 +177,15 @@ struct CurrentRepoMatchedRow: View {
     /// Author-vs-key comparison for this repo; findings render under the meta
     /// lines. The one-click re-project stays in Doctor so it is offered once.
     var audit: IdentityAudit? = nil
+    /// Accounts the folder can be moved to (everything except the current one).
+    var rebindTargets: [Account] = []
+    /// True when this folder has a `gitdir:` entry of its own, so unbinding it
+    /// cannot disturb a parent scope.
+    var canUnbind: Bool = false
+    var isBusy: Bool = false
+    var actionError: String? = nil
+    var onUnbind: (() -> Void)? = nil
+    var onRebind: ((Account) -> Void)? = nil
     var onClear: (() -> Void)? = nil
 
     @State private var clonePrefill: String
@@ -187,6 +196,12 @@ struct CurrentRepoMatchedRow: View {
         probe: HostProbeState,
         originURL: String? = nil,
         audit: IdentityAudit? = nil,
+        rebindTargets: [Account] = [],
+        canUnbind: Bool = false,
+        isBusy: Bool = false,
+        actionError: String? = nil,
+        onUnbind: (() -> Void)? = nil,
+        onRebind: ((Account) -> Void)? = nil,
         onClear: (() -> Void)? = nil
     ) {
         self.account = account
@@ -194,6 +209,12 @@ struct CurrentRepoMatchedRow: View {
         self.probe = probe
         self.originURL = originURL
         self.audit = audit
+        self.rebindTargets = rebindTargets
+        self.canUnbind = canUnbind
+        self.isBusy = isBusy
+        self.actionError = actionError
+        self.onUnbind = onUnbind
+        self.onRebind = onRebind
         self.onClear = onClear
         let seed = originURL.flatMap { url -> String? in
             let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: url)
@@ -276,19 +297,81 @@ struct CurrentRepoMatchedRow: View {
                 }
 
                 if !account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                    Text("Clone")
+                        .font(KC.sectionLabel)
+                        .foregroundStyle(.secondary)
+                        .padding(.top, KC.space6)
                     CloneAsIdentityView(
                         account: account,
                         initialInput: clonePrefill
                     )
                     // Recreate when prefill arrives so @State picks it up.
                     .id("clone-\(account.id.uuidString)-\(clonePrefill)")
-                    .padding(.top, KC.space4)
+                }
+
+                folderActions
+
+                if let actionError {
+                    Text(verbatim: actionError)
+                        .font(KC.meta)
+                        .foregroundStyle(.red)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
             }
         }
         .task(id: repoRoot) {
             await loadClonePrefill()
         }
+    }
+
+    // MARK: - Folder actions (open / unbind / rebind)
+
+    @ViewBuilder
+    private var folderActions: some View {
+        HStack(spacing: KC.space10) {
+            Button {
+                NSWorkspace.shared.activateFileViewerSelecting([
+                    URL(fileURLWithPath: repoRoot)
+                ])
+            } label: {
+                Text("Open in Finder")
+            }
+            .buttonStyle(.borderless)
+
+            if canUnbind, let onUnbind {
+                Divider().frame(height: 10)
+                Button(action: onUnbind) {
+                    Text("Unbind")
+                }
+                .buttonStyle(.borderless)
+                .disabled(isBusy)
+            }
+
+            Spacer(minLength: 0)
+
+            if let onRebind, !rebindTargets.isEmpty {
+                Menu {
+                    ForEach(rebindTargets) { target in
+                        Button {
+                            onRebind(target)
+                        } label: {
+                            if target.label.isEmpty {
+                                Text("(unnamed)")
+                            } else {
+                                Text(verbatim: target.label)
+                            }
+                        }
+                    }
+                } label: {
+                    Text("Rebind to")
+                }
+                .menuStyle(.borderlessButton)
+                .fixedSize()
+                .disabled(isBusy)
+            }
+        }
+        .font(.system(size: KC.rowSubtitleSize))
+        .padding(.top, KC.space6)
     }
 
     @ViewBuilder
@@ -358,11 +441,19 @@ struct CurrentRepoMatchedRow: View {
 struct AccountRow: View {
     let record: Account
     let probe: HostProbeState
+    /// The one thing worth fixing for this account, if anything. Healthy rows
+    /// pass `nil` and stay quiet — no “all good” banner.
+    var issue: AccountIssue? = nil
+    var issueError: String? = nil
     var isExpanded: Bool = false
     var isReprobing: Bool = false
+    var isFixingIssue: Bool = false
     var onOpenDetail: () -> Void = {}
     var onToggleExpanded: () -> Void = {}
     var onReprobe: () -> Void = {}
+    var onUnlockKey: () -> Void = {}
+    var onApplySSHRewrite: () -> Void = {}
+    var onOpenKeySettings: () -> Void = {}
 
     @State private var isHovered = false
 
@@ -434,12 +525,17 @@ struct AccountRow: View {
             )
             .onHover { isHovered = $0 }
 
-            if case .failed(let reason) = probe {
-                ProbeFailureActions(
+            if let issue {
+                AccountIssueStrip(
                     account: record,
-                    reason: reason,
+                    issue: issue,
+                    errorMessage: issueError,
                     isReprobing: isReprobing,
-                    onReprobe: onReprobe
+                    isFixing: isFixingIssue,
+                    onReprobe: onReprobe,
+                    onUnlockKey: onUnlockKey,
+                    onApplySSHRewrite: onApplySSHRewrite,
+                    onOpenKeySettings: onOpenKeySettings
                 )
                 .padding(.horizontal, 14)
                 .padding(.bottom, KC.space8)
@@ -477,16 +573,21 @@ struct AccountRow: View {
     }
 }
 
-// MARK: - ProbeFailureActions (next steps for a red probe)
+// MARK: - AccountIssueStrip (the one next action for a broken account)
 
-/// The only place the two post-failure actions live: copy the public key and
-/// open the provider's SSH settings. Doctor states the diagnosis instead of
-/// repeating these buttons.
-struct ProbeFailureActions: View {
+/// The only place an account's next action lives: copy the public key, unlock a
+/// locked key, or add the SSH rewrite — whichever the failure calls for. Doctor
+/// stays a summary and never repeats these buttons.
+struct AccountIssueStrip: View {
     let account: Account
-    let reason: String
+    let issue: AccountIssue
+    var errorMessage: String? = nil
     let isReprobing: Bool
+    let isFixing: Bool
     let onReprobe: () -> Void
+    let onUnlockKey: () -> Void
+    let onApplySSHRewrite: () -> Void
+    let onOpenKeySettings: () -> Void
 
     @State private var didCopy = false
     @State private var copyError: String?
@@ -494,49 +595,36 @@ struct ProbeFailureActions: View {
     var body: some View {
         VStack(alignment: .leading, spacing: KC.space6) {
             Label {
-                Text("Authentication failed")
+                Text(verbatim: issue.localizedTitle)
             } icon: {
-                Image(systemName: "exclamationmark.triangle.fill")
+                Image(systemName: issue.severity.symbolName)
             }
             .font(.system(size: KC.rowSubtitleSize, weight: .medium))
-            .foregroundStyle(.red)
+            .foregroundStyle(tint)
 
-            Text(verbatim: reason)
+            Text(verbatim: issue.localizedDetail)
                 .font(KC.meta)
                 .foregroundStyle(.secondary)
                 .fixedSize(horizontal: false, vertical: true)
+                .lineLimit(2)
+                .truncationMode(.middle)
 
             HStack(spacing: KC.space10) {
-                Button(action: copyPublicKey) {
-                    Label(
-                        didCopy ? "Copied" : "Copy public key",
-                        systemImage: didCopy ? "checkmark" : "doc.on.doc"
-                    )
-                }
-                .buttonStyle(.borderless)
-
-                if let settingsURL = KeyAttachment.sshSettingsURL(for: account.provider) {
-                    Button {
-                        NSWorkspace.shared.open(settingsURL)
-                    } label: {
-                        Label(openSettingsLabel, systemImage: "safari")
+                actions
+                Spacer(minLength: 0)
+                if showsRetry {
+                    Button(action: onReprobe) {
+                        Label("Probe again", systemImage: "arrow.clockwise")
                     }
                     .buttonStyle(.borderless)
+                    .disabled(isReprobing || isFixing)
                 }
-
-                Spacer(minLength: 0)
-
-                Button(action: onReprobe) {
-                    Label("Probe again", systemImage: "arrow.clockwise")
-                }
-                .buttonStyle(.borderless)
-                .disabled(isReprobing)
             }
             .font(.system(size: KC.rowSubtitleSize))
             .labelStyle(.titleAndIcon)
 
-            if let copyError {
-                Text(verbatim: copyError)
+            if let message = errorMessage ?? copyError {
+                Text(verbatim: message)
                     .font(KC.meta)
                     .foregroundStyle(.red)
                     .fixedSize(horizontal: false, vertical: true)
@@ -547,8 +635,64 @@ struct ProbeFailureActions: View {
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: KC.cardCornerRadius, style: .continuous)
-                .fill(Color.red.opacity(0.10))
+                .fill(tint.opacity(0.10))
         )
+    }
+
+    @ViewBuilder
+    private var actions: some View {
+        switch issue {
+        case .keyLocked:
+            Button(action: onUnlockKey) {
+                Label("Unlock in Keychain", systemImage: "lock.open")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isFixing)
+
+        case .authRejected:
+            Button(action: copyPublicKey) {
+                Label(
+                    didCopy ? "Copied" : "Copy public key",
+                    systemImage: didCopy ? "checkmark" : "doc.on.doc"
+                )
+            }
+            .buttonStyle(.borderless)
+
+            if let settingsURL = KeyAttachment.sshSettingsURL(for: account.provider) {
+                Button {
+                    NSWorkspace.shared.open(settingsURL)
+                } label: {
+                    Label(openSettingsLabel, systemImage: "safari")
+                }
+                .buttonStyle(.borderless)
+            }
+
+        case .keyFileMissing:
+            Button(action: onOpenKeySettings) {
+                Label("Generate a key", systemImage: "key.horizontal")
+            }
+            .buttonStyle(.borderless)
+
+        case .httpsRemote:
+            Button(action: onApplySSHRewrite) {
+                Label("Add SSH rewrite", systemImage: "arrow.triangle.swap")
+            }
+            .buttonStyle(.borderless)
+            .disabled(isFixing)
+
+        case .unreachable:
+            EmptyView()
+        }
+    }
+
+    /// An HTTPS remote is not an auth failure, so there is nothing to re-probe.
+    private var showsRetry: Bool {
+        if case .httpsRemote = issue { return false }
+        return true
+    }
+
+    private var tint: Color {
+        issue.severity.tint
     }
 
     private var openSettingsLabel: LocalizedStringKey {
@@ -573,6 +717,85 @@ struct ProbeFailureActions: View {
         NSPasteboard.general.setString(key, forType: .string)
         copyError = nil
         didCopy = true
+    }
+}
+
+// MARK: - AccountFilterBar (search + optional provider chips)
+
+/// Search field for the identity list, plus provider chips when more than one
+/// forge is in use. Only shown once the list is long enough to be worth
+/// filtering; no avatars, no extra identity chrome.
+struct AccountFilterBar: View {
+    @Binding var query: String
+    @Binding var provider: Account.Provider?
+    let providers: [Account.Provider]
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KC.space6) {
+            HStack(spacing: KC.space6) {
+                Image(systemName: "magnifyingglass")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+
+                TextField("Filter identities", text: $query)
+                    .textFieldStyle(.plain)
+                    .font(.system(size: 12))
+                    .disableAutocorrection(true)
+
+                if !query.isEmpty {
+                    Button {
+                        query = ""
+                    } label: {
+                        Image(systemName: "xmark.circle.fill")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .buttonStyle(.plain)
+                    .help("Clear filter")
+                    .accessibilityLabel(Text("Clear filter"))
+                }
+            }
+            .padding(.horizontal, KC.space8)
+            .padding(.vertical, KC.space6)
+            .background(
+                RoundedRectangle(cornerRadius: KC.space8, style: .continuous)
+                    .fill(Color.primary.opacity(0.06))
+            )
+
+            if providers.count > 1 {
+                HStack(spacing: KC.space6) {
+                    ForEach(providers) { candidate in
+                        providerChip(candidate)
+                    }
+                    Spacer(minLength: 0)
+                }
+            }
+        }
+        .padding(.horizontal, KC.rowHPadding)
+        .padding(.top, KC.space8)
+        .padding(.bottom, KC.space4)
+    }
+
+    @ViewBuilder
+    private func providerChip(_ candidate: Account.Provider) -> some View {
+        let isSelected = provider == candidate
+        Button {
+            provider = isSelected ? nil : candidate
+        } label: {
+            Text(verbatim: candidate.displayName)
+                .font(.system(size: 11, weight: isSelected ? .semibold : .regular))
+                .foregroundStyle(isSelected ? Color.primary : Color.secondary)
+                .padding(.horizontal, KC.space8)
+                .padding(.vertical, 3)
+                .background(
+                    Capsule().fill(
+                        isSelected
+                            ? Color.primary.opacity(0.12)
+                            : Color.primary.opacity(0.04)
+                    )
+                )
+        }
+        .buttonStyle(.plain)
     }
 }
 

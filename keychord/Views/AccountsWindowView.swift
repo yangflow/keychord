@@ -13,6 +13,9 @@ struct AccountsWindowView: View {
     @State private var statusMessage: String?
     @State private var statusIsError = false
     @State private var importBatch: ImportBatch?
+    /// Account awaiting delete confirmation. Delete leaves a private key and
+    /// gitdir paths behind, so the user sees them first.
+    @State private var pendingDelete: Account?
 
     var body: some View {
         NavigationSplitView {
@@ -47,6 +50,20 @@ struct AccountsWindowView: View {
                 onDismiss: { importBatch = nil }
             )
             .frame(width: 460, height: 420)
+        }
+        .sheet(item: $pendingDelete) { account in
+            DeleteAccountSheet(
+                account: account,
+                leftovers: KeyFileRemover.leftovers(
+                    for: account,
+                    in: appState.accountsStore.accounts
+                ),
+                onCancel: { pendingDelete = nil },
+                onConfirm: { removeKey in
+                    pendingDelete = nil
+                    delete(account, removePrivateKey: removeKey)
+                }
+            )
         }
         .onChange(of: selection) { _, newSelection in
             loadDraftForSelection(newSelection)
@@ -114,7 +131,7 @@ struct AccountsWindowView: View {
                 statusIsError: statusIsError,
                 onSave: saveDraft,
                 onRevert: revertDraft,
-                onDelete: isNewDraft ? nil : { delete(id: draftID) }
+                onDelete: isNewDraft ? nil : { requestDelete(id: draftID) }
             )
         } else {
             emptyDetail
@@ -216,11 +233,18 @@ struct AccountsWindowView: View {
         }
     }
 
-    private func delete(id: UUID) {
+    private func requestDelete(id: UUID) {
+        guard let account = appState.accountsStore.accounts.first(where: { $0.id == id }) else {
+            return
+        }
+        pendingDelete = account
+    }
+
+    private func delete(_ account: Account, removePrivateKey: Bool) {
         do {
-            try appState.accountsStore.delete(id: id)
+            try appState.accountsStore.delete(id: account.id)
             try regenerate()
-            if selection == id {
+            if selection == account.id {
                 selection = nil
                 draft = nil
             }
@@ -229,6 +253,21 @@ struct AccountsWindowView: View {
         } catch {
             statusIsError = true
             statusMessage = String(localized: "Delete failed: \(String(describing: error))")
+            return
+        }
+
+        // The record is gone either way; a key that refuses to go says so
+        // without pretending the delete failed.
+        guard removePrivateKey else { return }
+        do {
+            try KeyFileRemover.removePrivateKey(
+                of: account,
+                in: appState.accountsStore.accounts
+            )
+            statusMessage = String(localized: "Deleted · private key removed")
+        } catch {
+            statusIsError = true
+            statusMessage = String(localized: "Deleted, but the private key was kept: \(String(describing: error))")
         }
     }
 

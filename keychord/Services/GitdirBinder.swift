@@ -15,6 +15,11 @@ enum GitdirBinder {
         /// An existing `gitdir:` path already covers the folder, so the scope
         /// is unchanged and git already resolves this repo to the account.
         case alreadyCovered(by: String)
+        /// `path` was removed from the account's scope.
+        case removed(path: String)
+        /// The account has no `gitdir:` entry for exactly this folder, so there
+        /// is nothing to remove — a parent scope is deliberately left alone.
+        case notBoundExactly
         /// The dropped path was blank.
         case invalidPath
     }
@@ -25,8 +30,12 @@ enum GitdirBinder {
 
         /// Whether the caller has to persist + reproject.
         var changedScope: Bool {
-            if case .added = outcome { return true }
-            return false
+            switch outcome {
+            case .added, .removed:
+                return true
+            case .alreadyCovered, .notBoundExactly, .invalidPath:
+                return false
+            }
         }
     }
 
@@ -43,6 +52,32 @@ enum GitdirBinder {
         var next = account
         next.scope = .gitdir(paths: account.scope.directories + [normalized])
         return Result(account: next, outcome: .added(path: normalized))
+    }
+
+    /// Drop `folderPath` from `account`'s gitdir scope. Only an entry for
+    /// exactly this folder is removed: unbinding one repository must not pull
+    /// a parent scope like `~/work/` out from under its siblings.
+    ///
+    /// Removing the last path leaves an empty gitdir scope rather than turning
+    /// the account global, which would silently claim every other repository.
+    static func unbind(folderPath: String, from account: Account) -> Result {
+        guard let stored = exactPath(forFolderPath: folderPath, in: account.scope) else {
+            return Result(account: account, outcome: .notBoundExactly)
+        }
+        var next = account
+        next.scope = .gitdir(paths: account.scope.directories.filter { $0 != stored })
+        return Result(account: next, outcome: .removed(path: stored))
+    }
+
+    /// The stored `gitdir:` entry that points at exactly `folderPath` (after
+    /// normalization), if the scope has one. Parent scopes do not count.
+    static func exactPath(forFolderPath folderPath: String, in scope: Account.Scope) -> String? {
+        let target = CurrentRepoResolver.normalizeGitdirPattern(folderPath)
+        guard !target.isEmpty else { return nil }
+        return scope.directories.first { raw in
+            guard !raw.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return false }
+            return CurrentRepoResolver.normalizeGitdirPattern(raw) == target
+        }
     }
 
     /// The existing `gitdir:` path of `scope` that git would already match for
