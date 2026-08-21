@@ -100,4 +100,44 @@ struct FixerTests {
             #expect(after.contains("HostName ssh.github.com"))
         }
     }
+
+    // MARK: - GIT001 re-project managed files
+
+    @Test func git001RewritesManagedFilesForEveryGitdirPath() async throws {
+        try await Self.withTempRoot { root in
+            let paths = AccountProjector.ManagedPaths(
+                sshManaged: root.appendingPathComponent("ssh_config.managed").path,
+                gitManaged: root.appendingPathComponent("gitconfig.managed").path,
+                userSSHConfig: root.appendingPathComponent("user-ssh").path,
+                userGitConfig: root.appendingPathComponent("user-git").path
+            )
+            let account = Account.new(
+                label: "work",
+                sshAlias: "github-work",
+                keyPath: "~/.ssh/id_work",
+                gitUserName: "Work",
+                gitUserEmail: "work@company.com",
+                scope: .gitdir(paths: ["~/work/", "~/src/new-app/"])
+            )
+
+            try await Fixer.execute(
+                .git001_reprojectManagedFiles,
+                sshConfigPath: paths.userSSHConfig,
+                gitConfigPath: paths.userGitConfig,
+                accounts: [account],
+                managedPaths: paths
+            )
+
+            let git = try String(contentsOfFile: paths.gitManaged, encoding: .utf8)
+            #expect(git.contains("[includeIf \"gitdir:~/work/\"]"))
+            #expect(git.contains("[includeIf \"gitdir:~/src/new-app/\"]"))
+
+            let ssh = try String(contentsOfFile: paths.sshManaged, encoding: .utf8)
+            #expect(ssh.contains("Host github-work"))
+
+            // Include lines land in the user files the fix was pointed at.
+            let userGit = try String(contentsOfFile: paths.userGitConfig, encoding: .utf8)
+            #expect(userGit.contains("gitconfig.managed"))
+        }
+    }
 }

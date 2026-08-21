@@ -127,6 +127,63 @@ struct ProbeCacheTests {
         #expect(cache.state(for: "github-work") == .ok(username: "recovered"))
     }
 
+    // MARK: - Manual per-alias retry (cache must not block it)
+
+    @Test func reprobeIgnoresACachedFailureInsideTTL() async {
+        let counter = ProbeCounter()
+        let current = Date(timeIntervalSince1970: 1_000_000)
+        let cache = ProbeCache(ttl: ttl, now: { current })
+        cache.record(.failed(reason: "permission denied (publickey)"), for: "github-work")
+        #expect(!cache.shouldProbe("github-work"))
+
+        let state = await cache.reprobe("github-work") { alias in
+            await counter.increment(alias)
+            return .ok(username: "yangflow")
+        }
+
+        #expect(counter.count == 1)
+        #expect(state == .ok(username: "yangflow"))
+        #expect(cache.state(for: "github-work") == .ok(username: "yangflow"))
+    }
+
+    @Test func reprobeIgnoresACachedSuccess() async {
+        let counter = ProbeCounter()
+        let current = Date(timeIntervalSince1970: 1_000_000)
+        let cache = ProbeCache(ttl: ttl, now: { current })
+        cache.record(.ok(username: "old"), for: "github-work")
+
+        let state = await cache.reprobe("github-work") { alias in
+            await counter.increment(alias)
+            return .failed(reason: "permission denied (publickey)")
+        }
+
+        #expect(counter.count == 1)
+        #expect(state == .failed(reason: "permission denied (publickey)"))
+    }
+
+    @Test func reprobeOnlyTouchesTheRequestedAlias() async {
+        let current = Date(timeIntervalSince1970: 1_000_000)
+        let cache = ProbeCache(ttl: ttl, now: { current })
+        cache.record(.ok(username: "kept"), for: "github-personal")
+        cache.record(.failed(reason: "timed out"), for: "github-work")
+
+        _ = await cache.reprobe("github-work") { _ in .ok(username: "fresh") }
+
+        #expect(cache.state(for: "github-personal") == .ok(username: "kept"))
+        #expect(cache.state(for: "github-work") == .ok(username: "fresh"))
+    }
+
+    @Test func invalidateForcesTheNextAutomaticPassToProbe() {
+        let current = Date(timeIntervalSince1970: 1_000_000)
+        let cache = ProbeCache(ttl: ttl, now: { current })
+        cache.record(.ok(username: "yangflow"), for: "github-work")
+        #expect(!cache.shouldProbe("github-work"))
+
+        cache.invalidate("github-work")
+        #expect(cache.state(for: "github-work") == nil)
+        #expect(cache.shouldProbe("github-work"))
+    }
+
     @Test func recordIgnoresNonTerminalStates() {
         let cache = ProbeCache(ttl: ttl, now: { Date(timeIntervalSince1970: 1_000_000) })
         cache.record(.probing, for: "github-work")

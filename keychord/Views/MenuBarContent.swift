@@ -9,6 +9,15 @@ struct MenuBarIconLabel: View {
 
     var body: some View {
         Image(nsImage: icon)
+            // Tooltip is the only place a match shows without opening the
+            // popover; the glyph itself stays severity-driven.
+            .onChange(of: tooltip, initial: true) { _, text in
+                MenuBarTooltip.apply(text)
+            }
+    }
+
+    private var tooltip: String {
+        MenuBarTooltip.text(for: appState.accountMatch)
     }
 
     private var icon: NSImage {
@@ -38,6 +47,10 @@ struct MenuBarPopoverView: View {
     @State private var isLoading = true
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
+    @State private var expandedAccountID: UUID?
+    @State private var reprobingAliases: Set<String> = []
+    @State private var isBinding = false
+    @State private var bindError: String?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -81,12 +94,30 @@ struct MenuBarPopoverView: View {
     private var content: some View {
         if isLoading {
             loadingView
+        } else if appState.accountsStore.accounts.isEmpty {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    currentRepoSection
+                    AccountsEmptyStateCard(
+                        onImport: { openSettingsWindow(pane: .importAccounts) },
+                        onAddAccount: { openAccounts(addNew: true) }
+                    )
+                }
+                .padding(.bottom, KC.space8)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     currentRepoSection
+                    accountsSection
 
-                    if !appState.accountsStore.accounts.isEmpty, !diagnoses.isEmpty {
+                    // Illustration only: drops land on the status-item icon.
+                    if appState.accountMatch == nil {
+                        DropFolderHintCard()
+                    }
+
+                    if !diagnoses.isEmpty {
                         DoctorSummaryRow(
                             diagnoses: diagnoses,
                             isExpanded: isDoctorExpanded,
@@ -102,7 +133,6 @@ struct MenuBarPopoverView: View {
                             }
                         }
                     }
-                    accountsSection
                 }
                 .padding(.bottom, KC.space8)
             }
@@ -119,12 +149,18 @@ struct MenuBarPopoverView: View {
                 repoRoot: repoRoot,
                 probe: probeStates[account.sshAlias] ?? .idle,
                 originURL: originURL,
+                audit: appState.identityAudit,
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
             if let reason = appState.accountMatch?.unresolvedReason {
                 CurrentRepoUnresolvedRow(
                     reason: reason,
+                    bindPath: appState.accountMatch?.bindableRepoRoot,
+                    bindTargets: appState.accountsStore.accounts,
+                    isBinding: isBinding,
+                    bindError: bindError,
+                    onBind: { account in Task { await bind(to: account) } },
                     onClear: { appState.clearAccountMatch() }
                 )
             }
@@ -151,15 +187,17 @@ struct MenuBarPopoverView: View {
         let records = appState.accountsStore.accounts
         return VStack(spacing: 0) {
             ForEach(records) { record in
-                Button {
-                    openAccounts(selecting: record.id)
-                } label: {
-                    AccountRow(
-                        record: record,
-                        probe: probeStates[record.sshAlias] ?? .idle
-                    )
-                }
-                .buttonStyle(.plain)
+                AccountRow(
+                    record: record,
+                    probe: probeStates[record.sshAlias] ?? .idle,
+                    isExpanded: expandedAccountID == record.id,
+                    isReprobing: reprobingAliases.contains(record.sshAlias),
+                    onOpenDetail: { openAccounts(selecting: record.id) },
+                    onToggleExpanded: {
+                        expandedAccountID = expandedAccountID == record.id ? nil : record.id
+                    },
+                    onReprobe: { Task { await reprobe(record.sshAlias) } }
+                )
 
                 Divider().padding(.leading, 32)
             }
@@ -223,12 +261,43 @@ struct MenuBarPopoverView: View {
         popover?.close()
     }
 
-    private func openSettingsWindow() {
+    private func openSettingsWindow(pane: SettingsPane? = nil) {
+        if let pane { appState.pendingSettingsPane = pane }
         let popover = NSApp.keyWindow
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "settings")
         NSApp.activate(ignoringOtherApps: true)
         popover?.close()
+    }
+
+    // MARK: - Bind a dropped folder
+
+    private func bind(to account: Account) async {
+        isBinding = true
+        bindError = nil
+        defer { isBinding = false }
+        bindError = await appState.bindCurrentFolder(to: account)
+        guard bindError == nil else { return }
+        await probeAll()
+        await runDoctor()
+    }
+
+    // MARK: - Manual per-alias re-probe
+
+    /// Re-probes one alias immediately, ignoring the cache TTL, so returning
+    /// from the forge's SSH settings page shows the new state right away.
+    private func reprobe(_ alias: String) async {
+        let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        reprobingAliases.insert(trimmed)
+        probeStates[trimmed] = .probing
+        defer { reprobingAliases.remove(trimmed) }
+
+        let state = await appState.probeCache.reprobe(trimmed) { target in
+            await Prober.probeAlias(target)
+        }
+        probeStates[trimmed] = state
+        await runDoctor()
     }
 
     // MARK: - Drop / choose folder / Finder
@@ -322,7 +391,8 @@ struct MenuBarPopoverView: View {
         scoped.sshHosts = scoped.sshHosts.filter { accountAliases.contains($0.alias) }
         diagnoses = await Doctor.runAgainstCurrentSystem(
             model: scoped,
-            probeStates: probeStates
+            probeStates: probeStates,
+            identityAudit: appState.identityAudit
         )
         // Doctor runs only after probeAll merges cache + fresh results, so
         // severity updates in one step instead of key → warning mid-probe.
@@ -335,8 +405,14 @@ struct MenuBarPopoverView: View {
         try? await Fixer.execute(
             fixID,
             sshConfigPath: ConfigStore.expand("~/.ssh/config"),
-            gitConfigPath: ConfigStore.expand("~/.gitconfig")
+            gitConfigPath: ConfigStore.expand("~/.gitconfig"),
+            accounts: appState.accountsStore.accounts
         )
+        // Re-resolving first keeps the identity audit in step with a fix that
+        // rewrote the managed gitconfig for the matched repository.
+        if case .matched(_, let repoRoot, _) = appState.accountMatch {
+            await appState.resolveCurrentRepo(at: repoRoot)
+        }
         await refresh(forceProbe: true)
     }
 }

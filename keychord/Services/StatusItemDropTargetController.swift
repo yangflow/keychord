@@ -37,6 +37,9 @@ final class StatusItemDropTargetController {
         guard let button = MenuBarStatusItemLocator.keychordStatusItem()?.button else {
             return
         }
+        // SwiftUI can recreate the button; the tooltip lives on the button, so
+        // reapply it here as well as when the match changes.
+        button.toolTip = MenuBarTooltip.text(for: appState?.accountMatch)
         if installedButton === button, dropView?.superview === button {
             return
         }

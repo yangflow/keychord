@@ -58,9 +58,17 @@ struct SettingsWindowView: View {
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 640, minHeight: 420)
         .onAppear {
-            if selection == nil {
+            if let requested = appState.pendingSettingsPane {
+                appState.pendingSettingsPane = nil
+                selection = requested
+            } else if selection == nil {
                 selection = .general
             }
+        }
+        .onChange(of: appState.pendingSettingsPane) { _, newValue in
+            guard let requested = newValue else { return }
+            appState.pendingSettingsPane = nil
+            selection = requested
         }
         .onChange(of: selection) { _, newValue in
             if newValue == .importAccounts, !importScanDone {

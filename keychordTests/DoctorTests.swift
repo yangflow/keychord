@@ -9,11 +9,28 @@ struct DoctorTests {
 
     static func input(
         model: ConfigModel = ConfigModel(),
-        probeStates: [String: HostProbeState] = [:]
+        probeStates: [String: HostProbeState] = [:],
+        identityAudit: IdentityAudit? = nil
     ) -> Doctor.Input {
         Doctor.Input(
             model: model,
-            probeStates: probeStates
+            probeStates: probeStates,
+            identityAudit: identityAudit
+        )
+    }
+
+    static func account(
+        label: String,
+        email: String,
+        scope: Account.Scope = .gitdir("~/work/")
+    ) -> Account {
+        Account.new(
+            label: label,
+            sshAlias: "github-work",
+            keyPath: "~/.ssh/id_work",
+            gitUserName: label,
+            gitUserEmail: email,
+            scope: scope
         )
     }
 
@@ -125,6 +142,88 @@ struct DoctorTests {
             probeStates: probes
         )).filter { $0.code == "NET001" }
         #expect(hits.isEmpty)
+    }
+
+    // MARK: - NET001 offers no buttons (they live under the account row)
+
+    @Test func probeFailureDiagnosisCarriesNoFixButtons() {
+        var model = ConfigModel()
+        model.sshHosts = [SSHHost(alias: "github.com")]
+        let hits = Doctor.diagnose(Self.input(
+            model: model,
+            probeStates: ["github.com": .failed(reason: "permission denied")]
+        )).filter { $0.code == "NET001" }
+        #expect(hits.count == 1)
+        #expect(hits[0].fixes.isEmpty)
+    }
+
+    // MARK: - GIT001 git author vs SSH identity
+
+    @Test func cleanAuditProducesNoIdentityDiagnosis() {
+        let work = Self.account(label: "Work", email: "work@company.com")
+        let audit = IdentityAudit.audit(
+            account: work,
+            repoRoot: "/tmp/repo",
+            identity: CurrentRepoResolver.EffectiveGitIdentity(
+                userName: "Work",
+                userEmail: "work@company.com",
+                sshCommand: nil
+            ),
+            accounts: [work]
+        )
+        #expect(Doctor.ruleIdentityMismatch(audit).isEmpty)
+        #expect(Doctor.ruleIdentityMismatch(nil).isEmpty)
+    }
+
+    @Test func detectsAuthorPushingAsADifferentAccount() {
+        let work = Self.account(label: "Work", email: "work@company.com")
+        let personal = Self.account(
+            label: "Personal",
+            email: "me@example.com",
+            scope: .global
+        )
+        let audit = IdentityAudit.audit(
+            account: work,
+            repoRoot: "/tmp/repo",
+            identity: CurrentRepoResolver.EffectiveGitIdentity(
+                userName: "Me",
+                userEmail: "me@example.com",
+                sshCommand: nil
+            ),
+            accounts: [work, personal]
+        )
+        let hits = Doctor.diagnose(Self.input(identityAudit: audit))
+            .filter { $0.code == "GIT001" }
+        #expect(hits.count == 1)
+        #expect(hits[0].severity == .error)
+        #expect(hits[0].detail.contains("me@example.com"))
+        #expect(hits[0].detail.contains("Work"))
+        // The one safe automatic fix: rewrite the managed files.
+        #expect(hits[0].fixes.map(\.fixID) == [.git001_reprojectManagedFiles])
+        #expect(hits[0].fixes.allSatisfy { !$0.isDestructive })
+    }
+
+    @Test func globalAccountMismatchExplainsInsteadOfOfferingAReproject() {
+        let global = Self.account(
+            label: "Personal",
+            email: "me@example.com",
+            scope: .global
+        )
+        let audit = IdentityAudit.audit(
+            account: global,
+            repoRoot: "/tmp/repo",
+            identity: CurrentRepoResolver.EffectiveGitIdentity(
+                userName: "Someone",
+                userEmail: "stranger@example.com",
+                sshCommand: nil
+            ),
+            accounts: [global]
+        )
+        let hits = Doctor.ruleIdentityMismatch(audit)
+        #expect(hits.count == 1)
+        #expect(hits[0].severity == .warning)
+        #expect(hits[0].fixes.isEmpty)
+        #expect(hits[0].fixHint != nil)
     }
 
     // MARK: - Severity ordering

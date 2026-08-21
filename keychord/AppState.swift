@@ -26,6 +26,14 @@ final class AppState {
     /// the match card).
     var accountMatch: AccountMatchResult?
 
+    /// Author-vs-key comparison for the matched repository, if it has one.
+    /// Recomputed with every resolve; `nil` while there is no match.
+    var identityAudit: IdentityAudit?
+
+    /// Settings pane to select when the Settings window opens. Set by the
+    /// popover's empty state so Import is reachable without the gear.
+    var pendingSettingsPane: SettingsPane?
+
     let accountsStore: AccountsStore
     let probeCache: ProbeCache
 
@@ -39,6 +47,7 @@ final class AppState {
 
     func clearAccountMatch() {
         accountMatch = nil
+        identityAudit = nil
     }
 
     /// Shared resolve path used by menu-bar icon drops and popover `.onDrop`.
@@ -46,8 +55,36 @@ final class AppState {
         let accounts = accountsStore.accounts
         let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
         accountMatch = result
-        if case .matched(let account, _, _) = result, !account.sshAlias.isEmpty {
+        identityAudit = nil
+        guard case .matched(let account, let repoRoot, _) = result else { return }
+        if !account.sshAlias.isEmpty {
             accountsStore.touchLastUsed(sshAlias: account.sshAlias)
         }
+        let identity = await CurrentRepoResolver.readEffectiveIdentity(at: repoRoot)
+        identityAudit = IdentityAudit.audit(
+            account: account,
+            repoRoot: repoRoot,
+            identity: identity,
+            accounts: accounts
+        )
+    }
+
+    /// One-tap `gitdir:` bind for the folder in the current unresolved match.
+    /// Adds a path to `account`, persists, regenerates the managed files, and
+    /// re-resolves so the card flips to the matched state. Returns a
+    /// user-facing message when the write fails; `nil` on success.
+    func bindCurrentFolder(to account: Account) async -> String? {
+        guard let path = accountMatch?.bindableRepoRoot else { return nil }
+        let result = GitdirBinder.bind(folderPath: path, to: account)
+        if result.changedScope {
+            do {
+                try accountsStore.update(result.account)
+                try AccountProjector.regenerate(accounts: accountsStore.accounts)
+            } catch {
+                return String(localized: "Bind failed: \(String(describing: error))")
+            }
+        }
+        await resolveCurrentRepo(at: path)
+        return nil
     }
 }

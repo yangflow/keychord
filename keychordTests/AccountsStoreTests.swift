@@ -231,8 +231,53 @@ struct AccountsStoreTests {
             let reloaded = Self.makeStore(url: url)
             let record = reloaded.accounts.first
             #expect(record?.scope == .gitdir("~/work/"))
+            #expect(record?.scope.directories == ["~/work/"])
             #expect(record?.urlRewrites.count == 1)
             #expect(record?.urlRewrites.first?.to == "git@github-acme:Acme/")
         }
+    }
+
+    @Test func multipleGitdirPathsRoundTripViaJSON() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            var scoped = Self.sample(label: "Work")
+            scoped.scope = .gitdir(paths: ["~/work/", "~/src/new-app/"])
+            try store.add(scoped)
+
+            let reloaded = Self.makeStore(url: url)
+            #expect(reloaded.accounts.first?.scope.directories == ["~/work/", "~/src/new-app/"])
+            // Single-path accessor keeps reporting the first path for the
+            // editors that show one directory at a time.
+            #expect(reloaded.accounts.first?.scope.directory == "~/work/")
+        }
+    }
+
+    @Test func scopeStillDecodesSinglePathJSONFromOlderBuilds() throws {
+        let legacy = """
+        {"gitdir":{"_0":"~/work/"}}
+        """
+        let decoded = try JSONDecoder().decode(
+            Account.Scope.self,
+            from: Data(legacy.utf8)
+        )
+        #expect(decoded == .gitdir(paths: ["~/work/"]))
+    }
+
+    @Test func scopeKeepsWritingTheSinglePathKeyForOlderBuilds() throws {
+        let encoded = try JSONEncoder().encode(
+            Account.Scope.gitdir(paths: ["~/work/", "~/src/new-app/"])
+        )
+        let json = try #require(
+            try JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        let gitdir = try #require(json["gitdir"] as? [String: Any])
+        #expect(gitdir["_0"] as? String == "~/work/")
+        #expect(gitdir["paths"] as? [String] == ["~/work/", "~/src/new-app/"])
+    }
+
+    @Test func globalScopeRoundTrips() throws {
+        let encoded = try JSONEncoder().encode(Account.Scope.global)
+        let decoded = try JSONDecoder().decode(Account.Scope.self, from: encoded)
+        #expect(decoded == .global)
     }
 }

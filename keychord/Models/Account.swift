@@ -76,18 +76,33 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
         }
     }
 
-    enum Scope: Codable, Equatable, Hashable, Sendable {
+    enum Scope: Equatable, Hashable, Sendable {
         case global
-        case gitdir(String)
+        /// One or more `gitdir:` prefixes. The projector writes one
+        /// `includeIf` per path, so an account can own `~/work/` and
+        /// `~/src/new-app/` at the same time.
+        case gitdir(paths: [String])
+
+        /// Single-directory convenience for call sites that own exactly one
+        /// path (folder pickers, importer, fixtures).
+        static func gitdir(_ path: String) -> Scope {
+            .gitdir(paths: [path])
+        }
 
         var isScoped: Bool {
             if case .gitdir = self { return true }
             return false
         }
 
+        /// Every `gitdir:` path, in declaration order. Empty for `.global`.
+        var directories: [String] {
+            if case .gitdir(let paths) = self { return paths }
+            return []
+        }
+
+        /// First `gitdir:` path — the one the single-directory editors show.
         var directory: String? {
-            if case .gitdir(let path) = self { return path }
-            return nil
+            directories.first
         }
     }
 
@@ -297,6 +312,63 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
             if !urlRewrites.contains(where: { $0.from == preset.from && $0.to == preset.to }) {
                 urlRewrites.append(preset)
             }
+        }
+    }
+}
+
+/// Hand-rolled so a multi-path scope still loads on a build that only knew
+/// `gitdir(String)`: the synthesized `_0` key keeps carrying the first path
+/// while `paths` carries the whole list.
+extension Account.Scope: Codable {
+    private enum CaseKey: String, CodingKey {
+        case global
+        case gitdir
+    }
+
+    private enum GitdirKey: String, CodingKey {
+        case singlePath = "_0"
+        case paths
+    }
+
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CaseKey.self)
+        if container.contains(.gitdir) {
+            let nested = try container.nestedContainer(
+                keyedBy: GitdirKey.self,
+                forKey: .gitdir
+            )
+            if let paths = try nested.decodeIfPresent([String].self, forKey: .paths) {
+                self = .gitdir(paths: paths)
+            } else if let single = try? nested.decode(String.self, forKey: .singlePath) {
+                self = .gitdir(paths: [single])
+            } else {
+                self = .gitdir(paths: try nested.decode([String].self, forKey: .singlePath))
+            }
+            return
+        }
+        guard container.contains(.global) else {
+            throw DecodingError.dataCorrupted(
+                DecodingError.Context(
+                    codingPath: container.codingPath,
+                    debugDescription: "Unrecognized Account.Scope payload"
+                )
+            )
+        }
+        self = .global
+    }
+
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CaseKey.self)
+        switch self {
+        case .global:
+            _ = container.nestedContainer(keyedBy: GitdirKey.self, forKey: .global)
+        case .gitdir(let paths):
+            var nested = container.nestedContainer(
+                keyedBy: GitdirKey.self,
+                forKey: .gitdir
+            )
+            try nested.encode(paths.first ?? "", forKey: .singlePath)
+            try nested.encode(paths, forKey: .paths)
         }
     }
 }

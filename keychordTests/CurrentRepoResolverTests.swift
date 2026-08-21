@@ -265,6 +265,109 @@ struct CurrentRepoResolverTests {
         #expect(account.label == "Client")
     }
 
+    @Test func matchAccountsHonorsEveryGitdirPathOfAnAccount() {
+        let work = Account.new(
+            label: "Work",
+            sshAlias: "github-work",
+            keyPath: "~/.ssh/id_work",
+            gitUserName: "W",
+            gitUserEmail: "w@example.com",
+            scope: .gitdir(paths: ["/Users/demo/work/", "/Users/demo/src/new-app/"]),
+            color: .orange
+        )
+
+        for root in ["/Users/demo/work/api", "/Users/demo/src/new-app"] {
+            let result = CurrentRepoResolver.matchAccounts(
+                forRepoRoot: root,
+                accounts: [work]
+            )
+            guard case .matched(let account, _, _) = result else {
+                Issue.record("Expected \(root) to match, got \(result)")
+                continue
+            }
+            #expect(account.id == work.id)
+        }
+    }
+
+    @Test func matchAccountsStillPrefersTheLongestPathAcrossAccounts() {
+        let broad = Account.new(
+            label: "Work",
+            sshAlias: "work",
+            keyPath: "~/.ssh/id_work",
+            gitUserName: "W",
+            gitUserEmail: "w@example.com",
+            scope: .gitdir(paths: ["/Users/demo/work/", "/Users/demo/side/"]),
+            color: .orange
+        )
+        let specific = Account.new(
+            label: "Client",
+            sshAlias: "client",
+            keyPath: "~/.ssh/id_client",
+            gitUserName: "C",
+            gitUserEmail: "c@example.com",
+            scope: .gitdir("/Users/demo/work/client/"),
+            color: .green
+        )
+        let result = CurrentRepoResolver.matchAccounts(
+            forRepoRoot: "/Users/demo/work/client/repo",
+            accounts: [broad, specific]
+        )
+        guard case .matched(let account, _, _) = result else {
+            Issue.record("Expected match, got \(result)")
+            return
+        }
+        #expect(account.label == "Client")
+    }
+
+    @Test func blankGitdirPathsNeverMatch() {
+        let sloppy = Account.new(
+            label: "Sloppy",
+            sshAlias: "sloppy",
+            keyPath: "~/.ssh/id",
+            gitUserName: "S",
+            gitUserEmail: "s@example.com",
+            scope: .gitdir(paths: ["", "   "]),
+            color: .red
+        )
+        let result = CurrentRepoResolver.matchAccounts(
+            forRepoRoot: "/Users/demo/anything",
+            accounts: [sloppy]
+        )
+        guard case .noMatchingGitdir = result else {
+            Issue.record("Expected .noMatchingGitdir, got \(result)")
+            return
+        }
+    }
+
+    // MARK: - bindableRepoRoot (what a one-tap bind would scope)
+
+    @Test func unresolvedResultsExposeTheRepoRootToBind() {
+        #expect(
+            AccountMatchResult.noMatchingGitdir(repoRoot: "/tmp/repo").bindableRepoRoot
+                == "/tmp/repo"
+        )
+        #expect(
+            AccountMatchResult.conflictingGlobals(repoRoot: "/tmp/repo", accounts: [])
+                .bindableRepoRoot == "/tmp/repo"
+        )
+    }
+
+    @Test func nonRepoAndMatchedResultsAreNotBindable() {
+        #expect(AccountMatchResult.notARepo(path: "/tmp/plain").bindableRepoRoot == nil)
+        let matched = AccountMatchResult.matched(
+            account: Account.new(
+                label: "Work",
+                sshAlias: "work",
+                keyPath: "~/.ssh/id",
+                gitUserName: "W",
+                gitUserEmail: "w@example.com"
+            ),
+            repoRoot: "/tmp/repo",
+            originURL: nil
+        )
+        #expect(matched.bindableRepoRoot == nil)
+    }
+
     @Test func matchAccountsReportsNoMatchingGitdir() {
         let scoped = Account.new(
             label: "Work",

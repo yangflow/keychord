@@ -296,6 +296,39 @@ struct AccountProjectorTests {
         #expect(output.sshConfig.contains("IdentityFile ~/.ssh/id_picker_test"))
     }
 
+    // MARK: - Multiple gitdir paths per account
+
+    @Test func everyGitdirPathGetsItsOwnIncludeIf() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(paths: ["~/work/", "~/src/new-app/"])
+        let paths = AccountProjector.ManagedPaths.default
+        let output = AccountProjector.project(
+            [account],
+            generatedAt: Self.fixedDate,
+            paths: paths
+        )
+
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/work/\"]"))
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/src/new-app/\"]"))
+
+        // Both includeIf lines point at the account's single sub file.
+        let subTilde = AccountProjector.toTilde(paths.subFilePath(for: account.id))
+        let pointerCount = output.gitConfig.components(separatedBy: "path = \(subTilde)").count - 1
+        #expect(pointerCount == 2)
+        #expect(output.subFiles.count == 1)
+    }
+
+    @Test func multiplePathsAreNormalizedAndDeduplicated() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(paths: ["~/work", "~/work/", "~/side"])
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+
+        let includeCount = output.gitConfig
+            .components(separatedBy: "[includeIf \"gitdir:~/work/\"]").count - 1
+        #expect(includeCount == 1)
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/side/\"]"))
+    }
+
     @Test func gitdirWithoutTrailingSlashStillNormalizedOnProject() {
         var account = Self.scopedAccount()
         account.scope = .gitdir("~/work")

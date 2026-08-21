@@ -3775,23 +3775,6 @@
         }
       }
     },
-    "No backups yet — a snapshot is taken when you add a new account.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "No backups yet — a snapshot is taken when you add a new account."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "暂无备份 — 添加新账户时会自动创建快照。"
-          }
-        }
-      }
-    },
     "Ed25519": {
       "extractionState": "manual",
       "localizations": {
@@ -3822,6 +3805,550 @@
           "stringUnit": {
             "state": "translated",
             "value": "查看快照中的账号详情"
+          }
+        }
+      }
+    },
+    "Drag a project folder onto the menu bar icon above": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Drag a project folder onto the menu bar icon above"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "把项目文件夹拖到上面的菜单栏图标"
+          }
+        }
+      }
+    },
+    "See which identity would push from that folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "See which identity would push from that folder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "查看这个目录会用哪个身份推送"
+          }
+        }
+      }
+    },
+    "Bind to": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bind to"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绑定到"
+          }
+        }
+      }
+    },
+    "Sets a gitdir scope for this folder": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Sets a gitdir scope for this folder"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为这个文件夹设置 gitdir 范围"
+          }
+        }
+      }
+    },
+    "Already scoped to %@ · adds another path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Already scoped to %@ · adds another path"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已有 %@ · 会再加一条路径"
+          }
+        }
+      }
+    },
+    "Bind failed: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bind failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "绑定失败：%@"
+          }
+        }
+      }
+    },
+    "Show clone command": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Show clone command"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "显示 clone 命令"
+          }
+        }
+      }
+    },
+    "Hide clone command": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hide clone command"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "隐藏 clone 命令"
+          }
+        }
+      }
+    },
+    "Add gitdir path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add gitdir path"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加 gitdir 路径"
+          }
+        }
+      }
+    },
+    "Remove gitdir path": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove gitdir path"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除 gitdir 路径"
+          }
+        }
+      }
+    },
+    "No identities yet": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No identities yet"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "还没有身份"
+          }
+        }
+      }
+    },
+    "Import from your existing SSH / git config, or add one by hand": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Import from your existing SSH / git config, or add one by hand"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从现有的 SSH / git 配置导入，或手动添加"
+          }
+        }
+      }
+    },
+    "Add identity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add identity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "添加身份"
+          }
+        }
+      }
+    },
+    "You can also drag a folder onto the menu bar icon": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "You can also drag a folder onto the menu bar icon"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "也可以把文件夹拖到菜单栏图标"
+          }
+        }
+      }
+    },
+    "Authentication failed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Authentication failed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "认证失败"
+          }
+        }
+      }
+    },
+    "Probe again": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Probe again"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新检测"
+          }
+        }
+      }
+    },
+    "This account has no private key yet.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This account has no private key yet."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个账号还没有私钥。"
+          }
+        }
+      }
+    },
+    "No public key at %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No public key at %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "在 %@ 找不到公钥"
+          }
+        }
+      }
+    },
+    "Restore this snapshot?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Restore this snapshot?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复到这个快照？"
+          }
+        }
+      }
+    },
+    "1 current identity will be replaced with:": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "1 current identity will be replaced with:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前 1 个身份会替换为："
+          }
+        }
+      }
+    },
+    "%lld current identities will be replaced with:": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld current identities will be replaced with:"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "当前 %lld 个身份会替换为："
+          }
+        }
+      }
+    },
+    "No backups yet — a snapshot is taken when you add an account or before a restore.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No backups yet — a snapshot is taken when you add an account or before a restore."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "暂无备份 — 添加账号时、以及恢复前会自动创建快照。"
+          }
+        }
+      }
+    },
+    "Commits and pushes use different identities": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commits and pushes use different identities"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交与推送使用了不同的身份"
+          }
+        }
+      }
+    },
+    "Git author does not match the SSH identity": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Git author does not match the SSH identity"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "git 作者与 SSH 身份不一致"
+          }
+        }
+      }
+    },
+    "%@ pushes as %@. %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ pushes as %@. %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ 会以 %@ 推送。%@"
+          }
+        }
+      }
+    },
+    "Commits would be authored as %@ (%@).": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commits would be authored as %@ (%@)."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交会署名为 %@（%@）。"
+          }
+        }
+      }
+    },
+    "Commits would be authored as %@, which no account owns.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Commits would be authored as %@, which no account owns."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提交会署名为 %@，没有任何账号拥有这个邮箱。"
+          }
+        }
+      }
+    },
+    "This repository has no git user.email, so commits have no author.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This repository has no git user.email, so commits have no author."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "这个仓库没有 git user.email，提交没有作者。"
+          }
+        }
+      }
+    },
+    "core.sshCommand pins the key %@.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "core.sshCommand pins the key %@."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "core.sshCommand 固定使用密钥 %@。"
+          }
+        }
+      }
+    },
+    "Re-apply managed config": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Re-apply managed config"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "重新生成托管配置"
+          }
+        }
+      }
+    },
+    "Set this account's git email, or give it a gitdir scope that covers this folder.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Set this account's git email, or give it a gitdir scope that covers this folder."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置这个账号的 git 邮箱，或为它添加覆盖此文件夹的 gitdir 范围。"
+          }
+        }
+      }
+    },
+    "no match": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "no match"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有匹配"
           }
         }
       }

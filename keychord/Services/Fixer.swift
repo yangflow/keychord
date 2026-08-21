@@ -24,10 +24,15 @@ enum Fixer {
 
     /// Run a fix. Caller is expected to trigger a UI refresh afterwards
     /// so the Doctor section re-evaluates.
+    ///
+    /// `accounts` / `managedPaths` are only read by fixes that regenerate the
+    /// managed files; SSH-config fixes ignore them.
     static func execute(
         _ fix: FixID,
         sshConfigPath: String,
-        gitConfigPath: String
+        gitConfigPath: String,
+        accounts: [Account] = [],
+        managedPaths: AccountProjector.ManagedPaths = .default
     ) async throws {
         switch fix {
         case .ssh001_removeHost(let alias):
@@ -43,6 +48,9 @@ enum Fixer {
                     throw FixError.hostNotFound(alias: alias)
                 }
             }
+
+        case .git001_reprojectManagedFiles:
+            try AccountProjector.regenerate(accounts: accounts, paths: managedPaths)
         }
     }
 

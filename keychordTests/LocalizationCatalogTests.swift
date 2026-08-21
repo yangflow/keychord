@@ -28,7 +28,7 @@ struct LocalizationCatalogTests {
         "Show backup contents",
         "Hide backup contents",
         "No accounts in this snapshot",
-        "No backups yet — a snapshot is taken when you add a new account.",
+        "No backups yet — a snapshot is taken when you add an account or before a restore.",
         "No URL rewrites",
         "%lld URL rewrites",
         "Port %@",
@@ -54,6 +54,50 @@ struct LocalizationCatalogTests {
         "Account color",
         "Ed25519",
         "Delete",
+        // Menubar drop hint (#24)
+        "Drag a project folder onto the menu bar icon above",
+        "See which identity would push from that folder",
+        // One-click gitdir bind (#25) and multi-path scopes (#27)
+        "Bind to",
+        "Sets a gitdir scope for this folder",
+        "Already scoped to %@ · adds another path",
+        "Bind failed: %@",
+        "Add gitdir path",
+        "Remove gitdir path",
+        // Clone under a popover account row (#26)
+        "Clone",
+        "Show clone command",
+        "Hide clone command",
+        // Zero-account empty state (#28)
+        "No identities yet",
+        "Import from your existing SSH / git config, or add one by hand",
+        "Import from existing config",
+        "Add identity",
+        "You can also drag a folder onto the menu bar icon",
+        // Probe-failure next actions (#29)
+        "Authentication failed",
+        "Probe again",
+        "Copy public key",
+        "Open Gitea SSH settings",
+        "Open SSH settings",
+        "No public key at %@",
+        "This account has no private key yet.",
+        // Restore confirmation (#30)
+        "Restore this snapshot?",
+        "1 current identity will be replaced with:",
+        "%lld current identities will be replaced with:",
+        // Git author vs SSH identity (#31)
+        "Git author does not match the SSH identity",
+        "Commits and pushes use different identities",
+        "%@ pushes as %@. %@",
+        "Commits would be authored as %@ (%@).",
+        "Commits would be authored as %@, which no account owns.",
+        "This repository has no git user.email, so commits have no author.",
+        "core.sshCommand pins the key %@.",
+        "Re-apply managed config",
+        "Set this account's git email, or give it a gitdir scope that covers this folder.",
+        // Menu-bar tooltip (#32)
+        "no match",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]
