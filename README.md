@@ -156,7 +156,7 @@ keychord/
    ```bash
    rm -rf ~/.config/keychord
    ```
-4. Remove the `Include` blocks keychord injected — look for the `# --- keychord managed ---` markers in `~/.ssh/config` and `~/.gitconfig` and delete through `# --- keychord managed end ---`.
+4. Remove the `Include` blocks keychord injected — open **Accounts → Settings → Remove Include (keep accounts.json)**, or manually delete the `# --- keychord managed ---` … `# --- keychord managed end ---` markers in `~/.ssh/config` and `~/.gitconfig`.
 
 If installed via Homebrew: `brew uninstall --cask keychord`.
 

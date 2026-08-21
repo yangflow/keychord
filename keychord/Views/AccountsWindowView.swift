@@ -15,6 +15,7 @@ struct AccountsWindowView: View {
     @State private var showingKeygen = false
     @State private var showingRestore = false
     @State private var showingCloudSync = false
+    @State private var showingSettings = false
     @State private var importBatch: ImportBatch?
 
     var body: some View {
@@ -52,6 +53,11 @@ struct AccountsWindowView: View {
                     Label("iCloud sync", systemImage: "icloud")
                 }
                 .help("iCloud Sync settings")
+
+                Button { showingSettings = true } label: {
+                    Label("Settings", systemImage: "gearshape")
+                }
+                .help("Settings")
             }
         }
         .sheet(isPresented: $showingKeygen) {
@@ -81,6 +87,10 @@ struct AccountsWindowView: View {
                 onDismiss: { showingCloudSync = false }
             )
             .frame(width: 420, height: 340)
+        }
+        .sheet(isPresented: $showingSettings) {
+            SettingsView(onDismiss: { showingSettings = false })
+                .frame(width: 420, height: 280)
         }
         .sheet(item: $importBatch) { batch in
             ImportPickerView(
