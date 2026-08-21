@@ -9,6 +9,11 @@ struct AccountDetailView: View {
     let onSave: () -> Void
     let onRevert: () -> Void
     let onDelete: (() -> Void)?
+    /// Bumped by the parent after a successful write, so the Save button can
+    /// flash a short acknowledgement (#45).
+    var savedAt: Date? = nil
+
+    @State private var wrote = TransientConfirmation()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -186,12 +191,22 @@ struct AccountDetailView: View {
                 }
             }
             Button("Revert", action: onRevert)
-            Button(isNew ? "Create" : "Save", action: onSave)
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut("s", modifiers: .command)
+            Button(action: onSave) {
+                if wrote.isShowing {
+                    Label("Written", systemImage: "checkmark")
+                } else {
+                    Text(isNew ? "Create" : "Save")
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut("s", modifiers: .command)
         }
         .padding(.horizontal, KC.space20)
         .padding(.vertical, KC.space12)
+        .onChange(of: savedAt) { _, newValue in
+            guard newValue != nil else { return }
+            wrote.flash()
+        }
     }
 
     // MARK: - Path pickers

@@ -157,6 +157,11 @@ struct LocalizationCatalogTests {
         "Remote is HTTPS",
         "Copy set-url",
         "Remembered prefix: %@",
+        // Collapsed Doctor + save acknowledgement (#44, #45)
+        "Configuration looks good",
+        "Written",
+        "Copied",
+        "Scope",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

@@ -128,9 +128,21 @@ final class AccountsStore {
         try save()
     }
 
-    func touchLastUsed(sshAlias: String) {
-        guard let idx = accounts.firstIndex(where: { $0.sshAlias == sshAlias }) else { return }
-        accounts[idx].lastUsedAt = Date()
+    /// Marks an account as just used so the popover can sort by recency.
+    /// Silently ignores an unknown alias — callers touch on every match, and a
+    /// blank alias belongs to an account that has not been finished yet.
+    func touchLastUsed(sshAlias: String, at date: Date = Date()) {
+        let alias = sshAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !alias.isEmpty,
+              let idx = accounts.firstIndex(where: { $0.sshAlias == alias }) else { return }
+        accounts[idx].lastUsedAt = date
+        try? save()
+    }
+
+    /// Same, keyed by identity — usable before an account has an SSH alias.
+    func touchLastUsed(id: UUID, at date: Date = Date()) {
+        guard let idx = accounts.firstIndex(where: { $0.id == id }) else { return }
+        accounts[idx].lastUsedAt = date
         try? save()
     }
 

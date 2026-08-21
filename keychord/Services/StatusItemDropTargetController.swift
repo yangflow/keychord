@@ -68,6 +68,16 @@ final class StatusItemDropTargetController {
         await openPopoverShowingMatch()
     }
 
+    /// Closes the MenuBarExtra window if it is showing, by toggling the status
+    /// item the same way a click outside would. No-op when already closed.
+    func closePopover() {
+        guard let button = MenuBarStatusItemLocator.keychordStatusItem()?.button,
+              button.state == .on else {
+            return
+        }
+        button.performClick(nil)
+    }
+
     /// Opens the MenuBarExtra window if it is not already presented.
     /// Does not click when already open — that would toggle closed and clear
     /// the match card.

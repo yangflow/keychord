@@ -47,6 +47,8 @@ struct MenuBarPopoverView: View {
     @State private var isLoading = true
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
+    @State private var doctorSignature = ""
+    @State private var doctorHasRun = false
     @State private var expandedAccountID: UUID?
     @State private var reprobingAliases: Set<String> = []
     @State private var isBinding = false
@@ -95,6 +97,11 @@ struct MenuBarPopoverView: View {
             bindError = nil
             matchActionError = nil
         }
+        // Escape dismisses the popover. Menus and sheets consume it first, so
+        // this only fires once nothing inside wants it (#46).
+        .onExitCommand {
+            StatusItemDropTargetController.shared.closePopover()
+        }
     }
 
     // MARK: - Content
@@ -139,7 +146,13 @@ struct MenuBarPopoverView: View {
                         DropFolderHintCard()
                     }
 
-                    if !diagnoses.isEmpty {
+                    if diagnoses.isEmpty {
+                        // All clear: one line, no scanning a tall block (#44).
+                        // Only after a real run, so probing does not flash it.
+                        if doctorHasRun {
+                            DoctorHealthyRow()
+                        }
+                    } else {
                         DoctorSummaryRow(
                             diagnoses: diagnoses,
                             isExpanded: isDoctorExpanded,
@@ -196,6 +209,7 @@ struct MenuBarPopoverView: View {
                 onUnbind: { Task { await unbindMatchedFolder() } },
                 onRebind: { target in Task { await rebindMatchedFolder(to: target) } },
                 onUndo: { Task { await undoScopeChange() } },
+                onCloneCopied: { appState.accountsStore.touchLastUsed(id: account.id) },
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
@@ -258,7 +272,8 @@ struct MenuBarPopoverView: View {
                     onReprobe: { Task { await reprobe(record.sshAlias) } },
                     onUnlockKey: { Task { await unlockKey(for: record) } },
                     onApplySSHRewrite: { Task { await applySSHRewrite(to: record) } },
-                    onOpenKeySettings: { openSettingsWindow(pane: .keys) }
+                    onOpenKeySettings: { openSettingsWindow(pane: .keys) },
+                    onCloneCopied: { appState.accountsStore.touchLastUsed(id: record.id) }
                 )
 
                 Divider().padding(.leading, 32)
@@ -277,9 +292,11 @@ struct MenuBarPopoverView: View {
         }
     }
 
+    /// Most recently used first, then the filter — sorting before filtering
+    /// keeps the order stable while the user types.
     private var visibleAccounts: [Account] {
         AccountFilter.apply(
-            accounts: appState.accountsStore.accounts,
+            accounts: AccountOrdering.byLastUsed(appState.accountsStore.accounts),
             query: filterQuery,
             provider: filterProvider
         )
@@ -340,7 +357,11 @@ struct MenuBarPopoverView: View {
     // MARK: - Window helpers
 
     private func openAccounts(selecting id: UUID? = nil, addNew: Bool = false) {
-        if let id { appState.pendingAccountSelection = id }
+        if let id {
+            // Opening an identity counts as using it (#43).
+            appState.accountsStore.touchLastUsed(id: id)
+            appState.pendingAccountSelection = id
+        }
         if addNew { appState.pendingAddNew = true }
         let popover = NSApp.keyWindow
         NSApp.setActivationPolicy(.regular)
@@ -609,6 +630,15 @@ struct MenuBarPopoverView: View {
             probeStates: probeStates,
             identityAudit: appState.identityAudit
         )
+        // A new set of findings opens itself; refreshing the same set respects
+        // whatever the user last chose (#44).
+        isDoctorExpanded = DoctorPresentation.shouldExpand(
+            diagnoses: diagnoses,
+            previousSignature: doctorSignature,
+            wasExpanded: isDoctorExpanded
+        )
+        doctorSignature = DoctorPresentation.signature(of: diagnoses)
+        doctorHasRun = true
         // Doctor runs only after probeAll merges cache + fresh results, so
         // severity updates in one step instead of key → warning mid-probe.
         appState.highestSeverity = diagnoses.map(\.severity).max()

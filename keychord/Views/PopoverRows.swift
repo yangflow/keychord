@@ -205,12 +205,14 @@ struct CurrentRepoMatchedRow: View {
     var onUnbind: (() -> Void)? = nil
     var onRebind: ((Account) -> Void)? = nil
     var onUndo: (() -> Void)? = nil
+    /// Copying a clone command counts as using the identity (#43).
+    var onCloneCopied: (() -> Void)? = nil
     var onClear: (() -> Void)? = nil
 
     @State private var clonePrefill: String
     @State private var resolvedOrigin: String?
-    @State private var didCopyPath = false
-    @State private var didCopySetURL = false
+    @State private var copiedPath = TransientConfirmation()
+    @State private var copiedSetURL = TransientConfirmation()
 
     init(
         account: Account,
@@ -226,6 +228,7 @@ struct CurrentRepoMatchedRow: View {
         onUnbind: (() -> Void)? = nil,
         onRebind: ((Account) -> Void)? = nil,
         onUndo: (() -> Void)? = nil,
+        onCloneCopied: (() -> Void)? = nil,
         onClear: (() -> Void)? = nil
     ) {
         self.account = account
@@ -241,6 +244,7 @@ struct CurrentRepoMatchedRow: View {
         self.onUnbind = onUnbind
         self.onRebind = onRebind
         self.onUndo = onUndo
+        self.onCloneCopied = onCloneCopied
         self.onClear = onClear
         let seed = originURL.flatMap { url -> String? in
             let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: url)
@@ -320,14 +324,19 @@ struct CurrentRepoMatchedRow: View {
                             .foregroundStyle(.tertiary)
                             .lineLimit(1)
                             .truncationMode(.middle)
-                        Image(systemName: didCopyPath ? "checkmark" : "doc.on.doc")
+                        Image(systemName: copiedPath.isShowing ? "checkmark" : "doc.on.doc")
                             .font(.system(size: 9))
-                            .foregroundStyle(.tertiary)
+                            .foregroundStyle(copiedPath.isShowing ? Color.green : Color.secondary)
+                        if copiedPath.isShowing {
+                            Text("Copied")
+                                .font(KC.meta)
+                                .foregroundStyle(.green)
+                        }
                     }
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
-                .help(didCopyPath ? "Copied" : "Copy path")
+                .help("Copy path")
                 .accessibilityLabel(Text("Copy path"))
 
                 if let audit, !audit.isClean {
@@ -345,7 +354,8 @@ struct CurrentRepoMatchedRow: View {
                         .padding(.top, KC.space6)
                     CloneAsIdentityView(
                         account: account,
-                        initialInput: clonePrefill
+                        initialInput: clonePrefill,
+                        onCopy: onCloneCopied
                     )
                     // Recreate when prefill arrives so @State picks it up.
                     .id("clone-\(account.id.uuidString)-\(clonePrefill)")
@@ -387,8 +397,8 @@ struct CurrentRepoMatchedRow: View {
                 copySetURL(command)
             } label: {
                 Label(
-                    didCopySetURL ? "Copied" : "Copy set-url",
-                    systemImage: didCopySetURL ? "checkmark" : "doc.on.doc"
+                    copiedSetURL.isShowing ? "Copied" : "Copy set-url",
+                    systemImage: copiedSetURL.isShowing ? "checkmark" : "doc.on.doc"
                 )
             }
             .buttonStyle(.borderless)
@@ -406,13 +416,13 @@ struct CurrentRepoMatchedRow: View {
     private func copyPath() {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(repoRoot, forType: .string)
-        didCopyPath = true
+        copiedPath.flash()
     }
 
     private func copySetURL(_ command: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(command, forType: .string)
-        didCopySetURL = true
+        copiedSetURL.flash()
     }
 
     // MARK: - Folder actions (open / unbind / rebind)
@@ -498,8 +508,8 @@ struct CurrentRepoMatchedRow: View {
     }
 
     private func loadClonePrefill() async {
-        didCopyPath = false
-        didCopySetURL = false
+        copiedPath.reset()
+        copiedSetURL.reset()
         if let originURL, !originURL.isEmpty {
             resolvedOrigin = originURL
             clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: originURL)
@@ -512,10 +522,7 @@ struct CurrentRepoMatchedRow: View {
     }
 
     private var scopeText: String {
-        let dirs = account.scope.directories
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-        guard !dirs.isEmpty else { return String(localized: "scope: global") }
-        return String(localized: "scope: gitdir:\(dirs.joined(separator: " + "))")
+        AccountScopeText.scopeLine(for: account)
     }
 
     private var heroTint: Color {
@@ -549,6 +556,7 @@ struct AccountRow: View {
     var onUnlockKey: () -> Void = {}
     var onApplySSHRewrite: () -> Void = {}
     var onOpenKeySettings: () -> Void = {}
+    var onCloneCopied: () -> Void = {}
 
     @State private var isHovered = false
 
@@ -580,13 +588,6 @@ struct AccountRow: View {
                                 .foregroundStyle(.secondary)
                                 .lineLimit(1)
                                 .truncationMode(.middle)
-                            if let scopeLine {
-                                Text(verbatim: scopeLine)
-                                    .font(KC.metaMono)
-                                    .foregroundStyle(.tertiary)
-                                    .lineLimit(1)
-                                    .truncationMode(.middle)
-                            }
                         }
 
                         Spacer(minLength: 4)
@@ -594,6 +595,10 @@ struct AccountRow: View {
                     .contentShape(Rectangle())
                 }
                 .buttonStyle(.plain)
+                // Hover / VoiceOver answer “where does this identity apply?”
+                // without a click and without changing the row height (#47).
+                .help(Text(verbatim: scopeSummary))
+                .accessibilityCustomContent(Text("Scope"), Text(verbatim: scopeSummary))
 
                 KCStatusDot(status: probe.statusDot, size: 6)
 
@@ -641,7 +646,7 @@ struct AccountRow: View {
                     Text("Clone")
                         .font(KC.sectionLabel)
                         .foregroundStyle(.secondary)
-                    CloneAsIdentityView(account: record)
+                    CloneAsIdentityView(account: record, onCopy: onCloneCopied)
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, KC.space8)
@@ -657,14 +662,9 @@ struct AccountRow: View {
         return "\(alias) · \(record.gitUserEmail)"
     }
 
-    /// Every gitdir path this account owns, so a multi-path scope is visible
-    /// without opening the Accounts window.
-    private var scopeLine: String? {
-        let dirs = record.scope.directories
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .map { $0.abbreviatedHomePath() }
-        guard !dirs.isEmpty else { return nil }
-        return "gitdir: " + dirs.joined(separator: " + ")
+    /// Every gitdir path this account owns, or “Global”.
+    private var scopeSummary: String {
+        AccountScopeText.summary(for: record)
     }
 }
 
@@ -736,7 +736,7 @@ struct AccountIssueStrip: View {
     let onApplySSHRewrite: () -> Void
     let onOpenKeySettings: () -> Void
 
-    @State private var didCopy = false
+    @State private var copied = TransientConfirmation()
     @State private var copyError: String?
 
     var body: some View {
@@ -799,8 +799,8 @@ struct AccountIssueStrip: View {
         case .authRejected:
             Button(action: copyPublicKey) {
                 Label(
-                    didCopy ? "Copied" : "Copy public key",
-                    systemImage: didCopy ? "checkmark" : "doc.on.doc"
+                    copied.isShowing ? "Copied" : "Copy public key",
+                    systemImage: copied.isShowing ? "checkmark" : "doc.on.doc"
                 )
             }
             .buttonStyle(.borderless)
@@ -853,7 +853,7 @@ struct AccountIssueStrip: View {
 
     private func copyPublicKey() {
         guard let key = KeyAttachment.readPublicKey(forPrivateKeyPath: account.keyPath) else {
-            didCopy = false
+            copied.reset()
             let path = KeyAttachment.publicKeyPath(forPrivateKeyPath: account.keyPath)
             copyError = path.isEmpty
                 ? String(localized: "This account has no private key yet.")
@@ -863,7 +863,7 @@ struct AccountIssueStrip: View {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(key, forType: .string)
         copyError = nil
-        didCopy = true
+        copied.flash()
     }
 }
 
@@ -1050,6 +1050,30 @@ struct DoctorSummaryRow: View {
             return String(localized: "\(infos) info")
         }
         return parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - DoctorHealthyRow (one line when there is nothing to report)
+
+/// All-clear Doctor state: a single quiet line instead of a tall block. Nothing
+/// to expand, so it is not a button.
+struct DoctorHealthyRow: View {
+    var body: some View {
+        HStack(spacing: KC.space8) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(.green)
+            Text("Configuration looks good")
+                .font(KC.rowCaption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, KC.rowHPadding)
+        .padding(.vertical, KC.space8)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.horizontal, KC.space10)
+        .padding(.top, KC.space8)
+        .accessibilityElement(children: .combine)
     }
 }
 

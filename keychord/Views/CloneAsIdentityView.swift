@@ -8,19 +8,24 @@ struct CloneAsIdentityView: View {
     let account: Account
     private let initialInput: String
     private let prefixMemory: ClonePrefixMemory
+    /// Called after a successful copy so the caller can mark the identity as
+    /// just used (#43).
+    private let onCopy: (() -> Void)?
 
     @State private var input: String
-    @State private var didCopy = false
+    @State private var copied = TransientConfirmation()
     @State private var rememberedPrefix: String?
 
     init(
         account: Account,
         initialInput: String = "",
-        prefixMemory: ClonePrefixMemory = .shared
+        prefixMemory: ClonePrefixMemory = .shared,
+        onCopy: (() -> Void)? = nil
     ) {
         self.account = account
         self.initialInput = initialInput
         self.prefixMemory = prefixMemory
+        self.onCopy = onCopy
         self._input = State(initialValue: initialInput)
     }
 
@@ -31,22 +36,29 @@ struct CloneAsIdentityView: View {
                     .textFieldStyle(.roundedBorder)
                     .font(KC.rowCaptionMono)
                     .disableAutocorrection(true)
+                    // Return copies, same as the button, and only while this
+                    // field has focus (#46). No-op when nothing rewrites.
+                    .onSubmit(copyCommand)
                     .onChange(of: input) { _, _ in
-                        didCopy = false
+                        copied.reset()
                     }
 
                 Button {
                     copyCommand()
                 } label: {
-                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                    Image(systemName: copied.isShowing ? "checkmark" : "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
                 .disabled(cloneCommand == nil)
                 .help("Copy clone command")
-                .accessibilityLabel(Text(didCopy ? "Copied" : "Copy clone command"))
+                .accessibilityLabel(Text(copied.isShowing ? "Copied" : "Copy clone command"))
             }
 
-            if let rememberedPrefix {
+            if copied.isShowing {
+                Text("Copied")
+                    .font(KC.meta)
+                    .foregroundStyle(.green)
+            } else if let rememberedPrefix {
                 Text("Remembered prefix: \(rememberedPrefix)")
                     .font(KC.meta)
                     .foregroundStyle(.tertiary)
@@ -62,7 +74,7 @@ struct CloneAsIdentityView: View {
             if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
                !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                 input = newValue
-                didCopy = false
+                copied.reset()
             }
         }
     }
@@ -87,8 +99,9 @@ struct CloneAsIdentityView: View {
         guard let command = cloneCommand else { return }
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(command, forType: .string)
-        didCopy = true
+        copied.flash()
         prefixMemory.remember(input: input, for: account.id)
         rememberedPrefix = prefixMemory.prefix(for: account.id)
+        onCopy?()
     }
 }

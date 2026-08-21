@@ -156,9 +156,7 @@ final class AppState {
 
         switch result {
         case .matched(let account, let repoRoot, _):
-            if !account.sshAlias.isEmpty {
-                accountsStore.touchLastUsed(sshAlias: account.sshAlias)
-            }
+            accountsStore.touchLastUsed(id: account.id)
             gitdirOverlap = GitdirOverlap.detect(repoRoot: repoRoot, accounts: accounts)
             let identity = await CurrentRepoResolver.readEffectiveIdentity(at: repoRoot)
             identityAudit = IdentityAudit.audit(
@@ -198,6 +196,7 @@ final class AppState {
                 boundLabel: displayLabel(of: account),
                 repoRoot: path
             )
+            accountsStore.touchLastUsed(id: account.id)
         }
         await resolveCurrentRepo(at: path)
         return nil
@@ -284,6 +283,7 @@ final class AppState {
                 boundLabel: displayLabel(of: account),
                 repoRoot: repoRoot
             )
+            accountsStore.touchLastUsed(id: account.id)
         }
         await resolveCurrentRepo(at: repoRoot)
         return nil
@@ -327,6 +327,7 @@ final class AppState {
                 boundLabel: displayLabel(of: account),
                 repoRoot: repoRoot
             )
+            accountsStore.touchLastUsed(id: account.id)
         }
         await resolveCurrentRepo(at: repoRoot)
         return nil

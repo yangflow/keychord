@@ -16,6 +16,9 @@ struct AccountsWindowView: View {
     /// Account awaiting delete confirmation. Delete leaves a private key and
     /// gitdir paths behind, so the user sees them first.
     @State private var pendingDelete: Account?
+    /// Timestamp of the last successful write, which makes the Save button
+    /// flash its acknowledgement (#45).
+    @State private var lastSavedAt: Date?
 
     var body: some View {
         NavigationSplitView {
@@ -104,7 +107,7 @@ struct AccountsWindowView: View {
     private var sidebar: some View {
         List(selection: $selection) {
             Section {
-                ForEach(appState.accountsStore.accounts) { account in
+                ForEach(AccountOrdering.byLastUsed(appState.accountsStore.accounts)) { account in
                     AccountsSidebarRow(
                         account: account,
                         color: sidebarColor(for: account)
@@ -139,7 +142,8 @@ struct AccountsWindowView: View {
                 statusIsError: statusIsError,
                 onSave: saveDraft,
                 onRevert: revertDraft,
-                onDelete: isNewDraft ? nil : { requestDelete(id: draftID) }
+                onDelete: isNewDraft ? nil : { requestDelete(id: draftID) },
+                savedAt: lastSavedAt
             )
         } else {
             emptyDetail
@@ -263,6 +267,7 @@ struct AccountsWindowView: View {
             draft = updated
             statusIsError = false
             statusMessage = String(localized: "Saved · \(updated.label)")
+            lastSavedAt = Date()
         } catch {
             statusIsError = true
             statusMessage = String(localized: "Save failed: \(String(describing: error))")

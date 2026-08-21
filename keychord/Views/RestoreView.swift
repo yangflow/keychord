@@ -450,11 +450,9 @@ private struct BackupAccountDetailSheet: View {
     }
 
     private var scopeDisplay: String {
-        let dirs = account.scope.directories
-            .filter { !$0.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty }
-            .map { $0.abbreviatedHomePath() }
-        guard !dirs.isEmpty else { return String(localized: "Global") }
-        return String(localized: "scope: gitdir:\(dirs.joined(separator: " + "))")
+        AccountScopeText.paths(of: account.scope).isEmpty
+            ? String(localized: "Global")
+            : AccountScopeText.scopeLine(of: account.scope)
     }
 
     private func blankable(_ value: String) -> String {
