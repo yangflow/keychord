@@ -22,6 +22,7 @@ struct LocalizationCatalogTests {
         "Key Type",
         "iCloud Sync",
         "Backups",
+        "Refresh",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

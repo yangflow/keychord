@@ -168,6 +168,14 @@ struct MenuBarPopoverView: View {
             Spacer()
 
             Button {
+                Task { await refresh(forceProbe: true) }
+            } label: {
+                Image(systemName: "arrow.clockwise")
+            }
+            .help("Refresh")
+            .accessibilityLabel(Text("Refresh"))
+
+            Button {
                 NSApp.terminate(nil)
             } label: {
                 Image(systemName: "power")
@@ -261,9 +269,12 @@ struct MenuBarPopoverView: View {
 
     // MARK: - Load + probe
 
-    private func refresh() async {
+    private func refresh(forceProbe: Bool = false) async {
+        // Restore cached dots / severity inputs before the spinner clears so a
+        // recreated popover does not flash idle → probing on every open.
+        hydrateProbeStatesFromCache()
         await reload()
-        await probeAll()
+        await probeAll(force: forceProbe)
         await runDoctor()
         await tryResolveFromFinder()
     }
@@ -281,22 +292,38 @@ struct MenuBarPopoverView: View {
         isLoading = false
     }
 
-    private func probeAll() async {
-        let aliases = appState.accountsStore.accounts
+    private func accountAliases() -> [String] {
+        appState.accountsStore.accounts
             .map(\.sshAlias)
             .filter { !$0.isEmpty }
-        for alias in aliases { probeStates[alias] = .probing }
+    }
 
-        await withTaskGroup(of: (String, HostProbeState).self) { group in
-            for alias in aliases {
-                group.addTask {
-                    let result = await Prober.probeAlias(alias)
-                    return (alias, result)
-                }
-            }
-            for await (alias, result) in group {
-                probeStates[alias] = result
-            }
+    private func hydrateProbeStatesFromCache() {
+        for (alias, state) in appState.probeCache.cachedStates(for: accountAliases()) {
+            probeStates[alias] = state
+        }
+    }
+
+    /// Probe only aliases that `ProbeCache.shouldProbe` allows. Cached
+    /// successes keep their prior state (no `.probing` flash); the menu-bar
+    /// icon keeps the previous `highestSeverity` until Doctor finishes on
+    /// the merged map.
+    private func probeAll(force: Bool = false) async {
+        let aliases = accountAliases()
+        let cache = appState.probeCache
+
+        hydrateProbeStatesFromCache()
+
+        let pending = aliases.filter { cache.shouldProbe($0, force: force) }
+        for alias in pending {
+            probeStates[alias] = .probing
+        }
+
+        let probed = await cache.probeAliases(aliases, force: force) { alias in
+            await Prober.probeAlias(alias)
+        }
+        for (alias, state) in probed {
+            probeStates[alias] = state
         }
     }
 
@@ -308,6 +335,8 @@ struct MenuBarPopoverView: View {
             model: scoped,
             probeStates: probeStates
         )
+        // Doctor runs only after probeAll merges cache + fresh results, so
+        // severity updates in one step instead of key → warning mid-probe.
         appState.highestSeverity = diagnoses.map(\.severity).max()
     }
 
@@ -319,6 +348,6 @@ struct MenuBarPopoverView: View {
             sshConfigPath: ConfigStore.expand("~/.ssh/config"),
             gitConfigPath: ConfigStore.expand("~/.gitconfig")
         )
-        await refresh()
+        await refresh(forceProbe: true)
     }
 }
