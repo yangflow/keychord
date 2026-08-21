@@ -20,23 +20,36 @@ struct CloneAsIdentityView: View {
     }
 
     var body: some View {
-        HStack(spacing: KC.space6) {
-            field
-                .font(compact ? KC.rowCaptionMono : nil)
-                .disableAutocorrection(true)
-                .onChange(of: input) { _, _ in
-                    didCopy = false
-                }
+        VStack(alignment: .leading, spacing: KC.space4) {
+            HStack(spacing: KC.space6) {
+                field
+                    .font(compact ? KC.rowCaptionMono : nil)
+                    .disableAutocorrection(true)
+                    .onChange(of: input) { _, _ in
+                        didCopy = false
+                    }
 
-            Button {
-                copyCommand()
-            } label: {
-                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                Button {
+                    copyCommand()
+                } label: {
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
+                }
+                .buttonStyle(.borderless)
+                .disabled(cloneCommand == nil)
+                .help("Copy clone command")
+                .accessibilityLabel(Text(didCopy ? "Copied" : "Copy clone command"))
             }
-            .buttonStyle(.borderless)
-            .disabled(cloneCommand == nil)
-            .help("Copy clone command")
-            .accessibilityLabel(Text(didCopy ? "Copied" : "Copy clone command"))
+
+            // Accounts detail shows the rewritten command; popover compact does not.
+            if !compact, let command = cloneCommand {
+                Text(verbatim: command)
+                    .font(KC.rowCaptionMono)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.middle)
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            }
         }
         .onAppear {
             applyInitialInputIfNeeded()
