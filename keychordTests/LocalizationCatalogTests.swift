@@ -29,6 +29,9 @@ struct LocalizationCatalogTests {
         "Includes",
         "Remove Include (keep accounts.json)",
         "Include markers removed",
+        "Clone as this identity",
+        "org/repo or paste URL",
+        "Copy rewritten clone command",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]
