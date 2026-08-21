@@ -34,7 +34,7 @@ keychord 把"账号集合"当成一等公民，用一个专门的窗口做 CRUD�
 - **Doctor & Fixer**：检测常见配置问题（key 丢失、权限错、悬空 `Include`、`IdentityFile` 冲突），并给出一键修复。
 - **SSH 端口选择**：每个账号可单独设置 Direct 22 / SSL 443。22 端口被墙时可切到 443。
 - **SSH Key 生成器**：在应用内生成 ed25519 或 RSA key，自带安全文件名与正确权限。
-- **原子备份**：每次写入前都会在 `~/.config/keychord/backups/` 为 `accounts.json` 做快照，可从 Restore 视图浏览和恢复。
+- **原子备份**：添加新账户时（若已有 `accounts.json`）会先在 `~/.config/keychord/backups/` 做快照，可在设置 → 备份中浏览和恢复。编辑与删除不会新建快照。
 - **探针**：对每个 host 执行 `ssh -T git@<alias>`，一眼看出哪个账号还能正常认证。
 - **常驻菜单栏**：`LSUIElement = YES`，没有 Dock 图标、不抢焦点。把一个文件夹拖到菜单栏图标上可以直接查出那个目录下会用哪个账号 push。
 
