@@ -139,25 +139,41 @@ private struct BackupRestoreCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(alignment: .center, spacing: KC.space10) {
-                disclosureControl
+                if entry.isReadable {
+                    Button {
+                        withAnimation(.easeInOut(duration: 0.15)) {
+                            isExpanded.toggle()
+                        }
+                    } label: {
+                        HStack(alignment: .center, spacing: KC.space10) {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 14, weight: .semibold))
+                                .foregroundStyle(.secondary)
+                                .rotationEffect(.degrees(isExpanded ? 90 : 0))
+                                .frame(width: 14, height: 14)
 
-                VStack(alignment: .leading, spacing: 3) {
-                    Text(
-                        entry.timestamp,
-                        format: .dateTime.year().month().day().hour().minute().second()
+                            headerTextColumn
+
+                            Spacer(minLength: KC.space8)
+                        }
+                        .contentShape(Rectangle())
+                    }
+                    .buttonStyle(.plain)
+                    .accessibilityLabel(
+                        Text(isExpanded ? "Hide backup contents" : "Show backup contents")
                     )
-                    .font(.callout.weight(.semibold))
-                    .foregroundStyle(.primary)
-                    .monospacedDigit()
+                } else {
+                    HStack(alignment: .center, spacing: KC.space10) {
+                        Image(systemName: "clock.arrow.circlepath")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.secondary)
+                            .frame(width: 14, height: 14)
 
-                    Text(summaryLine)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                        headerTextColumn
+
+                        Spacer(minLength: KC.space8)
+                    }
                 }
-
-                Spacer(minLength: KC.space8)
 
                 HStack(spacing: KC.space10) {
                     Button(action: onRestore) {
@@ -199,29 +215,21 @@ private struct BackupRestoreCard: View {
         }
     }
 
-    @ViewBuilder
-    private var disclosureControl: some View {
-        if entry.isReadable {
-            Button {
-                withAnimation(.easeInOut(duration: 0.15)) {
-                    isExpanded.toggle()
-                }
-            } label: {
-                Image(systemName: "chevron.right")
-                    .font(.system(size: 14, weight: .semibold))
-                    .foregroundStyle(.secondary)
-                    .rotationEffect(.degrees(isExpanded ? 90 : 0))
-                    .frame(width: 14, height: 14)
-            }
-            .buttonStyle(.borderless)
-            .accessibilityLabel(
-                Text(isExpanded ? "Hide backup contents" : "Show backup contents")
+    private var headerTextColumn: some View {
+        VStack(alignment: .leading, spacing: 3) {
+            Text(
+                entry.timestamp,
+                format: .dateTime.year().month().day().hour().minute().second()
             )
-        } else {
-            Image(systemName: "clock.arrow.circlepath")
-                .font(.system(size: 14, weight: .medium))
+            .font(.callout.weight(.semibold))
+            .foregroundStyle(.primary)
+            .monospacedDigit()
+
+            Text(summaryLine)
+                .font(.caption)
                 .foregroundStyle(.secondary)
-                .frame(width: 14, height: 14)
+                .lineLimit(1)
+                .truncationMode(.tail)
         }
     }
 
