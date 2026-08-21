@@ -35,7 +35,6 @@ keychord 把"账号集合"当成一等公民，用一个专门的窗口做 CRUD�
 - **SSH 端口选择**：每个账号可单独设置 Direct 22 / SSL 443。22 端口被墙时可切到 443。
 - **SSH Key 生成器**：在应用内生成 ed25519 或 RSA key，自带安全文件名与正确权限。
 - **原子备份**：每次写入前都会在 `~/.config/keychord/backups/` 为 `accounts.json` 做快照，可从 Restore 视图浏览和恢复。
-- **iCloud 同步**：可选功能，通过 `NSUbiquitousKeyValueStore` 在多台 Mac 之间同步账号列表。SSH key 留在本地，只同步元数据。
 - **探针**：对每个 host 执行 `ssh -T git@<alias>`，一眼看出哪个账号还能正常认证。
 - **常驻菜单栏**：`LSUIElement = YES`，没有 Dock 图标、不抢焦点。把一个文件夹拖到菜单栏图标上可以直接查出那个目录下会用哪个账号 push。
 
@@ -116,12 +115,12 @@ xcodebuild test \
 
 1. 点击菜单栏图标。弹出窗口显示账号列表、Doctor 诊断信息，以及当前仓库上下文。
 2. 点击账号列表底部的 **+** 行来添加新账号（会打开账号管理窗口），或者点任意账号行跳到详情。
-3. 在账号窗口中，使用侧栏底部的工具栏:
+3. 在账号窗口中，使用顶部工具栏:
    - **+** 新建账号
    - **钥匙** 生成 SSH key
-   - **时钟** 浏览并恢复备份
    - **导入** 从现有配置检测并选择性导入账号
-   - **iCloud** 配置云同步
+   - **时钟** 浏览并恢复备份
+   - **设置** 登录时打开与 Include 维护
 4. 填写 label、git name/email、SSH alias、key path，以及可选的 `gitdir:` scope 和 URL 改写。⌘S 保存。
 5. 每次保存都会重新生成 managed 文件，并在真实 config 里重新安装 `Include`（如果被误删）。
 6. 回到 popover，**Doctor** 区会列出检测到的配置问题，附带一键修复按钮。
@@ -135,12 +134,12 @@ keychord/
 │   ├── Services/            # AccountsStore, AccountProjector,
 │   │                        # AccountImporter, IncludeInstaller,
 │   │                        # ConfigStore, Doctor, Fixer, Prober,
-│   │                        # BackupService, CloudSyncService,
+│   │                        # BackupService,
 │   │                        # KeygenService, …
 │   ├── Views/               # MenuBarContent, AccountsWindowView,
 │   │                        # AccountDetailView, AccountsSidebar,
 │   │                        # ImportPickerView, RestoreView,
-│   │                        # CloudSyncView, KeygenView, …
+│   │                        # KeygenView, …
 │   ├── AppDelegate.swift
 │   └── AppState.swift
 ├── keychordTests/           # Swift Testing 单元测试

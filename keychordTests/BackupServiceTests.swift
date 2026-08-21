@@ -130,6 +130,113 @@ struct BackupServiceTests {
         }
     }
 
+    @Test func listEntriesSummarizesAccountsJson() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+
+            let work = Account(
+                id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
+                label: "work",
+                username: "alice",
+                provider: .github,
+                sshAlias: "gh-work",
+                keyPath: "/Users/demo/.ssh/id_ed25519_work",
+                keyFingerprint: nil,
+                sshPort: .port443,
+                gitUserName: "Alice",
+                gitUserEmail: "alice@example.com",
+                scope: .global,
+                urlRewrites: [
+                    Account.URLRewrite(from: "https://github.com/", to: "git@gh-work:")
+                ],
+                color: .blue,
+                notes: "",
+                createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                lastUsedAt: nil
+            )
+            let personal = Account(
+                id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
+                label: "",
+                username: "bob",
+                provider: .gitlab,
+                sshAlias: "gh-b",
+                keyPath: "/Users/demo/.ssh/id_ed25519_b",
+                keyFingerprint: nil,
+                sshPort: .port22,
+                gitUserName: "Bob",
+                gitUserEmail: "bob@example.com",
+                scope: .gitdir("~/work/"),
+                urlRewrites: [],
+                color: .green,
+                notes: "",
+                createdAt: Date(timeIntervalSince1970: 1_700_000_000),
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+                lastUsedAt: nil
+            )
+
+            struct Envelope: Encodable {
+                var version: Int
+                var accounts: [Account]
+            }
+            let encoder = JSONEncoder()
+            encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
+            encoder.dateEncodingStrategy = .iso8601
+            let data = try encoder.encode(Envelope(version: 1, accounts: [work, personal]))
+            try data.write(to: source)
+
+            let date = Date(timeIntervalSince1970: 1_800_000_000)
+            _ = try service.backup(originalPath: source.path, at: date)
+
+            let entries = try service.listEntries(for: source.path)
+            #expect(entries.count == 1)
+            #expect(entries[0].accountCount == 2)
+            #expect(entries[0].labels == ["work", ""])
+            #expect(entries[0].byteCount != nil)
+            #expect((entries[0].byteCount ?? 0) > 0)
+            #expect(entries[0].isReadable)
+            #expect(entries[0].accounts.count == 2)
+
+            let previewWork = entries[0].accounts[0]
+            #expect(previewWork.label == "work")
+            #expect(previewWork.gitUserName == "Alice")
+            #expect(previewWork.gitUserEmail == "alice@example.com")
+            #expect(previewWork.sshAlias == "gh-work")
+            #expect(previewWork.provider == .github)
+            #expect(previewWork.sshPort == .port443)
+            #expect(previewWork.keyPath.hasSuffix("id_ed25519_work"))
+            #expect(previewWork.scope == .global)
+            #expect(previewWork.urlRewrites.count == 1)
+
+            let unnamed = entries[0].accounts[1]
+            #expect(unnamed.label.isEmpty)
+            #expect(unnamed.provider == .gitlab)
+            #expect(unnamed.sshPort == .port22)
+            #expect(unnamed.scope == .gitdir("~/work/"))
+            #expect(unnamed.urlRewrites.isEmpty)
+        }
+    }
+
+    @Test func listEntriesMarksUnreadableSnapshots() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("not-json\n", at: source)
+
+            _ = try service.backup(
+                originalPath: source.path,
+                at: Date(timeIntervalSince1970: 1_800_000_000)
+            )
+
+            let entries = try service.listEntries(for: source.path)
+            #expect(entries.count == 1)
+            #expect(entries[0].accountCount == nil)
+            #expect(entries[0].labels.isEmpty)
+            #expect(entries[0].accounts.isEmpty)
+            #expect(!entries[0].isReadable)
+            #expect(entries[0].byteCount != nil)
+        }
+    }
+
     @Test func listDistinguishesSimilarlyNamedSources() throws {
         try Self.withTempRoot { service, root in
             // ~/.gitconfig and ~/.gitconfig-work share the prefix "gitconfig"

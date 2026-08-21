@@ -8,6 +8,44 @@ struct BackupRecord: Equatable, Hashable, Identifiable, Sendable {
     var id: String { backupPath }
 }
 
+/// One account inside an accounts.json backup, enough to tell identities
+/// apart in the Restore preview without dumping raw JSON.
+struct BackupAccountPreview: Equatable, Identifiable, Sendable {
+    let id: UUID
+    let label: String
+    let gitUserName: String
+    let gitUserEmail: String
+    let sshAlias: String
+    let provider: Account.Provider
+    let sshPort: Account.SSHPort
+    let keyPath: String
+    let scope: Account.Scope
+    let urlRewrites: [Account.URLRewrite]
+}
+
+/// List-row details derived from a backup file so Restore can show more
+/// than a bare timestamp without opening the JSON by hand.
+struct BackupListEntry: Equatable, Identifiable, Sendable {
+    let record: BackupRecord
+    /// On-disk size of the backup file, when readable.
+    let byteCount: Int64?
+    /// Account count parsed from the snapshot; `nil` if the file is not a
+    /// recognizable accounts.json envelope.
+    let accountCount: Int?
+    /// Display labels in snapshot order (empty string → treated as unnamed
+    /// by the view). Empty when unreadable.
+    let labels: [String]
+    /// Parsed accounts for in-place preview. Empty when unreadable or when
+    /// the snapshot itself has no accounts.
+    let accounts: [BackupAccountPreview]
+
+    var id: String { record.id }
+
+    var timestamp: Date { record.timestamp }
+
+    var isReadable: Bool { accountCount != nil }
+}
+
 enum BackupError: Swift.Error, CustomStringConvertible {
     case sourceNotFound(String)
     case backupNotFound(String)
@@ -83,6 +121,12 @@ struct BackupService: Sendable {
     func list(for originalPath: String) throws -> [BackupRecord] {
         let base = Self.backupBaseName(for: originalPath)
         return try list(forBaseName: base, mapTo: originalPath)
+    }
+
+    /// Same ordering as `list(for:)`, with cheap per-file summary metadata
+    /// for the Restore UI.
+    func listEntries(for originalPath: String) throws -> [BackupListEntry] {
+        try list(for: originalPath).map(Self.makeListEntry(for:))
     }
 
     private func list(forBaseName base: String, mapTo originalPath: String) throws -> [BackupRecord] {
@@ -175,6 +219,100 @@ struct BackupService: Sendable {
         // succeeds when it is — so a successful call means "refuse".
         if let _ = try? FileManager.default.destinationOfSymbolicLink(atPath: path) {
             throw BackupError.symlinkNotAllowed(path)
+        }
+    }
+
+    // MARK: - Snapshot summary
+
+    static func makeListEntry(for record: BackupRecord) -> BackupListEntry {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: record.backupPath)
+        let byteCount = (attrs?[.size] as? NSNumber)?.int64Value
+
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: record.backupPath)),
+            let envelope = try? JSONDecoder().decode(AccountsSnapshotEnvelope.self, from: data)
+        else {
+            return BackupListEntry(
+                record: record,
+                byteCount: byteCount,
+                accountCount: nil,
+                labels: [],
+                accounts: []
+            )
+        }
+
+        let accounts = envelope.accounts.enumerated().map { index, decoded in
+            decoded.asPreview(fallbackIndex: index)
+        }
+        return BackupListEntry(
+            record: record,
+            byteCount: byteCount,
+            accountCount: accounts.count,
+            labels: accounts.map(\.label),
+            accounts: accounts
+        )
+    }
+
+    /// Minimal decode of accounts.json for Restore summary + preview.
+    private struct AccountsSnapshotEnvelope: Decodable {
+        var accounts: [SnapshotAccount]
+    }
+
+    private struct SnapshotAccount: Decodable {
+        var id: UUID?
+        var label: String
+        var gitUserName: String
+        var gitUserEmail: String
+        var sshAlias: String
+        var provider: Account.Provider
+        var sshPort: Account.SSHPort
+        var keyPath: String
+        var scope: Account.Scope
+        var urlRewrites: [Account.URLRewrite]
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            id = try container.decodeIfPresent(UUID.self, forKey: .id)
+            label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
+            gitUserName = try container.decodeIfPresent(String.self, forKey: .gitUserName) ?? ""
+            gitUserEmail = try container.decodeIfPresent(String.self, forKey: .gitUserEmail) ?? ""
+            sshAlias = try container.decodeIfPresent(String.self, forKey: .sshAlias) ?? ""
+            provider = try container.decodeIfPresent(Account.Provider.self, forKey: .provider) ?? .github
+            sshPort = try container.decodeIfPresent(Account.SSHPort.self, forKey: .sshPort) ?? .port443
+            keyPath = try container.decodeIfPresent(String.self, forKey: .keyPath) ?? ""
+            scope = try container.decodeIfPresent(Account.Scope.self, forKey: .scope) ?? .global
+            urlRewrites = try container.decodeIfPresent([Account.URLRewrite].self, forKey: .urlRewrites) ?? []
+        }
+
+        func asPreview(fallbackIndex: Int) -> BackupAccountPreview {
+            let resolvedID = id ?? UUID(
+                uuidString: String(format: "00000000-0000-0000-0000-%012d", fallbackIndex)
+            ) ?? UUID()
+            return BackupAccountPreview(
+                id: resolvedID,
+                label: label,
+                gitUserName: gitUserName,
+                gitUserEmail: gitUserEmail,
+                sshAlias: sshAlias,
+                provider: provider,
+                sshPort: sshPort,
+                keyPath: keyPath,
+                scope: scope,
+                urlRewrites: urlRewrites
+            )
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case id
+            case label
+            case gitUserName
+            case gitUserEmail
+            case sshAlias
+            case provider
+            case sshPort
+            case keyPath
+            case scope
+            case urlRewrites
         }
     }
 

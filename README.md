@@ -34,7 +34,6 @@ keychord makes the identity set a first-class thing you can CRUD from a window, 
 - **SSH port selection** — per-account Direct 22 / SSL 443 toggle. Useful on networks where port 22 is blocked.
 - **SSH key generator** — create an ed25519 or RSA key from the app with safe filenames and correct permissions.
 - **Atomic backups** — every write is preceded by a snapshot of `accounts.json` in `~/.config/keychord/backups/`, browsable from the Restore view.
-- **iCloud Sync** — optional sync of the account list across machines via `NSUbiquitousKeyValueStore`. SSH keys stay local; only metadata travels.
 - **Probes** — per-host `ssh -T git@<alias>` probes so you can see at a glance which accounts authenticate.
 - **Menubar-only** — `LSUIElement = YES`. No dock icon, no window stealing focus. Drag a folder onto the menubar icon to resolve which account would push from there.
 
@@ -115,12 +114,12 @@ The unit test suite covers the SSH config parser, the git config IO layer, `Acco
 
 1. Click the menubar icon. The popover shows your accounts, Doctor diagnostics, and the current repo context.
 2. Click the **+** row at the bottom of the accounts list to add a new account (this opens the accounts window). Or click any account row to jump to its detail.
-3. In the accounts window, use the sidebar bottom bar to:
+3. In the accounts window, use the toolbar to:
    - **+** add a new account
    - **Key** generate an SSH key
-   - **Restore** browse and restore backups
    - **Import** detect accounts from existing config and selectively import
-   - **iCloud** configure cloud sync
+   - **Restore** browse and restore backups
+   - **Settings** Open at Login and Include maintenance
 4. Fill in label, git name/email, SSH alias, key path, optional `gitdir:` scope and URL rewrites. ⌘S saves.
 5. Every save regenerates the managed files and reinstalls the `Include` line if it got wiped.
 6. Back in the popover, the **Doctor** section surfaces any config problems with one-click fixes.
@@ -134,12 +133,12 @@ keychord/
 │   ├── Services/            # AccountsStore, AccountProjector,
 │   │                        # AccountImporter, IncludeInstaller,
 │   │                        # ConfigStore, Doctor, Fixer, Prober,
-│   │                        # BackupService, CloudSyncService,
+│   │                        # BackupService,
 │   │                        # KeygenService, …
 │   ├── Views/               # MenuBarContent, AccountsWindowView,
 │   │                        # AccountDetailView, AccountsSidebar,
 │   │                        # ImportPickerView, RestoreView,
-│   │                        # CloudSyncView, KeygenView, …
+│   │                        # KeygenView, …
 │   ├── AppDelegate.swift
 │   └── AppState.swift
 ├── keychordTests/           # Swift Testing unit tests

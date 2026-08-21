@@ -9,7 +9,7 @@ import Foundation
 final class ProbeCache {
 
     /// Default freshness window for auto-reprobe of non-success entries.
-    static let defaultTTL: TimeInterval = 10 * 60
+    nonisolated static let defaultTTL: TimeInterval = 10 * 60
 
     struct Entry: Equatable, Sendable {
         let state: HostProbeState
