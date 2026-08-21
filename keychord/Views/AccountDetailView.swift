@@ -1,4 +1,5 @@
 import SwiftUI
+import AppKit
 
 struct AccountDetailView: View {
     @Binding var draft: Account
@@ -26,7 +27,18 @@ struct AccountDetailView: View {
 
                 Section("SSH") {
                     LabeledTextField(label: "Alias", text: $draft.sshAlias, placeholder: "github-work")
-                    LabeledTextField(label: "Private key", text: $draft.keyPath, placeholder: "~/.ssh/id_ed25519")
+                    HStack(spacing: KC.space6) {
+                        TextField("Private key", text: $draft.keyPath, prompt: Text("~/.ssh/id_ed25519"))
+                            .disableAutocorrection(true)
+                        Button {
+                            pickPrivateKey()
+                        } label: {
+                            Image(systemName: "folder")
+                        }
+                        .buttonStyle(.borderless)
+                        .help("Choose private key…")
+                        .accessibilityLabel("Choose private key")
+                    }
                     Picker("Port", selection: $draft.sshPort) {
                         ForEach(Account.SSHPort.allCases, id: \.self) { port in
                             Text(port.displayName).tag(port)
@@ -42,10 +54,21 @@ struct AccountDetailView: View {
                     }
                     .pickerStyle(.segmented)
                     if case .gitdir = draft.scope {
-                        TextField("Directory", text: $scopeDir, prompt: Text("~/work/"))
-                            .onChange(of: scopeDir) { _, newValue in
-                                draft.scope = .gitdir(newValue)
+                        HStack(spacing: KC.space6) {
+                            TextField("Directory", text: $scopeDir, prompt: Text("~/work/"))
+                                .disableAutocorrection(true)
+                                .onChange(of: scopeDir) { _, newValue in
+                                    draft.scope = .gitdir(newValue)
+                                }
+                            Button {
+                                pickGitdir()
+                            } label: {
+                                Image(systemName: "folder")
                             }
+                            .buttonStyle(.borderless)
+                            .help("Choose directory…")
+                            .accessibilityLabel("Choose gitdir directory")
+                        }
                     }
                 }
 
@@ -164,6 +187,41 @@ struct AccountDetailView: View {
         }
         .padding(.horizontal, KC.space20)
         .padding(.vertical, KC.space12)
+    }
+
+    // MARK: - Path pickers
+
+    private func pickGitdir() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = false
+        panel.canChooseDirectories = true
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.message = "Choose the directory this account gitdir scope applies to."
+        if !scopeDir.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: ConfigStore.expand(scopeDir), isDirectory: true)
+        }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        let normalized = CurrentRepoResolver.normalizeGitdir(url.path)
+        scopeDir = normalized
+        draft.scope = .gitdir(normalized)
+    }
+
+    private func pickPrivateKey() {
+        let panel = NSOpenPanel()
+        panel.canChooseFiles = true
+        panel.canChooseDirectories = false
+        panel.allowsMultipleSelection = false
+        panel.prompt = "Choose"
+        panel.message = "Choose an SSH private key file."
+        let sshDir = (NSHomeDirectory() as NSString).appendingPathComponent(".ssh")
+        panel.directoryURL = URL(fileURLWithPath: sshDir, isDirectory: true)
+        if !draft.keyPath.isEmpty {
+            let expanded = ConfigStore.expand(draft.keyPath)
+            panel.directoryURL = URL(fileURLWithPath: expanded).deletingLastPathComponent()
+        }
+        guard panel.runModal() == .OK, let url = panel.url else { return }
+        draft.keyPath = AccountProjector.normalizeKeyPath(url.path)
     }
 
     // MARK: - Subviews

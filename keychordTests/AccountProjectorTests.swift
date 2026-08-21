@@ -257,4 +257,46 @@ struct AccountProjectorTests {
         try AccountProjector.write(output2, paths: paths)
         #expect(!FileManager.default.fileExists(atPath: subPath))
     }
+
+    // MARK: - Path normalization (picker → storage → project)
+
+    @Test func normalizeKeyPathAbbreviatesHome() {
+        let abs = NSHomeDirectory() + "/.ssh/id_ed25519"
+        #expect(AccountProjector.normalizeKeyPath(abs) == "~/.ssh/id_ed25519")
+    }
+
+    @Test func normalizeKeyPathPreservesTildeAndTrims() {
+        #expect(AccountProjector.normalizeKeyPath("  ~/.ssh/id_rsa  ") == "~/.ssh/id_rsa")
+        #expect(AccountProjector.normalizeKeyPath("") == "")
+    }
+
+    @Test func normalizeKeyPathOutsideHomeStaysAbsolute() {
+        #expect(AccountProjector.normalizeKeyPath("/opt/keys/id_deploy") == "/opt/keys/id_deploy")
+    }
+
+    @Test func chosenDirectoryGitdirProjectsWithTrailingSlash() {
+        let absDir = NSHomeDirectory() + "/code/work"
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(CurrentRepoResolver.normalizeGitdir(absDir))
+        #expect(account.scope.directory == "~/code/work/")
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/code/work/\"]"))
+    }
+
+    @Test func chosenKeyPathStillProjects() {
+        let absKey = NSHomeDirectory() + "/.ssh/id_picker_test"
+        var account = Self.globalAccount()
+        account.keyPath = AccountProjector.normalizeKeyPath(absKey)
+        #expect(account.keyPath == "~/.ssh/id_picker_test")
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+        #expect(output.sshConfig.contains("IdentityFile ~/.ssh/id_picker_test"))
+    }
+
+    @Test func gitdirWithoutTrailingSlashStillNormalizedOnProject() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir("~/work")
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/work/\"]"))
+        #expect(!output.gitConfig.contains("[includeIf \"gitdir:~/work\"]\n"))
+    }
 }
