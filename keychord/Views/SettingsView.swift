@@ -1,18 +1,54 @@
 import SwiftUI
 
 /// Lightweight settings sheet for maintenance actions that are not
-/// account-specific. Today: strip Include markers while keeping
-/// accounts.json and keys.
+/// account-specific. Today: Open at Login, and strip Include markers
+/// while keeping accounts.json and keys.
 struct SettingsView: View {
     let onDismiss: () -> Void
 
+    @State private var loginItem: LoginItemController
     @State private var confirmRemoveIncludes = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
 
+    init(
+        onDismiss: @escaping () -> Void,
+        loginItemService: LoginItemManaging = LoginItemService()
+    ) {
+        self.onDismiss = onDismiss
+        self._loginItem = State(initialValue: LoginItemController(service: loginItemService))
+    }
+
     var body: some View {
         VStack(spacing: 0) {
             Form {
+                Section {
+                    Toggle(
+                        "Open at Login",
+                        isOn: Binding(
+                            get: { loginItem.isEnabled },
+                            set: { loginItem.setEnabled($0) }
+                        )
+                    )
+                    .toggleStyle(.switch)
+
+                    if let message = loginItem.lastErrorMessage {
+                        Text(verbatim: message)
+                            .font(.caption)
+                            .foregroundStyle(Color.red)
+                    } else if loginItem.requiresApproval {
+                        Text("Open at Login needs approval in System Settings → General → Login Items.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+                    }
+
+                    Text("Launch keychord in the menu bar when you log in to this Mac.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                } header: {
+                    Text("Startup")
+                }
+
                 Section {
                     Text("Removes keychord’s Include markers from ~/.ssh/config and ~/.gitconfig. Your accounts.json and SSH keys stay in place.")
                         .font(.caption)
@@ -46,7 +82,10 @@ struct SettingsView: View {
             .padding(.horizontal, KC.space20)
             .padding(.vertical, KC.space12)
         }
-        .frame(minWidth: 360, minHeight: 220)
+        .frame(minWidth: 360, minHeight: 280)
+        .onAppear {
+            loginItem.refresh()
+        }
         .confirmationDialog(
             "Remove Include blocks?",
             isPresented: $confirmRemoveIncludes,

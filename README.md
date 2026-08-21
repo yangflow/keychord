@@ -156,7 +156,8 @@ keychord/
    ```bash
    rm -rf ~/.config/keychord
    ```
-4. Remove the `Include` blocks keychord injected — open **Accounts → Settings → Remove Include (keep accounts.json)**, or manually delete the `# --- keychord managed ---` … `# --- keychord managed end ---` markers in `~/.ssh/config` and `~/.gitconfig`.
+4. If you enabled **Open at Login**, remove keychord from System Settings → General → Login Items (or turn the toggle off in Accounts → Settings before quitting).
+5. Remove the `Include` blocks keychord injected — open **Accounts → Settings → Remove Include (keep accounts.json)** before quitting, or manually delete the `# --- keychord managed ---` … `# --- keychord managed end ---` markers in `~/.ssh/config` and `~/.gitconfig`.
 
 If installed via Homebrew: `brew uninstall --cask keychord`.
 
