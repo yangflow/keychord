@@ -254,21 +254,31 @@ struct MenuBarPopoverView: View {
         panel.prompt = String(localized: "Choose")
         panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
 
+        // Keep the MenuBarExtra open: runModal() dismisses it. Prefer a sheet on
+        // the popover window so the match can appear in place after OK.
         appState.isChoosingFolder = true
-        let response = panel.runModal()
-        guard response == .OK, let url = panel.url else {
-            // Panel dismissed the popover; Cancel means no new match to show.
-            appState.isChoosingFolder = false
-            appState.clearAccountMatch()
+
+        if let host = NSApp.keyWindow {
+            panel.beginSheetModal(for: host) { [appState] response in
+                Task { @MainActor in
+                    defer { appState.isChoosingFolder = false }
+                    guard response == .OK, let url = panel.url else { return }
+                    await appState.resolveCurrentRepo(at: url.path)
+                }
+            }
             return
         }
 
-        Task {
-            await appState.resolveCurrentRepo(at: url.path)
-            // NSOpenPanel dismisses the MenuBarExtra window; reopen like icon drop.
-            try? await Task.sleep(for: .milliseconds(50))
-            StatusItemDropTargetController.shared.openPopoverShowingMatch()
-            appState.isChoosingFolder = false
+        // No host window (popover already gone) — fall back to an app-modal panel
+        // and reopen the extra so the user can see the result.
+        panel.begin { [appState] response in
+            Task { @MainActor in
+                defer { appState.isChoosingFolder = false }
+                guard response == .OK, let url = panel.url else { return }
+                await appState.resolveCurrentRepo(at: url.path)
+                try? await Task.sleep(for: .milliseconds(50))
+                StatusItemDropTargetController.shared.openPopoverShowingMatch()
+            }
         }
     }
 
