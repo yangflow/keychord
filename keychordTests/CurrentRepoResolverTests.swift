@@ -165,4 +165,194 @@ struct CurrentRepoResolverTests {
             Issue.record("Expected .notARepo, got \(result)")
         }
     }
+
+    // MARK: - matchAccount (scoped dir + empty states)
+
+    @Test func matchAccountResolvesScopedGitdir() throws {
+        let scopeRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keychord-scope-\(UUID().uuidString)")
+        let repo = try Self.makeRepo(
+            under: scopeRoot.appendingPathComponent("project")
+        )
+        defer { try? FileManager.default.removeItem(at: scopeRoot) }
+
+        let work = Account.new(
+            label: "Work",
+            sshAlias: "github-work",
+            keyPath: "~/.ssh/id_work",
+            gitUserName: "Work User",
+            gitUserEmail: "work@example.com",
+            scope: .gitdir(scopeRoot.path + "/"),
+            color: .orange
+        )
+        let personal = Account.new(
+            label: "Personal",
+            sshAlias: "github.com",
+            keyPath: "~/.ssh/id_personal",
+            gitUserName: "Personal",
+            gitUserEmail: "me@example.com",
+            scope: .global,
+            color: .blue
+        )
+
+        let result = CurrentRepoResolver.matchAccountSync(
+            path: repo.path,
+            accounts: [personal, work],
+            env: Self.isolatedEnv
+        )
+        guard case .matched(let account, let root) = result else {
+            Issue.record("Expected scoped match, got \(result)")
+            return
+        }
+        #expect(account.id == work.id)
+        #expect(account.label == "Work")
+        #expect(account.sshAlias == "github-work")
+        #expect(account.gitUserEmail == "work@example.com")
+        #expect(account.scope.isScoped)
+        let expectedRoot = repo.resolvingSymlinksInPath().path
+        #expect(root == expectedRoot || root == repo.path)
+    }
+
+    @Test func matchAccountReportsNotARepoForEmptyDirectory() throws {
+        let tmp = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keychord-empty-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: tmp, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tmp) }
+
+        let result = CurrentRepoResolver.matchAccountSync(
+            path: tmp.path,
+            accounts: [],
+            env: Self.isolatedEnv
+        )
+        guard case .notARepo(let path) = result else {
+            Issue.record("Expected .notARepo, got \(result)")
+            return
+        }
+        #expect(path == tmp.path)
+        #expect(result.unresolvedReason?.contains("is not a git repository") == true)
+    }
+
+    @Test func matchAccountsPicksMostSpecificGitdir() {
+        let root = "/Users/demo/work/client/repo"
+        let broad = Account.new(
+            label: "Work",
+            sshAlias: "work",
+            keyPath: "~/.ssh/id_work",
+            gitUserName: "W",
+            gitUserEmail: "w@example.com",
+            scope: .gitdir("/Users/demo/work/"),
+            color: .orange
+        )
+        let specific = Account.new(
+            label: "Client",
+            sshAlias: "client",
+            keyPath: "~/.ssh/id_client",
+            gitUserName: "C",
+            gitUserEmail: "c@example.com",
+            scope: .gitdir("/Users/demo/work/client/"),
+            color: .green
+        )
+
+        let result = CurrentRepoResolver.matchAccounts(
+            forRepoRoot: root,
+            accounts: [broad, specific]
+        )
+        guard case .matched(let account, _) = result else {
+            Issue.record("Expected match, got \(result)")
+            return
+        }
+        #expect(account.label == "Client")
+    }
+
+    @Test func matchAccountsReportsNoMatchingGitdir() {
+        let scoped = Account.new(
+            label: "Work",
+            sshAlias: "work",
+            keyPath: "~/.ssh/id_work",
+            gitUserName: "W",
+            gitUserEmail: "w@example.com",
+            scope: .gitdir("/only/work/"),
+            color: .orange
+        )
+        let result = CurrentRepoResolver.matchAccounts(
+            forRepoRoot: "/elsewhere/repo",
+            accounts: [scoped]
+        )
+        guard case .noMatchingGitdir(let root) = result else {
+            Issue.record("Expected .noMatchingGitdir, got \(result)")
+            return
+        }
+        #expect(root == "/elsewhere/repo")
+        #expect(result.unresolvedReason?.contains("No matching gitdir") == true)
+    }
+
+    @Test func matchAccountsReportsConflictingGlobals() {
+        let a = Account.new(
+            label: "A",
+            sshAlias: "a",
+            keyPath: "~/.ssh/id_a",
+            gitUserName: "A",
+            gitUserEmail: "a@example.com",
+            scope: .global,
+            color: .blue
+        )
+        let b = Account.new(
+            label: "B",
+            sshAlias: "b",
+            keyPath: "~/.ssh/id_b",
+            gitUserName: "B",
+            gitUserEmail: "b@example.com",
+            scope: .global,
+            color: .green
+        )
+        let result = CurrentRepoResolver.matchAccounts(
+            forRepoRoot: "/tmp/repo",
+            accounts: [a, b]
+        )
+        guard case .conflictingGlobals(_, let accounts) = result else {
+            Issue.record("Expected .conflictingGlobals, got \(result)")
+            return
+        }
+        #expect(accounts.count == 2)
+        #expect(result.unresolvedReason?.contains("Conflicting global") == true)
+    }
+
+    @Test func matchAccountsFallsBackToSingleGlobal() {
+        let global = Account.new(
+            label: "Personal",
+            sshAlias: "github.com",
+            keyPath: "~/.ssh/id",
+            gitUserName: "Me",
+            gitUserEmail: "me@example.com",
+            scope: .global,
+            color: .blue
+        )
+        let result = CurrentRepoResolver.matchAccounts(
+            forRepoRoot: "/tmp/any-repo",
+            accounts: [global]
+        )
+        guard case .matched(let account, _) = result else {
+            Issue.record("Expected global match, got \(result)")
+            return
+        }
+        #expect(account.id == global.id)
+    }
+
+    // MARK: - Helpers
+
+    static func makeRepo(
+        under parent: URL,
+        userName: String = "alice",
+        userEmail: String = "alice@example.com",
+        originURL: String? = "git@github-work:TestOrg/TestRepo.git"
+    ) throws -> URL {
+        try FileManager.default.createDirectory(at: parent, withIntermediateDirectories: true)
+        try runGit(at: parent.path, args: ["init", "-q"])
+        try runGit(at: parent.path, args: ["config", "user.name", userName])
+        try runGit(at: parent.path, args: ["config", "user.email", userEmail])
+        if let origin = originURL {
+            try runGit(at: parent.path, args: ["remote", "add", "origin", origin])
+        }
+        return parent
+    }
 }

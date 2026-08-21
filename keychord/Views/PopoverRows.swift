@@ -2,6 +2,145 @@ import SwiftUI
 
 // Row components used by the popover and the accounts window.
 
+// MARK: - CurrentRepoDropZone (idle prompt + choose folder)
+
+struct CurrentRepoDropZone: View {
+    let isTargeted: Bool
+    let onChooseFolder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KC.space8) {
+            HStack(spacing: KC.space8) {
+                Image(systemName: "folder.badge.questionmark")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
+                Text(isTargeted ? "Drop to resolve account" : "Drop a folder to see which account applies")
+                    .font(KC.rowCaption)
+                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
+                    .lineLimit(2)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button("Choose Folder…", action: onChooseFolder)
+                .buttonStyle(.borderless)
+                .font(KC.rowCaption)
+                .foregroundStyle(.tint)
+        }
+        .padding(.horizontal, KC.space14)
+        .padding(.vertical, KC.space12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
+                .strokeBorder(
+                    isTargeted ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.12),
+                    style: StrokeStyle(lineWidth: 1, dash: isTargeted ? [] : [5, 4])
+                )
+                .background(
+                    RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
+                        .fill(isTargeted ? Color.accentColor.opacity(0.08) : Color.primary.opacity(0.03))
+                )
+        )
+        .padding(.horizontal, KC.space10)
+        .padding(.top, KC.space10)
+        .animation(.easeOut(duration: 0.15), value: isTargeted)
+    }
+}
+
+// MARK: - CurrentRepoMatchedRow (account answer)
+
+struct CurrentRepoMatchedRow: View {
+    let account: Account
+    let repoRoot: String
+    let probe: HostProbeState
+
+    var body: some View {
+        KCHeroContainer(tint: heroTint) {
+            VStack(alignment: .leading, spacing: KC.space4) {
+                Text(account.label.isEmpty ? "(unnamed)" : account.label)
+                    .font(KC.heroTitle)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                HStack(spacing: 4) {
+                    Text(account.sshAlias.isEmpty ? "no alias" : account.sshAlias)
+                        .font(.system(size: 12, design: .monospaced))
+                    Text("·")
+                        .foregroundStyle(.tertiary)
+                    Text(account.gitUserEmail.isEmpty ? "no email" : account.gitUserEmail)
+                        .foregroundStyle(.secondary)
+                }
+                .font(KC.heroCaption)
+                .lineLimit(1)
+                .truncationMode(.middle)
+
+                Text(scopeText)
+                    .font(KC.heroMeta)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+
+                Text(repoRoot.abbreviatedHomePath())
+                    .font(KC.heroMeta)
+                    .foregroundStyle(.tertiary)
+                    .lineLimit(1)
+                    .truncationMode(.middle)
+            }
+        }
+    }
+
+    private var scopeText: String {
+        switch account.scope {
+        case .global:
+            return "scope: global"
+        case .gitdir(let dir):
+            return "scope: gitdir:\(dir)"
+        }
+    }
+
+    private var heroTint: Color {
+        switch probe {
+        case .ok:      return .green
+        case .failed:  return .red
+        case .probing: return .orange
+        case .idle:    return account.color.color
+        }
+    }
+}
+
+// MARK: - CurrentRepoUnresolvedRow
+
+struct CurrentRepoUnresolvedRow: View {
+    let reason: String
+    let onChooseFolder: () -> Void
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: KC.space8) {
+            HStack(alignment: .top, spacing: KC.space8) {
+                Image(systemName: "questionmark.folder")
+                    .font(.system(size: 14, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text(reason)
+                    .font(KC.rowCaption)
+                    .foregroundStyle(.secondary)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            Button("Choose Folder…", action: onChooseFolder)
+                .buttonStyle(.borderless)
+                .font(KC.rowCaption)
+                .foregroundStyle(.tint)
+        }
+        .padding(.horizontal, KC.space14)
+        .padding(.vertical, KC.space12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
+                .fill(Color.primary.opacity(0.04))
+        )
+        .padding(.horizontal, KC.space10)
+        .padding(.top, KC.space10)
+    }
+}
+
 // MARK: - AccountRow (compact 2-line popover row, Mac-style)
 
 struct AccountRow: View {
