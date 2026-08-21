@@ -25,6 +25,9 @@ struct KeychordApp: App {
                 }
         }
         .menuBarExtraStyle(.window)
+        .commands {
+            KeychordAppCommands()
+        }
 
         WindowGroup("KeyChord · Accounts", id: "accounts") {
             AccountsWindowView()
@@ -35,7 +38,7 @@ struct KeychordApp: App {
         .windowResizability(.contentMinSize)
         .defaultSize(width: 760, height: 520)
 
-        Window("About keychord", id: "about") {
+        Window("About KeyChord", id: "about") {
             AboutView()
                 .environment(languageStore)
                 .environment(\.locale, languageStore.locale)
@@ -50,5 +53,20 @@ struct KeychordApp: App {
         }
         .windowResizability(.contentMinSize)
         .defaultSize(width: 720, height: 480)
+    }
+}
+
+/// Replaces the system About panel with our ``AboutView`` window.
+private struct KeychordAppCommands: Commands {
+    @Environment(\.openWindow) private var openWindow
+
+    var body: some Commands {
+        CommandGroup(replacing: .appInfo) {
+            Button("About KeyChord") {
+                NSApp.setActivationPolicy(.regular)
+                openWindow(id: "about")
+                NSApp.activate(ignoringOtherApps: true)
+            }
+        }
     }
 }

@@ -111,20 +111,12 @@ private struct BackupRestoreRow: View {
                     .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 3) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
-                        Text(entry.timestamp, format: .relative(presentation: .named, unitsStyle: .abbreviated))
-                            .font(.caption.weight(.medium))
-                        Text(verbatim: "·")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                        Text(
-                            entry.timestamp,
-                            format: .dateTime.year().month().day().hour().minute().second()
-                        )
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .monospacedDigit()
-                    }
+                    Text(
+                        entry.timestamp,
+                        format: .dateTime.year().month().day().hour().minute().second()
+                    )
+                    .font(.caption.weight(.medium))
+                    .monospacedDigit()
 
                     Text(summaryLine)
                         .font(.caption)
