@@ -200,9 +200,9 @@ private struct BackupRestoreRow: View {
                 .foregroundStyle(.tertiary)
         } else {
             VStack(alignment: .leading, spacing: 10) {
-                ForEach(entry.accounts) { account in
+                ForEach(Array(entry.accounts.enumerated()), id: \.element.id) { index, account in
                     BackupAccountPreviewBlock(account: account)
-                    if account.id != entry.accounts.last?.id {
+                    if index < entry.accounts.count - 1 {
                         Divider()
                     }
                 }
