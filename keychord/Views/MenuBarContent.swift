@@ -41,6 +41,21 @@ struct MenuBarPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            HStack {
+                Spacer(minLength: 0)
+                Button {
+                    openSettingsWindow()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("Settings")
+                .accessibilityLabel(Text("Settings"))
+            }
+            .padding(.horizontal, KC.rowHPadding)
+            .padding(.top, KC.space8)
+            .padding(.bottom, KC.space4)
+
             content
             Divider()
             footer
@@ -212,6 +227,14 @@ struct MenuBarPopoverView: View {
         let popover = NSApp.keyWindow
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "about")
+        NSApp.activate(ignoringOtherApps: true)
+        popover?.close()
+    }
+
+    private func openSettingsWindow() {
+        let popover = NSApp.keyWindow
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "settings")
         NSApp.activate(ignoringOtherApps: true)
         popover?.close()
     }

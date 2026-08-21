@@ -12,9 +12,6 @@ struct AccountsWindowView: View {
     @State private var isNewDraft = false
     @State private var statusMessage: String?
     @State private var statusIsError = false
-    @State private var showingKeygen = false
-    @State private var showingRestore = false
-    @State private var showingSettings = false
     @State private var importBatch: ImportBatch?
 
     var body: some View {
@@ -24,70 +21,21 @@ struct AccountsWindowView: View {
         } detail: {
             detailContent
                 .toolbar {
-                    // Keep these on the detail column (not the split view /
+                    // Keep Add on the detail column (not the split view /
                     // sidebar). Otherwise AppKit injects the sidebar-toggle
                     // chevron into the same primaryAction cluster on collapse
                     // and the action icons hitch/jump.
-                    ToolbarItemGroup(placement: .primaryAction) {
+                    ToolbarItem(placement: .primaryAction) {
                         Button { beginNew() } label: {
                             Label("Add account", systemImage: "plus")
                                 .accountsToolbarSymbol()
                         }
                         .help("Add a new account")
-
-                        Button { showingKeygen = true } label: {
-                            Label("New SSH key", systemImage: "key.horizontal")
-                                .accountsToolbarSymbol()
-                        }
-                        .help("Generate a new SSH key")
-
-                        Button { importFromExistingConfig() } label: {
-                            Label("Import", systemImage: "square.and.arrow.down")
-                                .accountsToolbarSymbol()
-                        }
-                        .help("Import from existing config")
-
-                        Button { showingRestore = true } label: {
-                            Label("Restore", systemImage: "clock.arrow.circlepath")
-                                .accountsToolbarSymbol()
-                        }
-                        .help("Restore from backup")
-
-                        Button { showingSettings = true } label: {
-                            Label("Settings", systemImage: "gearshape")
-                                .accountsToolbarSymbol()
-                        }
-                        .help("Settings")
                     }
                 }
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 640, minHeight: 420)
-        .sheet(isPresented: $showingKeygen) {
-            KeygenView(
-                defaultComment: draft?.gitUserEmail
-                    ?? appState.accountsStore.accounts.first?.gitUserEmail
-                    ?? "",
-                accounts: appState.accountsStore.accounts,
-                onDismiss: { showingKeygen = false },
-                onAttached: { account, isNew in
-                    attachGeneratedKey(account, isNew: isNew)
-                }
-            )
-            .frame(width: 420, height: 440)
-        }
-        .sheet(isPresented: $showingRestore) {
-            RestoreView(
-                accountsStore: appState.accountsStore,
-                backups: appState.accountsStore.backups,
-                onDismiss: { showingRestore = false }
-            )
-            .frame(width: 520, height: 500)
-        }
-        .sheet(isPresented: $showingSettings) {
-            SettingsView(onDismiss: { showingSettings = false })
-                .frame(width: 420, height: 440)
-        }
         .sheet(item: $importBatch) { batch in
             ImportPickerView(
                 candidates: batch.accounts,
@@ -323,32 +271,6 @@ struct AccountsWindowView: View {
         } catch {
             statusIsError = true
             statusMessage = String(localized: "Import failed: \(String(describing: error))")
-        }
-    }
-
-    private func attachGeneratedKey(_ account: Account, isNew: Bool) {
-        do {
-            try KeyAttachment.commit(
-                account: account,
-                isNew: isNew,
-                store: appState.accountsStore,
-                regenerate: { accounts in
-                    try AccountProjector.regenerate(accounts: accounts, paths: .default)
-                }
-            )
-            selection = account.id
-            draft = account
-            isNewDraft = false
-            statusIsError = false
-            if isNew {
-                statusMessage = String(localized: "Key attached · new account — fill in alias & identity")
-            } else {
-                let name = account.label.isEmpty ? account.sshAlias : account.label
-                statusMessage = String(localized: "Key attached · \(name)")
-            }
-        } catch {
-            statusIsError = true
-            statusMessage = String(localized: "Attach failed: \(String(describing: error))")
         }
     }
 

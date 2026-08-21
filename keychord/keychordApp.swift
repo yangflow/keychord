@@ -41,5 +41,14 @@ struct KeychordApp: App {
                 .environment(\.locale, languageStore.locale)
         }
         .windowResizability(.contentSize)
+
+        Window("Settings", id: "settings") {
+            SettingsWindowView()
+                .environment(appState)
+                .environment(languageStore)
+                .environment(\.locale, languageStore.locale)
+        }
+        .windowResizability(.contentMinSize)
+        .defaultSize(width: 720, height: 480)
     }
 }
