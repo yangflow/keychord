@@ -65,8 +65,9 @@ struct ProbeCacheTests {
             await counter.increment(alias)
             return .ok(username: "user-\(alias)")
         }
+        let afterFirstOpen = await counter.count
         #expect(first.count == 2)
-        #expect(counter.count == 2)
+        #expect(afterFirstOpen == 2)
 
         // Second popover-open path within TTL: successes stay cached.
         current = current.addingTimeInterval(30)
@@ -74,7 +75,8 @@ struct ProbeCacheTests {
             await counter.increment(alias)
             return .ok(username: "should-not-run")
         }
-        #expect(counter.count == 2)
+        let afterSecondOpen = await counter.count
+        #expect(afterSecondOpen == 2)
         #expect(second["github-work"] == .ok(username: "user-github-work"))
         #expect(second["github-personal"] == .ok(username: "user-github-personal"))
     }
@@ -89,13 +91,15 @@ struct ProbeCacheTests {
             await counter.increment(alias)
             return .ok(username: "first")
         }
-        #expect(counter.count == 1)
+        let afterFirstProbe = await counter.count
+        #expect(afterFirstProbe == 1)
 
         let refreshed = await cache.probeAliases(aliases, force: true) { alias in
             await counter.increment(alias)
             return .ok(username: "second")
         }
-        #expect(counter.count == 2)
+        let afterRefresh = await counter.count
+        #expect(afterRefresh == 2)
         #expect(refreshed["github-work"] == .ok(username: "second"))
     }
 
@@ -109,21 +113,24 @@ struct ProbeCacheTests {
             await counter.increment(alias)
             return .failed(reason: "timed out")
         }
-        #expect(counter.count == 1)
+        let afterFailure = await counter.count
+        #expect(afterFailure == 1)
 
         current = current.addingTimeInterval(60)
         _ = await cache.probeAliases(aliases, force: false) { alias in
             await counter.increment(alias)
             return .failed(reason: "timed out")
         }
-        #expect(counter.count == 1)
+        let withinTTL = await counter.count
+        #expect(withinTTL == 1)
 
         current = current.addingTimeInterval(ttl)
         _ = await cache.probeAliases(aliases, force: false) { alias in
             await counter.increment(alias)
             return .ok(username: "recovered")
         }
-        #expect(counter.count == 2)
+        let afterTTL = await counter.count
+        #expect(afterTTL == 2)
         #expect(cache.state(for: "github-work") == .ok(username: "recovered"))
     }
 
@@ -141,7 +148,8 @@ struct ProbeCacheTests {
             return .ok(username: "yangflow")
         }
 
-        #expect(await counter.count == 1)
+        let probes = await counter.count
+        #expect(probes == 1)
         #expect(state == .ok(username: "yangflow"))
         #expect(cache.state(for: "github-work") == .ok(username: "yangflow"))
     }
@@ -157,7 +165,8 @@ struct ProbeCacheTests {
             return .failed(reason: "permission denied (publickey)")
         }
 
-        #expect(await counter.count == 1)
+        let probes = await counter.count
+        #expect(probes == 1)
         #expect(state == .failed(reason: "permission denied (publickey)"))
     }
 
