@@ -61,7 +61,7 @@ final class ActivationPolicyController: NSObject {
 
     /// NotificationCenter may invoke this off the main actor; hop back without
     /// sending a non-Sendable `NSWindow` across isolation (use its identity).
-    nonisolated @objc private func windowWillClose(_ notification: Notification) {
+    @objc nonisolated private func windowWillClose(_ notification: Notification) {
         let excludingID = (notification.object as AnyObject?).map { ObjectIdentifier($0) }
         Task { @MainActor in
             ActivationPolicyController.shared.scheduleRestoreAccessory(excludingID: excludingID)
