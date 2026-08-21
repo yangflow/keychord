@@ -16,6 +16,16 @@ final class AppState {
     /// When true the Accounts window should immediately begin a new draft.
     var pendingAddNew = false
 
+    /// When true, ``MenuBarPopoverView`` must not clear ``accountMatch`` on
+    /// disappear — opening the MenuBarExtra after an icon drop can recreate
+    /// the hosting view and would otherwise wipe the just-resolved match.
+    var suppressAccountMatchClear = false
+
+    /// Current-repo match from a folder drop onto the menu bar icon (or the
+    /// open popover). Cleared when the user dismisses the popover (or clears
+    /// the match card).
+    var accountMatch: AccountMatchResult?
+
     let accountsStore: AccountsStore
     let probeCache: ProbeCache
 
@@ -25,5 +35,19 @@ final class AppState {
     ) {
         self.accountsStore = accountsStore ?? AccountsStore()
         self.probeCache = probeCache ?? ProbeCache()
+    }
+
+    func clearAccountMatch() {
+        accountMatch = nil
+    }
+
+    /// Shared resolve path used by menu-bar icon drops and popover `.onDrop`.
+    func resolveCurrentRepo(at path: String) async {
+        let accounts = accountsStore.accounts
+        let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
+        accountMatch = result
+        if case .matched(let account, _, _) = result, !account.sshAlias.isEmpty {
+            accountsStore.touchLastUsed(sshAlias: account.sshAlias)
+        }
     }
 }

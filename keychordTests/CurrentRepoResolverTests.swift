@@ -200,7 +200,7 @@ struct CurrentRepoResolverTests {
             accounts: [personal, work],
             env: Self.isolatedEnv
         )
-        guard case .matched(let account, let root) = result else {
+        guard case .matched(let account, let root, let originURL) = result else {
             Issue.record("Expected scoped match, got \(result)")
             return
         }
@@ -211,6 +211,7 @@ struct CurrentRepoResolverTests {
         #expect(account.scope.isScoped)
         let expectedRoot = repo.resolvingSymlinksInPath().path
         #expect(root == expectedRoot || root == repo.path)
+        #expect(originURL == "git@github-work:TestOrg/TestRepo.git")
     }
 
     @Test func matchAccountReportsNotARepoForEmptyDirectory() throws {
@@ -257,7 +258,7 @@ struct CurrentRepoResolverTests {
             forRepoRoot: root,
             accounts: [broad, specific]
         )
-        guard case .matched(let account, _) = result else {
+        guard case .matched(let account, _, _) = result else {
             Issue.record("Expected match, got \(result)")
             return
         }
@@ -331,7 +332,7 @@ struct CurrentRepoResolverTests {
             forRepoRoot: "/tmp/any-repo",
             accounts: [global]
         )
-        guard case .matched(let account, _) = result else {
+        guard case .matched(let account, _, _) = result else {
             Issue.record("Expected global match, got \(result)")
             return
         }

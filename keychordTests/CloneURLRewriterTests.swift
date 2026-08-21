@@ -107,17 +107,32 @@ struct CloneURLRewriterTests {
         #expect(command == "git clone git@gitlab-work:group/project.git")
     }
 
-    @Test func customProviderWithoutRewritesCannotGuessHost() {
+    @Test func customProviderPeelsOwnerRepoFromForeignSSHURL() {
         let account = makeAccount(alias: "corp-git", provider: .custom)
+        // Full foreign host URL still yields a clone onto this alias by
+        // extracting owner/repo (needed after a folder drop whose origin
+        // points at github.com while the account alias is custom).
         #expect(CloneURLRewriter.cloneCommand(
             for: account,
             input: "git@github.com:org/repo.git"
-        ) == nil)
-        // Shorthand still works — it only needs the alias.
+        ) == "git clone git@corp-git:org/repo.git")
         #expect(CloneURLRewriter.cloneCommand(
             for: account,
             input: "org/repo"
         ) == "git clone git@corp-git:org/repo.git")
+    }
+
+    @Test func preferredCloneInputExtractsOwnerRepo() {
+        #expect(
+            CloneURLRewriter.preferredCloneInput(
+                fromOriginURL: "git@github-yangflow:yangflow/cumora.git"
+            ) == "yangflow/cumora"
+        )
+        #expect(
+            CloneURLRewriter.preferredCloneInput(
+                fromOriginURL: "https://github.com/yangflow/cumora.git"
+            ) == "yangflow/cumora"
+        )
     }
 
     @Test func accountConvenienceMatchesStaticAPI() {

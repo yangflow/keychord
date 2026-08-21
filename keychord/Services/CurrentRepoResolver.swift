@@ -15,7 +15,9 @@ struct ResolvedRepo: Equatable, Sendable {
 /// Which keychord account would apply to a working directory, based on
 /// `gitdir:` scopes (and falling back to a single global account).
 enum AccountMatchResult: Equatable, Sendable {
-    case matched(account: Account, repoRoot: String)
+    /// `originURL` is `remote.origin.url` when present — used to prefill the
+    /// popover clone field so copy works without retyping org/repo.
+    case matched(account: Account, repoRoot: String, originURL: String?)
     case notARepo(path: String)
     case noMatchingGitdir(repoRoot: String)
     case conflictingGlobals(repoRoot: String, accounts: [Account])
@@ -144,6 +146,29 @@ enum CurrentRepoResolver {
         }.value
     }
 
+    /// Read `remote.origin.url`, falling back to `ls-remote --get-url origin`.
+    static func readOriginURL(
+        at path: String,
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) async -> String? {
+        await Task.detached(priority: .userInitiated) {
+            readOriginURLSync(at: path, env: env, runner: runner)
+        }.value
+    }
+
+    static func readOriginURLSync(
+        at path: String,
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) -> String? {
+        stringOrNil(
+            runGit(at: path, args: ["config", "--get", "remote.origin.url"], env: env, runner: runner)
+        ) ?? stringOrNil(
+            runGit(at: path, args: ["ls-remote", "--get-url", "origin"], env: env, runner: runner)
+        )
+    }
+
     static func matchAccountSync(
         path: String,
         accounts: [Account],
@@ -155,7 +180,8 @@ enum CurrentRepoResolver {
             return .notARepo(path: path)
         }
         let repoRoot = rootOut.trimmingCharacters(in: .whitespacesAndNewlines)
-        return matchAccounts(forRepoRoot: repoRoot, accounts: accounts)
+        let originURL = readOriginURLSync(at: path, env: env, runner: runner)
+        return matchAccounts(forRepoRoot: repoRoot, accounts: accounts, originURL: originURL)
     }
 
     /// Pure matching against an already-known repo root. Prefer the most
@@ -163,7 +189,8 @@ enum CurrentRepoResolver {
     /// global account; multiple globals with no scoped hit → conflict.
     static func matchAccounts(
         forRepoRoot repoRoot: String,
-        accounts: [Account]
+        accounts: [Account],
+        originURL: String? = nil
     ) -> AccountMatchResult {
         let scopedHits = accounts.compactMap { account -> (Account, String)? in
             guard case .gitdir(let raw) = account.scope else { return nil }
@@ -173,7 +200,7 @@ enum CurrentRepoResolver {
         }
 
         if let best = scopedHits.max(by: { $0.1.count < $1.1.count }) {
-            return .matched(account: best.0, repoRoot: repoRoot)
+            return .matched(account: best.0, repoRoot: repoRoot, originURL: originURL)
         }
 
         let globals = accounts.filter { $0.scope == .global }
@@ -181,7 +208,7 @@ enum CurrentRepoResolver {
         case 0:
             return .noMatchingGitdir(repoRoot: repoRoot)
         case 1:
-            return .matched(account: globals[0], repoRoot: repoRoot)
+            return .matched(account: globals[0], repoRoot: repoRoot, originURL: originURL)
         default:
             return .conflictingGlobals(repoRoot: repoRoot, accounts: globals)
         }

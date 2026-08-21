@@ -39,21 +39,40 @@ struct MenuBarPopoverView: View {
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
 
-    @State private var accountMatch: AccountMatchResult?
-    @State private var isDropTargeted = false
-    @State private var didAttemptFinderResolve = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: KC.space8) {
+                Text("KeyChord")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
+                Spacer(minLength: 0)
+                Button {
+                    openSettingsWindow()
+                } label: {
+                    Image(systemName: "gearshape")
+                }
+                .buttonStyle(.borderless)
+                .help("Settings")
+                .accessibilityLabel(Text("Settings"))
+            }
+            .padding(.horizontal, KC.rowHPadding)
+            .padding(.top, KC.space8)
+            .padding(.bottom, KC.space6)
+
             content
             Divider()
             footer
         }
         .frame(width: KC.popoverWidth, height: KC.popoverHeight)
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+        // Secondary convenience — primary path is drop on the menu bar icon.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers)
         }
         .task { await refresh() }
+        .onDisappear {
+            guard !appState.suppressAccountMatchClear else { return }
+            appState.clearAccountMatch()
+        }
     }
 
     // MARK: - Content
@@ -93,19 +112,24 @@ struct MenuBarPopoverView: View {
 
     @ViewBuilder
     private var currentRepoSection: some View {
-        switch accountMatch {
-        case .matched(let account, let repoRoot):
+        switch appState.accountMatch {
+        case .matched(let account, let repoRoot, let originURL):
             CurrentRepoMatchedRow(
                 account: account,
                 repoRoot: repoRoot,
-                probe: probeStates[account.sshAlias] ?? .idle
+                probe: probeStates[account.sshAlias] ?? .idle,
+                originURL: originURL,
+                onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
-            if let reason = accountMatch?.unresolvedReason {
-                CurrentRepoUnresolvedRow(reason: reason, onChooseFolder: chooseFolder)
+            if let reason = appState.accountMatch?.unresolvedReason {
+                CurrentRepoUnresolvedRow(
+                    reason: reason,
+                    onClear: { appState.clearAccountMatch() }
+                )
             }
         case nil:
-            CurrentRepoDropZone(isTargeted: isDropTargeted, onChooseFolder: chooseFolder)
+            EmptyView()
         }
     }
 
@@ -125,32 +149,21 @@ struct MenuBarPopoverView: View {
 
     private var accountsSection: some View {
         let records = appState.accountsStore.accounts
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("Accounts")
-                .font(.system(size: 11, weight: .semibold))
-                .textCase(.uppercase)
-                .kerning(0.4)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
-                .padding(.bottom, 4)
-
-            VStack(spacing: 0) {
-                ForEach(records) { record in
-                    Button {
-                        openAccounts(selecting: record.id)
-                    } label: {
-                        AccountRow(
-                            record: record,
-                            probe: probeStates[record.sshAlias] ?? .idle
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().padding(.leading, 32)
+        return VStack(spacing: 0) {
+            ForEach(records) { record in
+                Button {
+                    openAccounts(selecting: record.id)
+                } label: {
+                    AccountRow(
+                        record: record,
+                        probe: probeStates[record.sshAlias] ?? .idle
+                    )
                 }
-                AddAccountRow(onTap: { openAccounts(addNew: true) })
+                .buttonStyle(.plain)
+
+                Divider().padding(.leading, 32)
             }
+            AddAccountRow(onTap: { openAccounts(addNew: true) })
         }
     }
 
@@ -210,6 +223,14 @@ struct MenuBarPopoverView: View {
         popover?.close()
     }
 
+    private func openSettingsWindow() {
+        let popover = NSApp.keyWindow
+        NSApp.setActivationPolicy(.regular)
+        openWindow(id: "settings")
+        NSApp.activate(ignoringOtherApps: true)
+        popover?.close()
+    }
+
     // MARK: - Drop / choose folder / Finder
 
     private func handleDrop(_ providers: [NSItemProvider]) -> Bool {
@@ -230,41 +251,10 @@ struct MenuBarPopoverView: View {
                 return
             }
             Task { @MainActor in
-                await resolveAccount(at: url.path)
+                await appState.resolveCurrentRepo(at: url.path)
             }
         }
         return true
-    }
-
-    private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
-        guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task { await resolveAccount(at: url.path) }
-    }
-
-    private func resolveAccount(at path: String) async {
-        let accounts = appState.accountsStore.accounts
-        let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
-        accountMatch = result
-        if case .matched(let account, _) = result, !account.sshAlias.isEmpty {
-            appState.accountsStore.touchLastUsed(sshAlias: account.sshAlias)
-        }
-    }
-
-    /// Best-effort: if Finder's front window is a directory, resolve it.
-    /// Failures (no window, no Automation permission, AppleScript error)
-    /// stay quiet — no alerts.
-    private func tryResolveFromFinder() async {
-        guard !didAttemptFinderResolve else { return }
-        didAttemptFinderResolve = true
-        guard accountMatch == nil else { return }
-        guard let path = await FinderContext.frontmostDirectory() else { return }
-        await resolveAccount(at: path)
     }
 
     // MARK: - Load + probe
@@ -276,7 +266,6 @@ struct MenuBarPopoverView: View {
         await reload()
         await probeAll(force: forceProbe)
         await runDoctor()
-        await tryResolveFromFinder()
     }
 
     private func reload() async {

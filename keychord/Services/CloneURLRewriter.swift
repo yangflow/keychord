@@ -38,11 +38,65 @@ enum CloneURLRewriter {
         }
 
         let rules = effectiveRewriteRules(for: account, alias: alias)
-        guard let match = longestMatchingRule(rules: rules, url: raw) else {
-            return nil
+        if let match = longestMatchingRule(rules: rules, url: raw) {
+            let remainder = String(raw.dropFirst(match.from.count))
+            return match.to + remainder
         }
-        let remainder = String(raw.dropFirst(match.from.count))
-        return match.to + remainder
+
+        // Last resort: peel owner/repo out of any git@ / https remote so a
+        // dropped repo's origin still yields a clone command for this alias.
+        if let path = ownerRepoPath(fromRemoteURL: raw) {
+            return "git@\(alias):\(ensureGitSuffix(path))"
+        }
+        return nil
+    }
+
+    /// Best field value for the popover after a folder drop/choose: prefer
+    /// `owner/repo` (always rewriteable from alias alone), else the raw URL.
+    static func preferredCloneInput(fromOriginURL origin: String) -> String {
+        let trimmed = origin.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        return ownerRepoPath(fromRemoteURL: trimmed) ?? trimmed
+    }
+
+    /// `owner/repo` (no `.git`) extracted from common remote URL shapes.
+    static func ownerRepoPath(fromRemoteURL input: String) -> String? {
+        var raw = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !raw.isEmpty else { return nil }
+        if let stripped = stripGitClonePrefix(raw) {
+            raw = stripped
+        }
+
+        // git@host:owner/repo(.git)
+        let sshPattern = #"^[^@\s]+@[^:\s]+:(.+)$"#
+        if let regex = try? NSRegularExpression(pattern: sshPattern) {
+            let range = NSRange(raw.startIndex..<raw.endIndex, in: raw)
+            if let match = regex.firstMatch(in: raw, range: range),
+               match.numberOfRanges >= 2,
+               let pathRange = Range(match.range(at: 1), in: raw) {
+                return normalizeOwnerRepoPath(String(raw[pathRange]))
+            }
+        }
+
+        // https://host/owner/repo.git  or  ssh://git@host/owner/repo.git
+        if let url = URL(string: raw), url.scheme != nil {
+            var path = url.path
+            while path.hasPrefix("/") { path = String(path.dropFirst()) }
+            return normalizeOwnerRepoPath(path)
+        }
+
+        return nil
+    }
+
+    private static func normalizeOwnerRepoPath(_ path: String) -> String? {
+        var trimmed = path.trimmingCharacters(in: .whitespacesAndNewlines)
+        while trimmed.hasSuffix("/") {
+            trimmed = String(trimmed.dropLast())
+        }
+        if trimmed.hasSuffix(".git") {
+            trimmed = String(trimmed.dropLast(4))
+        }
+        return parseOwnerRepoPath(trimmed)
     }
 
     // MARK: - Rules

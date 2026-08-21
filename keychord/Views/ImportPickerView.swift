@@ -1,13 +1,13 @@
 import SwiftUI
 
-/// Sheet that shows detected accounts from existing SSH/git config and
-/// lets the user pick which ones to import. Follows the
-/// Form + Divider + Footer layout used by KeygenView / RestoreView.
+/// Picker for accounts detected in existing SSH/git config.
+/// `embedded` drops sheet chrome (Cancel, section headers) for the Settings window.
 struct ImportPickerView: View {
     let candidates: [Account]
     let existingAliases: Set<String>
     let onImport: ([Account]) -> Void
-    let onDismiss: () -> Void
+    var onDismiss: (() -> Void)? = nil
+    var embedded: Bool = false
 
     @State private var selected: Set<UUID>
 
@@ -15,13 +15,14 @@ struct ImportPickerView: View {
         candidates: [Account],
         existingAliases: Set<String>,
         onImport: @escaping ([Account]) -> Void,
-        onDismiss: @escaping () -> Void
+        onDismiss: (() -> Void)? = nil,
+        embedded: Bool = false
     ) {
         self.candidates = candidates
         self.existingAliases = existingAliases
         self.onImport = onImport
         self.onDismiss = onDismiss
-        // Pre-select candidates that don't duplicate an existing alias.
+        self.embedded = embedded
         let initial = Set(
             candidates
                 .filter { !existingAliases.contains($0.sshAlias) }
@@ -33,25 +34,15 @@ struct ImportPickerView: View {
     var body: some View {
         VStack(spacing: 0) {
             Form {
-                Section {
-                    if candidates.isEmpty {
-                        Text("No accounts found in your existing SSH / gitconfig.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    } else {
-                        ForEach(candidates) { account in
-                            candidateRow(account)
-                        }
-                    }
-                } header: {
-                    Text("Detected Accounts")
-                }
-
-                if !candidates.isEmpty {
+                if embedded {
                     Section {
-                        Text("Already-existing aliases are unchecked by default. Importing a duplicate alias will be skipped.")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
+                        candidateList
+                    }
+                } else {
+                    Section {
+                        candidateList
+                    } header: {
+                        Text("Detected Accounts")
                     }
                 }
             }
@@ -60,8 +51,10 @@ struct ImportPickerView: View {
             Divider()
 
             HStack {
-                Button("Cancel", action: onDismiss)
-                    .keyboardShortcut(.cancelAction)
+                if let onDismiss, !embedded {
+                    Button("Cancel", action: onDismiss)
+                        .keyboardShortcut(.cancelAction)
+                }
                 Spacer()
                 Button("Import ^[\(selected.count) Account](inflect: true)") {
                     let chosen = candidates.filter { selected.contains($0.id) }
@@ -75,6 +68,21 @@ struct ImportPickerView: View {
             .padding(.vertical, KC.space12)
         }
         .frame(minWidth: 400, minHeight: 300)
+        // Recreate selection when the candidate set changes (e.g. re-scan).
+        .id(candidates.map(\.id.uuidString).joined(separator: ","))
+    }
+
+    @ViewBuilder
+    private var candidateList: some View {
+        if candidates.isEmpty {
+            Text("No accounts found in your existing SSH / gitconfig.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        } else {
+            ForEach(candidates) { account in
+                candidateRow(account)
+            }
+        }
     }
 
     // MARK: - Subviews

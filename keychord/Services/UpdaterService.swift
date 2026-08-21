@@ -41,6 +41,11 @@ final class UpdaterService: NSObject {
     }
 
     func checkForUpdates() {
+        // Sparkle presents a titled window; LSUIElement apps need `.regular`
+        // for it to appear correctly. ActivationPolicyController restores
+        // `.accessory` when that window (and any other titled window) closes.
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         controller.checkForUpdates(nil)
     }
 
@@ -58,11 +63,14 @@ final class UpdaterService {
     private init() {}
 
     func checkForUpdates() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = String(localized: "Updates not configured")
         alert.informativeText = String(localized: "updater.notConfigured.body")
         alert.alertStyle = .informational
         alert.runModal()
+        ActivationPolicyController.shared.restoreAccessoryIfNeeded()
     }
 
     var canCheck: Bool { false }

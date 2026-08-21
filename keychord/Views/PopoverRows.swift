@@ -2,46 +2,45 @@ import SwiftUI
 
 // Row components used by the popover and the accounts window.
 
-// MARK: - CurrentRepoDropZone (idle prompt + choose folder)
+// MARK: - CurrentRepoUnresolvedRow
 
-struct CurrentRepoDropZone: View {
-    let isTargeted: Bool
-    let onChooseFolder: () -> Void
+struct CurrentRepoUnresolvedRow: View {
+    let reason: String
+    var onClear: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: KC.space8) {
-            HStack(spacing: KC.space8) {
-                Image(systemName: "folder.badge.questionmark")
+            HStack(alignment: .top, spacing: KC.space8) {
+                Image(systemName: "questionmark.folder")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
-                Text(isTargeted ? "Drop to resolve account" : "Drop a folder to see which account applies")
+                    .foregroundStyle(.secondary)
+                Text(verbatim: reason)
                     .font(KC.rowCaption)
-                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
-                    .lineLimit(2)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let onClear {
+                    Button(action: onClear) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Clear current repo")
+                    .accessibilityLabel(Text("Clear current repo"))
+                }
             }
-            Button("Choose Folder…", action: onChooseFolder)
-                .buttonStyle(.borderless)
-                .font(KC.rowCaption)
-                .foregroundStyle(.tint)
         }
         .padding(.horizontal, KC.space14)
         .padding(.vertical, KC.space12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                .strokeBorder(
-                    isTargeted ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.12),
-                    style: StrokeStyle(lineWidth: 1, dash: isTargeted ? [] : [5, 4])
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                        .fill(isTargeted ? Color.accentColor.opacity(0.08) : Color.primary.opacity(0.03))
-                )
+                .fill(Color.primary.opacity(0.04))
         )
         .padding(.horizontal, KC.space10)
         .padding(.top, KC.space10)
-        .animation(.easeOut(duration: 0.15), value: isTargeted)
     }
 }
 
@@ -51,22 +50,61 @@ struct CurrentRepoMatchedRow: View {
     let account: Account
     let repoRoot: String
     let probe: HostProbeState
+    var originURL: String? = nil
+    var onClear: (() -> Void)? = nil
+
+    @State private var clonePrefill: String
+
+    init(
+        account: Account,
+        repoRoot: String,
+        probe: HostProbeState,
+        originURL: String? = nil,
+        onClear: (() -> Void)? = nil
+    ) {
+        self.account = account
+        self.repoRoot = repoRoot
+        self.probe = probe
+        self.originURL = originURL
+        self.onClear = onClear
+        let seed = originURL.flatMap { url -> String? in
+            let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: url)
+            return preferred.isEmpty ? nil : preferred
+        } ?? ""
+        self._clonePrefill = State(initialValue: seed)
+    }
 
     var body: some View {
         KCHeroContainer(tint: heroTint) {
             VStack(alignment: .leading, spacing: KC.space4) {
-                if account.label.isEmpty {
-                    Text("(unnamed)")
-                        .font(KC.heroTitle)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
-                } else {
-                    Text(verbatim: account.label)
-                        .font(KC.heroTitle)
-                        .foregroundStyle(.primary)
-                        .lineLimit(1)
-                        .truncationMode(.tail)
+                HStack(alignment: .top, spacing: KC.space6) {
+                    Group {
+                        if account.label.isEmpty {
+                            Text("(unnamed)")
+                                .font(KC.heroTitle)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        } else {
+                            Text(verbatim: account.label)
+                                .font(KC.heroTitle)
+                                .foregroundStyle(.primary)
+                                .lineLimit(1)
+                                .truncationMode(.tail)
+                        }
+                    }
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                    if let onClear {
+                        Button(action: onClear) {
+                            Image(systemName: "xmark")
+                                .font(.system(size: 10, weight: .semibold))
+                        }
+                        .buttonStyle(.borderless)
+                        .foregroundStyle(.secondary)
+                        .help("Clear current repo")
+                        .accessibilityLabel(Text("Clear current repo"))
+                    }
                 }
 
                 HStack(spacing: 4) {
@@ -106,10 +144,28 @@ struct CurrentRepoMatchedRow: View {
                     .truncationMode(.middle)
 
                 if !account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    CloneAsIdentityView(account: account, compact: true)
-                        .padding(.top, KC.space4)
+                    CloneAsIdentityView(
+                        account: account,
+                        initialInput: clonePrefill
+                    )
+                    // Recreate when prefill arrives so @State picks it up.
+                    .id("clone-\(account.id.uuidString)-\(clonePrefill)")
+                    .padding(.top, KC.space4)
                 }
             }
+        }
+        .task(id: repoRoot) {
+            await loadClonePrefill()
+        }
+    }
+
+    private func loadClonePrefill() async {
+        if let originURL, !originURL.isEmpty {
+            clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: originURL)
+            if !clonePrefill.isEmpty { return }
+        }
+        if let origin = await CurrentRepoResolver.readOriginURL(at: repoRoot) {
+            clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: origin)
         }
     }
 
@@ -132,37 +188,22 @@ struct CurrentRepoMatchedRow: View {
     }
 }
 
-// MARK: - CurrentRepoUnresolvedRow
-
-struct CurrentRepoUnresolvedRow: View {
-    let reason: String
-    let onChooseFolder: () -> Void
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: KC.space8) {
-            HStack(alignment: .top, spacing: KC.space8) {
-                Image(systemName: "questionmark.folder")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text(verbatim: reason)
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-            }
-            Button("Choose Folder…", action: onChooseFolder)
-                .buttonStyle(.borderless)
-                .font(KC.rowCaption)
-                .foregroundStyle(.tint)
+    private var scopeText: String {
+        switch account.scope {
+        case .global:
+            return String(localized: "scope: global")
+        case .gitdir(let dir):
+            return String(localized: "scope: gitdir:\(dir)")
         }
-        .padding(.horizontal, KC.space14)
-        .padding(.vertical, KC.space12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .padding(.horizontal, KC.space10)
-        .padding(.top, KC.space10)
+    }
+
+    private var heroTint: Color {
+        switch probe {
+        case .ok:      return .green
+        case .failed:  return .red
+        case .probing: return .orange
+        case .idle:    return account.color.color
+        }
     }
 }
 

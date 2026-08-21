@@ -18,7 +18,7 @@ enum KeygenService {
 
         var displayName: String {
             switch self {
-            case .ed25519: return String(localized: "Ed25519 (recommended)")
+            case .ed25519: return String(localized: "Ed25519")
             case .rsa4096: return String(localized: "RSA 4096-bit")
             }
         }

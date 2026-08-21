@@ -4,11 +4,6 @@
 
 [简体中文](./README.zh-CN.md) · English
 
-<p align="center">
-  <img src="assets/menubar-popover.png" width="280" alt="Menubar popover">
-  <img src="assets/accounts-window.png" width="560" alt="Accounts window">
-</p>
-
 keychord is a menubar-only macOS app that lets you keep several GitHub accounts on one machine — personal, work, open source — each with its own SSH key, git name/email, URL rewrites, and optional `gitdir:`-scoped activation. keychord owns a small JSON file and generates *managed* SSH config and gitconfig files; it injects a single `Include` line into your existing `~/.ssh/config` and `~/.gitconfig`. Your dotfiles stay yours.
 
 ## Why
@@ -21,11 +16,6 @@ keychord makes the identity set a first-class thing you can CRUD from a window, 
 
 ## Features
 
-<p align="center">
-  <img src="assets/import-picker.png" width="320" alt="Import picker">
-  <img src="assets/keygen-sheet.png" width="320" alt="SSH key generator">
-</p>
-
 - **Account CRUD** — add, edit, delete accounts from a native `NavigationSplitView` window. Source of truth: `~/.config/keychord/accounts.json`.
 - **`gitdir:` scoping** — each account can be global or scoped to a working directory via git's `includeIf gitdir:` mechanism.
 - **URL rewrites** — per-account `insteadOf` / `pushInsteadOf` rules land in the generated gitconfig.
@@ -33,9 +23,11 @@ keychord makes the identity set a first-class thing you can CRUD from a window, 
 - **Doctor & Fixer** — diagnose common config problems (missing keys, wrong permissions, dangling `Include`, conflicting `IdentityFile`) and apply one-click fixes.
 - **SSH port selection** — per-account Direct 22 / SSL 443 toggle. Useful on networks where port 22 is blocked.
 - **SSH key generator** — create an ed25519 or RSA key from the app with safe filenames and correct permissions.
-- **Atomic backups** — every write is preceded by a snapshot of `accounts.json` in `~/.config/keychord/backups/`, browsable from the Restore view.
+- **Atomic backups** — adding a new account snapshots `accounts.json` into `~/.config/keychord/backups/` first (browsable from Settings → Backups). Edits and deletes do not create new snapshots.
 - **Probes** — per-host `ssh -T git@<alias>` probes so you can see at a glance which accounts authenticate.
 - **Menubar-only** — `LSUIElement = YES`. No dock icon, no window stealing focus. Drag a folder onto the menubar icon to resolve which account would push from there.
+- **Settings window** — popover gear opens General (language + Open at Login), Keys, Import, Backups, and Config. Accounts toolbar is **+** only.
+- **In-app language** — Follow System / English / 简体中文.
 
 ## How it works (the managed-file model)
 
@@ -66,7 +58,7 @@ This means keychord plays nicely with hand-written config, dotfile managers, and
 ### Homebrew (recommended)
 
 ```bash
-brew tap yangflow/keychord
+brew tap yangflow/tap
 brew install --cask keychord
 ```
 
@@ -112,17 +104,18 @@ The unit test suite covers the SSH config parser, the git config IO layer, `Acco
 
 ## Usage
 
-1. Click the menubar icon. The popover shows your accounts, Doctor diagnostics, and the current repo context.
-2. Click the **+** row at the bottom of the accounts list to add a new account (this opens the accounts window). Or click any account row to jump to its detail.
-3. In the accounts window, use the toolbar to:
-   - **+** add a new account
-   - **Key** generate an SSH key
-   - **Import** detect accounts from existing config and selectively import
-   - **Restore** browse and restore backups
-   - **Settings** Open at Login and Include maintenance
+1. Click the menubar icon. The popover lists accounts and Doctor diagnostics. The gear (same row as **KeyChord**) opens Settings.
+2. Click **+** in the popover or the accounts window to add an account. Click an account row to edit it.
+3. Settings sidebar:
+   - **General** — language (Follow System / English / 简体中文) and Open at Login
+   - **Keys** — generate an SSH key
+   - **Import** — detect accounts from existing config and import the ones you pick
+   - **Backups** — browse, expand, restore, or delete snapshots
+   - **Config** — Remove Include (keep `accounts.json`)
 4. Fill in label, git name/email, SSH alias, key path, optional `gitdir:` scope and URL rewrites. ⌘S saves.
 5. Every save regenerates the managed files and reinstalls the `Include` line if it got wiped.
-6. Back in the popover, the **Doctor** section surfaces any config problems with one-click fixes.
+6. Drag a folder onto the menubar icon to see which identity applies and copy a rewritten clone command from the match card.
+7. Doctor in the popover surfaces config problems with one-click fixes.
 
 ## Project layout
 
@@ -138,7 +131,7 @@ keychord/
 │   ├── Views/               # MenuBarContent, AccountsWindowView,
 │   │                        # AccountDetailView, AccountsSidebar,
 │   │                        # ImportPickerView, RestoreView,
-│   │                        # KeygenView, …
+│   │                        # SettingsWindowView, KeygenView, …
 │   ├── AppDelegate.swift
 │   └── AppState.swift
 ├── keychordTests/           # Swift Testing unit tests
@@ -155,8 +148,8 @@ keychord/
    ```bash
    rm -rf ~/.config/keychord
    ```
-4. If you enabled **Open at Login**, remove keychord from System Settings → General → Login Items (or turn the toggle off in Accounts → Settings before quitting).
-5. Remove the `Include` blocks keychord injected — open **Accounts → Settings → Remove Include (keep accounts.json)** before quitting, or manually delete the `# --- keychord managed ---` … `# --- keychord managed end ---` markers in `~/.ssh/config` and `~/.gitconfig`.
+4. If you enabled **Open at Login**, remove keychord from System Settings → General → Login Items (or turn the toggle off in Settings → General before quitting).
+5. Remove the `Include` blocks keychord injected — open **Settings → Config → Remove Include** before quitting, or manually delete the `# --- keychord managed ---` … `# --- keychord managed end ---` markers in `~/.ssh/config` and `~/.gitconfig`.
 
 If installed via Homebrew: `brew uninstall --cask keychord`.
 

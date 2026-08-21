@@ -172,13 +172,24 @@ struct KCStatusDot: View {
 
 extension Account.AccountColor {
     var color: Color {
-        switch self {
-        case .blue:   .blue
-        case .green:  .green
-        case .orange: .orange
-        case .red:    .red
-        case .purple: .purple
-        case .yellow: .yellow
+        switch rawValue {
+        case "blue":   return .blue
+        case "green":  return .green
+        case "orange": return .orange
+        case "red":    return .red
+        case "purple": return .purple
+        case "yellow": return .yellow
+        default:
+            if let c = sRGBComponents {
+                return Color(
+                    .sRGB,
+                    red: c.red,
+                    green: c.green,
+                    blue: c.blue,
+                    opacity: c.alpha
+                )
+            }
+            return .blue
         }
     }
 }

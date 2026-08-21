@@ -96,13 +96,76 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
         var to: String
     }
 
-    enum AccountColor: String, Codable, CaseIterable, Sendable {
-        case blue
-        case green
-        case orange
-        case red
-        case purple
-        case yellow
+    /// Account accent color. Stored as a string in accounts.json:
+    /// legacy named presets (`blue`, `green`, …) or `#RRGGBB` / `#RRGGBBAA`.
+    struct AccountColor: Codable, Equatable, Hashable, Sendable, RawRepresentable {
+        var rawValue: String
+
+        static let blue = AccountColor(rawValue: "blue")
+        static let green = AccountColor(rawValue: "green")
+        static let orange = AccountColor(rawValue: "orange")
+        static let red = AccountColor(rawValue: "red")
+        static let purple = AccountColor(rawValue: "purple")
+        static let yellow = AccountColor(rawValue: "yellow")
+
+        /// Named presets used when assigning colors to imported accounts.
+        static let presets: [AccountColor] = [
+            .blue, .green, .orange, .red, .purple, .yellow,
+        ]
+
+        /// Alias for ``presets`` — keeps importer / tests that cycle colors working.
+        static var allCases: [AccountColor] { presets }
+
+        init(rawValue: String) {
+            self.rawValue = rawValue
+        }
+
+        /// Persist an opaque sRGB color as `#RRGGBB`.
+        init(sRGBRed red: Double, green: Double, blue: Double) {
+            let r = Self.byte(red)
+            let g = Self.byte(green)
+            let b = Self.byte(blue)
+            self.rawValue = String(format: "#%02X%02X%02X", r, g, b)
+        }
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            rawValue = try container.decode(String.self)
+        }
+
+        func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(rawValue)
+        }
+
+        /// sRGB 0…1 components when `rawValue` is a hex color; `nil` for named presets.
+        var sRGBComponents: (red: Double, green: Double, blue: Double, alpha: Double)? {
+            Self.parseHex(rawValue)
+        }
+
+        private static func byte(_ unit: Double) -> Int {
+            Int((min(max(unit, 0), 1) * 255.0).rounded())
+        }
+
+        private static func parseHex(_ raw: String) -> (Double, Double, Double, Double)? {
+            var hex = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+            if hex.hasPrefix("#") { hex.removeFirst() }
+            guard hex.count == 6 || hex.count == 8,
+                  let value = UInt32(hex, radix: 16) else {
+                return nil
+            }
+            if hex.count == 6 {
+                let r = Double((value >> 16) & 0xFF) / 255
+                let g = Double((value >> 8) & 0xFF) / 255
+                let b = Double(value & 0xFF) / 255
+                return (r, g, b, 1)
+            }
+            let r = Double((value >> 24) & 0xFF) / 255
+            let g = Double((value >> 16) & 0xFF) / 255
+            let b = Double((value >> 8) & 0xFF) / 255
+            let a = Double(value & 0xFF) / 255
+            return (r, g, b, a)
+        }
     }
 
     enum SSHPort: Int, Codable, CaseIterable, Hashable, Sendable {

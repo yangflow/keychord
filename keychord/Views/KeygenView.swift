@@ -81,12 +81,8 @@ struct KeygenView: View {
                     Text("Details")
                 }
 
-                Section {
-                    Text("The key will be written to ~/.ssh/\(keyName.trimmingCharacters(in: .whitespaces)). Passphrase will be empty — you can add one later with `ssh-keygen -p`.")
-                        .font(.caption)
-                        .foregroundStyle(.tertiary)
-
-                    if let errorMessage {
+                if let errorMessage {
+                    Section {
                         Label {
                             Text(verbatim: errorMessage)
                         } icon: {

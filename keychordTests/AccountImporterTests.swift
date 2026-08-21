@@ -189,7 +189,7 @@ struct AccountImporterTests {
             SSHHost(alias: "host-\(i)", identityFile: "~/.ssh/key_\(i)")
         }
         let records = AccountImporter.importFromExistingConfig(model)
-        let palette = Account.AccountColor.allCases
+        let palette = Account.AccountColor.presets
         #expect(records.count == 8)
         #expect(records[0].color == palette[0])
         // colorIndex wraps

@@ -198,6 +198,17 @@ struct BackupService: Sendable {
         try restore(record)
     }
 
+    // MARK: - Delete
+
+    /// Removes a backup snapshot from disk. Refuses if the path is a symlink.
+    func delete(_ record: BackupRecord) throws {
+        guard FileManager.default.fileExists(atPath: record.backupPath) else {
+            throw BackupError.backupNotFound(record.backupPath)
+        }
+        try Self.refuseIfSymlink(record.backupPath)
+        try FileManager.default.removeItem(atPath: record.backupPath)
+    }
+
     // MARK: - Prune
 
     private func prune(forBaseName base: String) throws {

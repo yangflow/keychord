@@ -1,23 +1,24 @@
 import SwiftUI
 import AppKit
 
-/// Read-only field: paste `org/repo` or an original clone URL, copy the
-/// rewritten `git clone git@<alias>:…` command for this account.
+/// Compact popover field: paste `org/repo` or a URL, copy `git clone git@<alias>:…`.
+/// Optionally prefilled from a matched repo’s `origin`.
 struct CloneAsIdentityView: View {
     let account: Account
-    var compact: Bool = false
+    private let initialInput: String
 
-    @State private var input: String = ""
+    @State private var input: String
     @State private var didCopy = false
 
+    init(account: Account, initialInput: String = "") {
+        self.account = account
+        self.initialInput = initialInput
+        self._input = State(initialValue: initialInput)
+    }
+
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? KC.space6 : KC.space8) {
-            HStack(spacing: KC.space6) {
-                TextField(
-                    "",
-                    text: $input,
-                    prompt: Text("org/repo or paste URL")
-                )
+        HStack(spacing: KC.space6) {
+            TextField("", text: $input, prompt: Text("org/repo"))
                 .textFieldStyle(.roundedBorder)
                 .font(KC.rowCaptionMono)
                 .disableAutocorrection(true)
@@ -25,46 +26,37 @@ struct CloneAsIdentityView: View {
                     didCopy = false
                 }
 
-                Button {
-                    copyCommand()
-                } label: {
-                    Label(
-                        didCopy ? "Copied" : "Copy",
-                        systemImage: didCopy ? "checkmark" : "doc.on.doc"
-                    )
-                }
-                .buttonStyle(.borderless)
-                .disabled(cloneCommand == nil)
-                .help("Copy rewritten clone command")
-                .accessibilityLabel(Text(didCopy ? "Copied" : "Copy rewritten clone command"))
+            Button {
+                copyCommand()
+            } label: {
+                Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
             }
-
-            if let command = cloneCommand {
-                Text(verbatim: command)
-                    .font(KC.rowCaptionMono)
-                    .foregroundStyle(.secondary)
-                    .lineLimit(compact ? 2 : 3)
-                    .truncationMode(.middle)
-                    .textSelection(.enabled)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-            } else if !trimmedInput.isEmpty {
-                Text("Cannot rewrite — check alias or URL")
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.tertiary)
-            } else if !compact {
-                Text("Accepts org/repo or a GitHub/GitLab/Gitea clone URL.")
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.tertiary)
+            .buttonStyle(.borderless)
+            .disabled(cloneCommand == nil)
+            .help("Copy clone command")
+            .accessibilityLabel(Text(didCopy ? "Copied" : "Copy clone command"))
+        }
+        .onAppear {
+            applyInitialInputIfNeeded()
+        }
+        .onChange(of: initialInput) { _, newValue in
+            if input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+               !newValue.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
+                input = newValue
+                didCopy = false
             }
         }
     }
 
-    private var trimmedInput: String {
-        input.trimmingCharacters(in: .whitespacesAndNewlines)
-    }
-
     private var cloneCommand: String? {
         account.cloneCommand(for: input)
+    }
+
+    private func applyInitialInputIfNeeded() {
+        let seed = initialInput.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard input.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              !seed.isEmpty else { return }
+        input = seed
     }
 
     private func copyCommand() {
