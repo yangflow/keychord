@@ -369,6 +369,8 @@ private struct BackupAccountDetailSheet: View {
                 }
             }
             .formStyle(.grouped)
+            .scrollDisabled(true)
+            .fixedSize(horizontal: false, vertical: true)
 
             Divider()
 
@@ -381,7 +383,8 @@ private struct BackupAccountDetailSheet: View {
             .padding(.horizontal, KC.space20)
             .padding(.vertical, KC.space12)
         }
-        .frame(minWidth: 420, minHeight: 440)
+        .frame(width: 560)
+        .fixedSize(horizontal: false, vertical: true)
     }
 
     private var displayLabel: String {
