@@ -188,25 +188,6 @@ struct CurrentRepoMatchedRow: View {
     }
 }
 
-    private var scopeText: String {
-        switch account.scope {
-        case .global:
-            return String(localized: "scope: global")
-        case .gitdir(let dir):
-            return String(localized: "scope: gitdir:\(dir)")
-        }
-    }
-
-    private var heroTint: Color {
-        switch probe {
-        case .ok:      return .green
-        case .failed:  return .red
-        case .probing: return .orange
-        case .idle:    return account.color.color
-        }
-    }
-}
-
 // MARK: - AccountRow (compact 2-line popover row, Mac-style)
 
 struct AccountRow: View {
