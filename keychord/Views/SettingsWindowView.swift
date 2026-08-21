@@ -200,10 +200,6 @@ struct SettingsGeneralPane: View {
                     Text(verbatim: "简体中文").tag(AppLanguagePreference.simplifiedChinese)
                 }
 
-                Text("Overrides the system language for KeyChord only.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 if languageStore.pendingRelaunch {
                     Text("Relaunch KeyChord to apply the language everywhere.")
                         .font(.caption)
@@ -236,10 +232,6 @@ struct SettingsGeneralPane: View {
                         .font(.caption)
                         .foregroundStyle(.orange)
                 }
-
-                Text("Launch keychord in the menu bar when you log in to this Mac.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
             } header: {
                 Text("Startup")
             }
@@ -259,10 +251,6 @@ struct SettingsConfigPane: View {
     var body: some View {
         Form {
             Section {
-                Text("Removes keychord’s Include markers from ~/.ssh/config and ~/.gitconfig. Your accounts.json and SSH keys stay in place.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-
                 Button("Remove Include (keep accounts.json)", role: .destructive) {
                     confirmRemoveIncludes = true
                 }

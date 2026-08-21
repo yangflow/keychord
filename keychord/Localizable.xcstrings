@@ -3791,6 +3791,23 @@
           }
         }
       }
+    },
+    "Ed25519": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ed25519"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Ed25519"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -51,10 +51,6 @@ struct RestoreView: View {
                 if isBusy {
                     ProgressView().controlSize(.small)
                 }
-
-                Text("Restoring rolls back all accounts to that point in time.")
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
             }
         }
         .formStyle(.grouped)

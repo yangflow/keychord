@@ -45,14 +45,6 @@ struct ImportPickerView: View {
                         Text("Detected Accounts")
                     }
                 }
-
-                if !candidates.isEmpty {
-                    Section {
-                        Text("Already-existing aliases are unchecked by default. Importing a duplicate alias will be skipped.")
-                            .font(.caption)
-                            .foregroundStyle(.tertiary)
-                    }
-                }
             }
             .formStyle(.grouped)
 
