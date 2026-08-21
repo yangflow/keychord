@@ -4,10 +4,6 @@
 
 简体中文 · [English](./README.md)
 
-<p align="center">
-  <img src="assets/menubar-popover.png" width="280" alt="菜单栏弹窗">
-  <img src="assets/accounts-window.png" width="560" alt="账号管理窗口">
-</p>
 
 keychord 是一个常驻菜单栏的 macOS 小工具，让你在同一台 Mac 上同时保留多个 GitHub 账号——个人、公司、开源——每个账号都有自己的 SSH key、git name/email、URL 改写规则，以及可选的 `gitdir:` 目录级激活条件。keychord 管理着一个独立的 JSON 文件，并由它生成*受管*的 SSH config 与 gitconfig，只在你真实的 `~/.ssh/config` 和 `~/.gitconfig` 里塞一行 `Include`。你自己手写的 dotfiles 完全不被触碰。
 
@@ -22,11 +18,6 @@ keychord 把"账号集合"当成一等公民，用一个专门的窗口做 CRUD�
 
 ## 功能
 
-<p align="center">
-  <img src="assets/import-picker.png" width="320" alt="导入选择器">
-  <img src="assets/keygen-sheet.png" width="320" alt="SSH Key 生成器">
-</p>
-
 - **账号 CRUD**：原生 `NavigationSplitView` 窗口增删改查账号。真实来源是 `~/.config/keychord/accounts.json`。
 - **`gitdir:` 目录级作用域**：每个账号可以是全局，也可以通过 git 自带的 `includeIf gitdir:` 机制绑定到某个工作目录。
 - **URL 改写**：每个账号都能带自己的 `insteadOf` / `pushInsteadOf` 规则。
@@ -37,6 +28,8 @@ keychord 把"账号集合"当成一等公民，用一个专门的窗口做 CRUD�
 - **原子备份**：添加新账户时（若已有 `accounts.json`）会先在 `~/.config/keychord/backups/` 做快照，可在设置 → 备份中浏览和恢复。编辑与删除不会新建快照。
 - **探针**：对每个 host 执行 `ssh -T git@<alias>`，一眼看出哪个账号还能正常认证。
 - **常驻菜单栏**：`LSUIElement = YES`，没有 Dock 图标、不抢焦点。把一个文件夹拖到菜单栏图标上可以直接查出那个目录下会用哪个账号 push。
+- **设置窗口**：弹窗齿轮打开通用（语言 + 登录时打开）、密钥、导入、备份、配置。账号窗口工具栏只留 **+**。
+- **应用内语言**：跟随系统 / English / 简体中文。
 
 ## 它的工作原理（managed-file 模型）
 
@@ -67,7 +60,7 @@ keychord 从不改写你现有 config 文件的正文。它做的事是:
 ### Homebrew（推荐）
 
 ```bash
-brew tap yangflow/keychord
+brew tap yangflow/tap
 brew install --cask keychord
 ```
 
@@ -113,17 +106,18 @@ xcodebuild test \
 
 ## 使用
 
-1. 点击菜单栏图标。弹出窗口显示账号列表、Doctor 诊断信息，以及当前仓库上下文。
-2. 点击账号列表底部的 **+** 行来添加新账号（会打开账号管理窗口），或者点任意账号行跳到详情。
-3. 在账号窗口中，使用顶部工具栏:
-   - **+** 新建账号
-   - **钥匙** 生成 SSH key
-   - **导入** 从现有配置检测并选择性导入账号
-   - **时钟** 浏览并恢复备份
-   - **设置** 语言（跟随系统 / English / 简体中文）、登录时打开与 Include 维护
+1. 点击菜单栏图标。弹出窗口显示账号列表和 Doctor。同一行的齿轮打开设置。
+2. 在弹窗或账号窗口点 **+** 新建账号；点账号行进入详情。
+3. 设置侧栏：
+   - **通用** — 语言（跟随系统 / English / 简体中文）和登录时打开
+   - **密钥** — 生成 SSH key
+   - **导入** — 从现有配置检测并选择性导入
+   - **备份** — 浏览、展开、恢复或删除快照
+   - **配置** — 移除 Include（保留 `accounts.json`）
 4. 填写 label、git name/email、SSH alias、key path，以及可选的 `gitdir:` scope 和 URL 改写。⌘S 保存。
 5. 每次保存都会重新生成 managed 文件，并在真实 config 里重新安装 `Include`（如果被误删）。
-6. 回到 popover，**Doctor** 区会列出检测到的配置问题，附带一键修复按钮。
+6. 把文件夹拖到菜单栏图标上，查看匹配身份，并在匹配卡片上复制改写后的 clone 命令。
+7. 弹窗里的 **Doctor** 会列出配置问题，并提供一键修复。
 
 ## 目录结构
 
@@ -139,7 +133,7 @@ keychord/
 │   ├── Views/               # MenuBarContent, AccountsWindowView,
 │   │                        # AccountDetailView, AccountsSidebar,
 │   │                        # ImportPickerView, RestoreView,
-│   │                        # KeygenView, …
+│   │                        # SettingsWindowView, KeygenView, …
 │   ├── AppDelegate.swift
 │   └── AppState.swift
 ├── keychordTests/           # Swift Testing 单元测试
@@ -156,8 +150,8 @@ keychord/
    ```bash
    rm -rf ~/.config/keychord
    ```
-4. 如果开过「登录时启动」，到「系统设置 → 通用 → 登录项」里去掉 keychord（或退出前在「账号窗口 → 设置」关掉开关）。
-5. 删除 keychord 注入的 `Include` 块——退出前打开 **账号窗口 → 设置 → 移除 Include（保留 accounts.json）**，或手动删除 `~/.ssh/config` 与 `~/.gitconfig` 中 `# --- keychord managed ---` 到 `# --- keychord managed end ---` 的内容。
+4. 如果开过「登录时启动」，到「系统设置 → 通用 → 登录项」里去掉 keychord（或退出前在「设置 → 通用」关掉开关）。
+5. 删除 keychord 注入的 `Include` 块——退出前打开 **设置 → 配置 → 移除 Include**，或手动删除 `~/.ssh/config` 与 `~/.gitconfig` 中 `# --- keychord managed ---` 到 `# --- keychord managed end ---` 的内容。
 
 如果通过 Homebrew 安装: `brew uninstall --cask keychord`。
 

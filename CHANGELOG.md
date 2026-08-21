@@ -4,6 +4,8 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+## [0.5.0] — 2026-08-22
+
 ### Fixed
 
 - **Dock icon after closing windows** — closing About, Accounts, or Sparkle’s update UI restores `.accessory` so the Dock icon goes away while KeyChord stays in the menu bar. One app-wide `NSWindow.willCloseNotification` listener replaces the Accounts-only handler.
