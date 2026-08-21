@@ -16,26 +16,27 @@ struct TitledWindowPresence: Equatable, Sendable {
 ///
 /// Does **not** quit the process. `LSUIElement` stays YES.
 @MainActor
-final class ActivationPolicyController {
+final class ActivationPolicyController: NSObject {
     static let shared = ActivationPolicyController()
 
-    private var observer: NSObjectProtocol?
+    private var didStart = false
     private var restoreTask: Task<Void, Never>?
 
-    private init() {}
+    private override init() {
+        super.init()
+    }
 
     func start() {
-        guard observer == nil else { return }
-        observer = NotificationCenter.default.addObserver(
-            forName: NSWindow.willCloseNotification,
-            object: nil,
-            queue: .main
-        ) { [weak self] notification in
-            let closing = notification.object as? NSWindow
-            Task { @MainActor in
-                self?.scheduleRestoreAccessory(excluding: closing)
-            }
-        }
+        guard !didStart else { return }
+        didStart = true
+        // Selector-based observer: the block-based API is @Sendable and cannot
+        // capture `self` under Swift 6 for this MainActor type.
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(windowWillClose(_:)),
+            name: NSWindow.willCloseNotification,
+            object: nil
+        )
     }
 
     /// Pure check used by the restore path and unit tests.
@@ -58,20 +59,37 @@ final class ActivationPolicyController {
         )
     }
 
-    private func scheduleRestoreAccessory(excluding closing: NSWindow?) {
+    /// NotificationCenter may invoke this off the main actor; hop back without
+    /// sending a non-Sendable `NSWindow` across isolation (use its identity).
+    nonisolated @objc private func windowWillClose(_ notification: Notification) {
+        let excludingID = (notification.object as AnyObject?).map { ObjectIdentifier($0) }
+        Task { @MainActor in
+            ActivationPolicyController.shared.scheduleRestoreAccessory(excludingID: excludingID)
+        }
+    }
+
+    private func scheduleRestoreAccessory(excludingID: ObjectIdentifier?) {
         restoreTask?.cancel()
         restoreTask = Task { @MainActor in
             // willClose fires before the window leaves the list / clears isVisible.
             try? await Task.sleep(for: .milliseconds(50))
             guard !Task.isCancelled else { return }
-            restoreAccessoryIfNeeded(excluding: closing)
+            restoreAccessoryIfNeeded(excludingID: excludingID)
         }
     }
 
     func restoreAccessoryIfNeeded(excluding closing: NSWindow? = nil) {
-        guard !Self.hasTitledVisibleWindow(in: NSApp.windows, excluding: closing) else {
-            return
+        restoreAccessoryIfNeeded(excludingID: closing.map { ObjectIdentifier($0) })
+    }
+
+    private func restoreAccessoryIfNeeded(excludingID: ObjectIdentifier?) {
+        let hasTitledVisible = NSApp.windows.contains { window in
+            if let excludingID, ObjectIdentifier(window) == excludingID {
+                return false
+            }
+            return window.styleMask.contains(.titled) && window.isVisible
         }
+        guard !hasTitledVisible else { return }
         NSApp.setActivationPolicy(.accessory)
     }
 }
