@@ -26,6 +26,7 @@ final class StatusItemHintGlowView: NSView {
         glow.shadowRadius = 5
         glow.shadowOffset = .zero
         host.addSublayer(glow)
+        updateGlowPath()
     }
 
     @available(*, unavailable)
@@ -38,6 +39,17 @@ final class StatusItemHintGlowView: NSView {
 
     override func layout() {
         super.layout()
+        updateGlowPath()
+    }
+
+    /// The status item is a fixed-size button, but it is resized once while
+    /// `MenuBarExtra` settles, so the ring is recomputed rather than cached.
+    override func setFrameSize(_ newSize: NSSize) {
+        super.setFrameSize(newSize)
+        updateGlowPath()
+    }
+
+    private func updateGlowPath() {
         let ring = bounds.insetBy(dx: 1.5, dy: 1.5)
         guard ring.width > 2, ring.height > 2 else {
             glow.path = nil

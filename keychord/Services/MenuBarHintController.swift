@@ -77,7 +77,9 @@ final class MenuBarHintController {
         // visibleFrame, so the callout hangs below the menu bar rather than
         // under it, and stays clear of the Dock.
         let screenFrame = (window.screen ?? NSScreen.main)?.visibleFrame ?? anchor
-        let content = MenuBarHintCalloutView { [weak self] in self?.dismiss() }
+        let content = MenuBarHintCalloutView { [weak self] in
+            Task { @MainActor in self?.dismiss() }
+        }
         let frame = FirstLaunchHint.calloutFrame(
             anchor: anchor,
             size: content.fittingSize,
@@ -110,13 +112,13 @@ final class MenuBarHintController {
     /// clicking the status item itself needs the local one.
     private func installDismissMonitors() {
         let mask: NSEvent.EventTypeMask = [.leftMouseDown, .rightMouseDown, .otherMouseDown]
-        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { _ in
-            Task { @MainActor [weak self] in self?.dismiss() }
+        if let global = NSEvent.addGlobalMonitorForEvents(matching: mask, handler: { [weak self] _ in
+            Task { @MainActor in self?.dismiss() }
         }) {
             monitors.append(global)
         }
-        if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { event in
-            Task { @MainActor [weak self] in self?.dismiss() }
+        if let local = NSEvent.addLocalMonitorForEvents(matching: mask, handler: { [weak self] event in
+            Task { @MainActor in self?.dismiss() }
             return event
         }) {
             monitors.append(local)
