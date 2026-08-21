@@ -23,6 +23,8 @@ All notable changes to keychord are documented here. The format is based on [Kee
 - **Stale `gitdir:` paths can be retargeted** — drop a renamed project and, when an account still points at a missing folder in the same parent directory, the card says the old path is gone, names the account, and offers **Point it at this folder** (replaces just that one path) or **Keep the old path**. No other account is touched. (#38)
 - **Overlapping scopes are explained** — when several accounts scope the same repository the card lists them in the order git reads them, marks the one git actually uses, says who overrides whom, and offers **Only use {winner} here** (scope the exact folder) or **Unbind {loser} from {path}**. (#39)
 - **The last drop sticks around** — a match now survives closing the popover and is only replaced by the next drop, the card's clear control, or an unbind, so the tooltip from #32 keeps naming the identity between clicks. (#40)
+- **New identity from a failed drop** — **New identity bound here** under the bind chips opens the **Accounts window** (the popover never grows a full form) with a draft already scoped to the dropped folder, `user.name` / `user.email` seeded from `git config --global`, and port 443. Saving it re-resolves the folder and shows the match. (#41)
+- **Match-card conveniences** — a 5-second **Bound to {label} · Undo** toast after a bind or rebind (undo restores the previous gitdir lists verbatim); clicking the path copies it; an HTTPS remote offers **Copy set-url** for `git remote set-url origin git@<alias>:owner/repo` (host and transport only — the path is carried over untouched); and the clone field remembers the last `org/` prefix per account, on the match card and the per-account clone row alike. (#42)
 
 ### Fixed
 

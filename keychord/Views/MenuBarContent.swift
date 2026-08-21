@@ -192,8 +192,10 @@ struct MenuBarPopoverView: View {
                 ) != nil,
                 isBusy: isMatchActionRunning,
                 actionError: matchActionError,
+                scopeUndo: undo(for: repoRoot),
                 onUnbind: { Task { await unbindMatchedFolder() } },
                 onRebind: { target in Task { await rebindMatchedFolder(to: target) } },
+                onUndo: { Task { await undoScopeChange() } },
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
@@ -214,6 +216,7 @@ struct MenuBarPopoverView: View {
                     isBinding: isBinding,
                     bindError: bindError,
                     onBind: { account in Task { await bind(to: account) } },
+                    onCreateAccount: { Task { await createAccountForDroppedFolder() } },
                     onClear: { appState.clearAccountMatch() }
                 )
             }
@@ -453,6 +456,28 @@ struct MenuBarPopoverView: View {
             return
         }
         await runDoctor()
+    }
+
+    /// Only show the undo toast for the folder it belongs to — a later drop must
+    /// not inherit the previous card's toast.
+    private func undo(for repoRoot: String) -> AppState.ScopeUndo? {
+        guard let undo = appState.scopeUndo, undo.repoRoot == repoRoot else { return nil }
+        return undo
+    }
+
+    private func undoScopeChange() async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.undoScopeChange()
+        await runDoctor()
+    }
+
+    /// #41: the full account form lives in the Accounts window, prefilled with
+    /// this folder as its gitdir.
+    private func createAccountForDroppedFolder() async {
+        guard await appState.prepareNewAccountDraftForMatch() else { return }
+        openAccounts()
     }
 
     // MARK: - Manual per-alias re-probe

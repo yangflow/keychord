@@ -51,6 +51,25 @@ enum CloneURLRewriter {
         return nil
     }
 
+    /// One-liner that repoints an existing HTTPS remote at the account's SSH
+    /// alias: `git remote set-url origin git@<alias>:owner/repo.git`.
+    ///
+    /// The path is carried over exactly as the remote had it, so the command
+    /// only changes host and transport. `nil` when the remote is already SSH
+    /// (nothing to fix) or cannot be rewritten for this account — the card must
+    /// not offer a command that would point `origin` somewhere wrong.
+    static func remoteSetURLCommand(
+        for account: Account,
+        originURL: String,
+        remoteName: String = "origin"
+    ) -> String? {
+        let origin = originURL.trimmingCharacters(in: .whitespacesAndNewlines)
+        let lower = origin.lowercased()
+        guard lower.hasPrefix("https://") || lower.hasPrefix("http://") else { return nil }
+        guard let rewritten = rewriteURL(for: account, input: origin) else { return nil }
+        return "git remote set-url \(remoteName) \(rewritten)"
+    }
+
     /// Best field value for the popover after a folder drop/choose: prefer
     /// `owner/repo` (always rewriteable from alias alone), else the raw URL.
     static func preferredCloneInput(fromOriginURL origin: String) -> String {

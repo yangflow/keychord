@@ -16,6 +16,9 @@ struct CurrentRepoUnresolvedRow: View {
     var isBinding: Bool = false
     var bindError: String? = nil
     var onBind: ((Account) -> Void)? = nil
+    /// Opens the Accounts window with a draft already scoped to this folder.
+    /// The popover never embeds the full account form.
+    var onCreateAccount: (() -> Void)? = nil
     var onClear: (() -> Void)? = nil
 
     var body: some View {
@@ -98,6 +101,18 @@ struct CurrentRepoUnresolvedRow: View {
                 }
             }
 
+            if let onCreateAccount {
+                Button(action: onCreateAccount) {
+                    Text("New identity bound here")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                .disabled(isBinding)
+            }
+
+            // Covers both routes: an existing chip and a brand new identity
+            // both end up scoping this folder.
             Text("Sets a gitdir scope for this folder")
                 .font(KC.meta)
                 .foregroundStyle(.tertiary)
@@ -184,11 +199,18 @@ struct CurrentRepoMatchedRow: View {
     var canUnbind: Bool = false
     var isBusy: Bool = false
     var actionError: String? = nil
+    /// Live undo for the bind that produced this match, if it is still inside
+    /// the 5-second window.
+    var scopeUndo: AppState.ScopeUndo? = nil
     var onUnbind: (() -> Void)? = nil
     var onRebind: ((Account) -> Void)? = nil
+    var onUndo: (() -> Void)? = nil
     var onClear: (() -> Void)? = nil
 
     @State private var clonePrefill: String
+    @State private var resolvedOrigin: String?
+    @State private var didCopyPath = false
+    @State private var didCopySetURL = false
 
     init(
         account: Account,
@@ -200,8 +222,10 @@ struct CurrentRepoMatchedRow: View {
         canUnbind: Bool = false,
         isBusy: Bool = false,
         actionError: String? = nil,
+        scopeUndo: AppState.ScopeUndo? = nil,
         onUnbind: (() -> Void)? = nil,
         onRebind: ((Account) -> Void)? = nil,
+        onUndo: (() -> Void)? = nil,
         onClear: (() -> Void)? = nil
     ) {
         self.account = account
@@ -213,14 +237,17 @@ struct CurrentRepoMatchedRow: View {
         self.canUnbind = canUnbind
         self.isBusy = isBusy
         self.actionError = actionError
+        self.scopeUndo = scopeUndo
         self.onUnbind = onUnbind
         self.onRebind = onRebind
+        self.onUndo = onUndo
         self.onClear = onClear
         let seed = originURL.flatMap { url -> String? in
             let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: url)
             return preferred.isEmpty ? nil : preferred
         } ?? ""
         self._clonePrefill = State(initialValue: seed)
+        self._resolvedOrigin = State(initialValue: originURL)
     }
 
     var body: some View {
@@ -286,14 +313,29 @@ struct CurrentRepoMatchedRow: View {
                     .lineLimit(1)
                     .truncationMode(.middle)
 
-                Text(verbatim: repoRoot.abbreviatedHomePath())
-                    .font(KC.heroMeta)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
+                Button(action: copyPath) {
+                    HStack(spacing: KC.space4) {
+                        Text(verbatim: repoRoot.abbreviatedHomePath())
+                            .font(KC.heroMeta)
+                            .foregroundStyle(.tertiary)
+                            .lineLimit(1)
+                            .truncationMode(.middle)
+                        Image(systemName: didCopyPath ? "checkmark" : "doc.on.doc")
+                            .font(.system(size: 9))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .contentShape(Rectangle())
+                }
+                .buttonStyle(.plain)
+                .help(didCopyPath ? "Copied" : "Copy path")
+                .accessibilityLabel(Text("Copy path"))
 
                 if let audit, !audit.isClean {
                     identityMismatchBlock(audit)
+                }
+
+                if let command = setURLCommand {
+                    httpsRemoteRow(command: command)
                 }
 
                 if !account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
@@ -317,11 +359,60 @@ struct CurrentRepoMatchedRow: View {
                         .foregroundStyle(.red)
                         .fixedSize(horizontal: false, vertical: true)
                 }
+
+                if let scopeUndo, let onUndo {
+                    UndoBindToast(undo: scopeUndo, onUndo: onUndo)
+                        .padding(.top, KC.space6)
+                }
             }
         }
         .task(id: repoRoot) {
             await loadClonePrefill()
         }
+    }
+
+    // MARK: - HTTPS remote
+
+    /// The remote still goes over HTTPS, so pushes bypass the alias. One
+    /// copyable command fixes this repository; the account-row strip handles
+    /// future clones. No second clone field here.
+    @ViewBuilder
+    private func httpsRemoteRow(command: String) -> some View {
+        HStack(spacing: KC.space8) {
+            Text("Remote is HTTPS")
+                .font(KC.rowCaption)
+                .foregroundStyle(.secondary)
+            Spacer(minLength: 0)
+            Button {
+                copySetURL(command)
+            } label: {
+                Label(
+                    didCopySetURL ? "Copied" : "Copy set-url",
+                    systemImage: didCopySetURL ? "checkmark" : "doc.on.doc"
+                )
+            }
+            .buttonStyle(.borderless)
+            .labelStyle(.titleAndIcon)
+            .font(.system(size: KC.rowSubtitleSize))
+        }
+        .padding(.top, KC.space6)
+    }
+
+    private var setURLCommand: String? {
+        guard let origin = resolvedOrigin else { return nil }
+        return CloneURLRewriter.remoteSetURLCommand(for: account, originURL: origin)
+    }
+
+    private func copyPath() {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(repoRoot, forType: .string)
+        didCopyPath = true
+    }
+
+    private func copySetURL(_ command: String) {
+        NSPasteboard.general.clearContents()
+        NSPasteboard.general.setString(command, forType: .string)
+        didCopySetURL = true
     }
 
     // MARK: - Folder actions (open / unbind / rebind)
@@ -407,11 +498,15 @@ struct CurrentRepoMatchedRow: View {
     }
 
     private func loadClonePrefill() async {
+        didCopyPath = false
+        didCopySetURL = false
         if let originURL, !originURL.isEmpty {
+            resolvedOrigin = originURL
             clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: originURL)
             if !clonePrefill.isEmpty { return }
         }
         if let origin = await CurrentRepoResolver.readOriginURL(at: repoRoot) {
+            resolvedOrigin = origin
             clonePrefill = CloneURLRewriter.preferredCloneInput(fromOriginURL: origin)
         }
     }
@@ -570,6 +665,58 @@ struct AccountRow: View {
             .map { $0.abbreviatedHomePath() }
         guard !dirs.isEmpty else { return nil }
         return "gitdir: " + dirs.joined(separator: " + ")
+    }
+}
+
+// MARK: - UndoBindToast
+
+/// Five-second “bound to work · undo” strip on the match card. The countdown
+/// reads the deadline from ``AppState/ScopeUndo`` rather than counting locally,
+/// so closing and reopening the popover cannot resurrect an expired undo.
+struct UndoBindToast: View {
+    let undo: AppState.ScopeUndo
+    let onUndo: () -> Void
+
+    var body: some View {
+        TimelineView(.periodic(from: .now, by: 1)) { context in
+            let remaining = Self.remainingSeconds(until: undo.expiresAt, now: context.date)
+            HStack(spacing: KC.space8) {
+                Image(systemName: "arrow.uturn.backward")
+                    .font(.system(size: 11, weight: .medium))
+                    .foregroundStyle(.green)
+
+                Text("Bound to \(undo.boundLabel)")
+                    .font(KC.rowCaption)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+                    .truncationMode(.tail)
+
+                Button(action: onUndo) {
+                    Text("Undo")
+                }
+                .buttonStyle(.borderless)
+                .font(.system(size: KC.rowSubtitleSize, weight: .medium))
+
+                Spacer(minLength: 0)
+
+                Text(verbatim: "\(remaining)s")
+                    .font(KC.metaMono)
+                    .foregroundStyle(.tertiary)
+                    .monospacedDigit()
+            }
+            .padding(.horizontal, KC.space10)
+            .padding(.vertical, KC.space6)
+            .frame(maxWidth: .infinity, alignment: .leading)
+            .background(
+                RoundedRectangle(cornerRadius: KC.cardCornerRadius, style: .continuous)
+                    .fill(Color.green.opacity(0.10))
+            )
+            .opacity(remaining > 0 ? 1 : 0)
+        }
+    }
+
+    static func remainingSeconds(until deadline: Date, now: Date) -> Int {
+        max(0, Int(deadline.timeIntervalSince(now).rounded(.up)))
     }
 }
 

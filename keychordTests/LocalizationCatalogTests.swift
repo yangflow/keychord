@@ -147,6 +147,16 @@ struct LocalizationCatalogTests {
         "%@ overrides %@",
         "Only use %@ here",
         "Unbind %@ from %@",
+        // New identity from a failed drop (#41)
+        "New identity bound here",
+        // Match-card conveniences (#42)
+        "Bound to %@",
+        "Undo",
+        "Undo failed: %@",
+        "Copy path",
+        "Remote is HTTPS",
+        "Copy set-url",
+        "Remembered prefix: %@",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

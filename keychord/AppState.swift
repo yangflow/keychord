@@ -38,6 +38,38 @@ final class AppState {
     /// popover's empty state so Import is reachable without the gear.
     var pendingSettingsPane: SettingsPane?
 
+    /// Unsaved account the Accounts window should open as a new draft, built
+    /// from a failed drop. The popover never embeds the full form.
+    var pendingNewAccountDraft: Account?
+
+    /// Folder to re-resolve once that draft is saved, so the popover can show
+    /// the match the user was after.
+    var pendingBindFolder: String?
+
+    /// Id of that draft, so saving some *other* new account cannot trigger the
+    /// re-resolve meant for this one (or fire it after the user cancelled).
+    var pendingBindDraftID: UUID?
+
+    /// Short-lived undo for the last scope change, shown as a toast on the
+    /// match card.
+    var scopeUndo: ScopeUndo?
+
+    private var scopeUndoTask: Task<Void, Never>?
+
+    /// A scope change that can still be taken back: the accounts exactly as
+    /// they were before the write.
+    struct ScopeUndo: Equatable, Sendable, Identifiable {
+        let id: UUID
+        /// Accounts to write back verbatim, including their original scopes.
+        let previousAccounts: [Account]
+        /// Label of the account the folder ended up bound to.
+        let boundLabel: String
+        let repoRoot: String
+        let expiresAt: Date
+
+        static let window: TimeInterval = 5
+    }
+
     let accountsStore: AccountsStore
     let probeCache: ProbeCache
 
@@ -54,6 +86,63 @@ final class AppState {
         identityAudit = nil
         gitdirOverlap = nil
         staleGitdir = nil
+        clearScopeUndo()
+    }
+
+    // MARK: - Undo for scope changes
+
+    /// Arm the 5-second undo toast. The snapshot is taken before the write, so
+    /// restoring it puts every gitdir list back exactly as it was.
+    func recordScopeUndo(
+        previousAccounts: [Account],
+        boundLabel: String,
+        repoRoot: String,
+        now: Date = Date()
+    ) {
+        let undo = ScopeUndo(
+            id: UUID(),
+            previousAccounts: previousAccounts,
+            boundLabel: boundLabel,
+            repoRoot: repoRoot,
+            expiresAt: now.addingTimeInterval(ScopeUndo.window)
+        )
+        scopeUndo = undo
+        scopeUndoTask?.cancel()
+        scopeUndoTask = Task { [weak self] in
+            try? await Task.sleep(for: .seconds(ScopeUndo.window))
+            guard !Task.isCancelled else { return }
+            guard let self, self.scopeUndo?.id == undo.id else { return }
+            self.scopeUndo = nil
+        }
+    }
+
+    func clearScopeUndo() {
+        scopeUndoTask?.cancel()
+        scopeUndoTask = nil
+        scopeUndo = nil
+    }
+
+    /// Put the pre-change scopes back, reproject, and re-resolve the folder.
+    func undoScopeChange() async -> String? {
+        guard let undo = scopeUndo else { return nil }
+        clearScopeUndo()
+        do {
+            for account in undo.previousAccounts {
+                try accountsStore.update(account)
+            }
+            try AccountProjector.regenerate(accounts: accountsStore.accounts)
+        } catch {
+            return String(localized: "Undo failed: \(String(describing: error))")
+        }
+        await resolveCurrentRepo(at: undo.repoRoot)
+        return nil
+    }
+
+    /// Label the toast shows for the account a folder was bound to.
+    private func displayLabel(of account: Account) -> String {
+        account.label.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            ? String(localized: "(unnamed)")
+            : account.label
     }
 
     /// Shared resolve path used by menu-bar icon drops and popover `.onDrop`.
@@ -97,15 +186,53 @@ final class AppState {
         guard let path = accountMatch?.bindableRepoRoot else { return nil }
         let result = GitdirBinder.bind(folderPath: path, to: account)
         if result.changedScope {
+            let snapshot = [account]
             do {
                 try accountsStore.update(result.account)
                 try AccountProjector.regenerate(accounts: accountsStore.accounts)
             } catch {
                 return String(localized: "Bind failed: \(String(describing: error))")
             }
+            recordScopeUndo(
+                previousAccounts: snapshot,
+                boundLabel: displayLabel(of: account),
+                repoRoot: path
+            )
         }
         await resolveCurrentRepo(at: path)
         return nil
+    }
+
+    /// Build the draft the Accounts window opens for “create an identity and
+    /// bind it here”. Returns false when there is no folder to scope.
+    func prepareNewAccountDraftForMatch() async -> Bool {
+        guard let path = accountMatch?.bindableRepoRoot else { return false }
+        let identity = await GitGlobalIdentity.read()
+        guard let draft = DroppedFolderAccountDraft.make(
+            folderPath: path,
+            globalIdentity: identity,
+            existingAccounts: accountsStore.accounts
+        ) else {
+            return false
+        }
+        pendingNewAccountDraft = draft
+        pendingBindFolder = path
+        pendingBindDraftID = draft.id
+        return true
+    }
+
+    /// True when `accountID` is the draft a failed drop asked for.
+    func isPendingBindDraft(_ accountID: UUID) -> Bool {
+        pendingBindDraftID == accountID
+    }
+
+    /// Called by the Accounts window after it saves that draft: re-resolve so
+    /// the popover shows the match the user was after.
+    func finishPendingBind() async {
+        guard let path = pendingBindFolder else { return }
+        pendingBindFolder = nil
+        pendingBindDraftID = nil
+        await resolveCurrentRepo(at: path)
     }
 
     /// Drop the matched folder's own `gitdir:` entry from the account that owns
@@ -137,6 +264,7 @@ final class AppState {
 
         let removal = GitdirBinder.unbind(folderPath: repoRoot, from: current)
         let addition = GitdirBinder.bind(folderPath: repoRoot, to: account)
+        let snapshot = [current, account]
         do {
             if removal.changedScope {
                 try accountsStore.update(removal.account)
@@ -149,6 +277,13 @@ final class AppState {
             }
         } catch {
             return String(localized: "Rebind failed: \(String(describing: error))")
+        }
+        if removal.changedScope || addition.changedScope {
+            recordScopeUndo(
+                previousAccounts: snapshot,
+                boundLabel: displayLabel(of: account),
+                repoRoot: repoRoot
+            )
         }
         await resolveCurrentRepo(at: repoRoot)
         return nil
@@ -180,12 +315,18 @@ final class AppState {
         guard case .matched(_, let repoRoot, _) = accountMatch else { return nil }
         let result = GitdirBinder.bind(folderPath: repoRoot, to: account)
         if result.changedScope {
+            let snapshot = [account]
             do {
                 try accountsStore.update(result.account)
                 try AccountProjector.regenerate(accounts: accountsStore.accounts)
             } catch {
                 return String(localized: "Bind failed: \(String(describing: error))")
             }
+            recordScopeUndo(
+                previousAccounts: snapshot,
+                boundLabel: displayLabel(of: account),
+                repoRoot: repoRoot
+            )
         }
         await resolveCurrentRepo(at: repoRoot)
         return nil

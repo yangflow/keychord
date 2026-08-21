@@ -78,8 +78,16 @@ struct AccountsWindowView: View {
             appState.pendingAddNew = false
             beginNew()
         }
+        .onChange(of: appState.pendingNewAccountDraft) { _, newValue in
+            guard let prefilled = newValue else { return }
+            appState.pendingNewAccountDraft = nil
+            beginNew(prefilled: prefilled)
+        }
         .onAppear {
-            if appState.pendingAddNew {
+            if let prefilled = appState.pendingNewAccountDraft {
+                appState.pendingNewAccountDraft = nil
+                beginNew(prefilled: prefilled)
+            } else if appState.pendingAddNew {
                 appState.pendingAddNew = false
                 beginNew()
             } else if let pending = appState.pendingAccountSelection {
@@ -186,8 +194,10 @@ struct AccountsWindowView: View {
 
     // MARK: - Draft lifecycle
 
-    private func beginNew() {
-        draft = Account(
+    /// `prefilled` comes from a failed drop (#41): already scoped to that
+    /// folder, with the global git identity and port 443 filled in.
+    private func beginNew(prefilled: Account? = nil) {
+        draft = prefilled ?? Account(
             id: UUID(),
             label: "",
             username: "",
@@ -240,6 +250,7 @@ struct AccountsWindowView: View {
     private func saveDraft() {
         guard var updated = draft else { return }
         updated.updatedAt = Date()
+        let wasNew = isNewDraft
         do {
             if isNewDraft {
                 try appState.accountsStore.add(updated)
@@ -255,6 +266,16 @@ struct AccountsWindowView: View {
         } catch {
             statusIsError = true
             statusMessage = String(localized: "Save failed: \(String(describing: error))")
+            return
+        }
+
+        // The identity was created to claim a dropped folder (#41): resolve it
+        // again and show the popover with the match the user asked for.
+        if wasNew, appState.isPendingBindDraft(updated.id) {
+            Task {
+                await appState.finishPendingBind()
+                await StatusItemDropTargetController.shared.openPopoverShowingMatch()
+            }
         }
     }
 
