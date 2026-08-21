@@ -5,7 +5,7 @@ struct RestoreView: View {
     let backups: BackupService
     let onDismiss: () -> Void
 
-    @State private var records: [BackupRecord] = []
+    @State private var entries: [BackupListEntry] = []
     @State private var loadError: String?
     @State private var statusMessage: String?
     @State private var isBusy = false
@@ -34,7 +34,7 @@ struct RestoreView: View {
                         .foregroundStyle(.red)
                     }
 
-                    if records.isEmpty
+                    if entries.isEmpty
                         && loadError == nil
                         && statusMessage == nil
                         && hasLoaded {
@@ -44,21 +44,9 @@ struct RestoreView: View {
                             .fixedSize(horizontal: false, vertical: true)
                     }
 
-                    ForEach(records) { record in
-                        HStack(spacing: 8) {
-                            Image(systemName: "clock.arrow.circlepath")
-                                .foregroundStyle(.secondary)
-                                .frame(width: 14)
-                            Text(record.timestamp, format: .dateTime.year().month().day().hour().minute().second())
-                                .font(.caption)
-                                .monospaced()
-                            Spacer()
-                            Button("Restore") {
-                                Task { await restore(record) }
-                            }
-                            .buttonStyle(.borderless)
-                            .font(.caption)
-                            .disabled(isBusy)
+                    ForEach(entries) { entry in
+                        BackupRestoreRow(entry: entry, isBusy: isBusy) {
+                            Task { await restore(entry.record) }
                         }
                     }
                 } header: {
@@ -87,7 +75,7 @@ struct RestoreView: View {
             .padding(.horizontal, KC.space20)
             .padding(.vertical, KC.space12)
         }
-        .frame(minWidth: 400, minHeight: 300)
+        .frame(minWidth: 440, minHeight: 320)
         .onAppear { reload() }
     }
 
@@ -97,7 +85,7 @@ struct RestoreView: View {
         let path = accountsStore.storageURL.path
         loadError = nil
         do {
-            records = try backups.list(for: path)
+            entries = try backups.listEntries(for: path)
         } catch {
             loadError = String(localized: "Failed to list backups: \(String(describing: error))")
         }
@@ -122,5 +110,83 @@ struct RestoreView: View {
         } catch {
             loadError = String(localized: "Restore failed: \(String(describing: error))")
         }
+    }
+}
+
+// MARK: - Row
+
+private struct BackupRestoreRow: View {
+    let entry: BackupListEntry
+    let isBusy: Bool
+    let onRestore: () -> Void
+
+    var body: some View {
+        HStack(alignment: .top, spacing: 10) {
+            Image(systemName: "clock.arrow.circlepath")
+                .foregroundStyle(.secondary)
+                .frame(width: 14)
+                .padding(.top, 2)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Text(entry.timestamp, format: .relative(presentation: .named, unitsStyle: .abbreviated))
+                        .font(.caption.weight(.medium))
+                    Text(verbatim: "·")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                    Text(
+                        entry.timestamp,
+                        format: .dateTime.year().month().day().hour().minute().second()
+                    )
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .monospacedDigit()
+                }
+
+                Text(summaryLine)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(2)
+                    .truncationMode(.tail)
+            }
+
+            Spacer(minLength: 8)
+
+            Button("Restore", action: onRestore)
+                .buttonStyle(.borderless)
+                .font(.caption)
+                .disabled(isBusy)
+        }
+        .padding(.vertical, 2)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var summaryLine: String {
+        var parts: [String] = []
+
+        if let count = entry.accountCount {
+            if count == 0 {
+                parts.append(String(localized: "0 accounts"))
+            } else if count == 1 {
+                parts.append(String(localized: "1 account"))
+            } else {
+                parts.append(String(localized: "\(count) accounts"))
+            }
+
+            let labelText = entry.labels
+                .map { $0.isEmpty ? String(localized: "(unnamed)") : $0 }
+                .joined(separator: ", ")
+            if !labelText.isEmpty {
+                parts.append(labelText)
+            }
+        } else {
+            parts.append(String(localized: "Unreadable snapshot"))
+        }
+
+        if let bytes = entry.byteCount {
+            parts.append(bytes.formatted(.byteCount(style: .file)))
+        }
+
+        return parts.joined(separator: " · ")
     }
 }

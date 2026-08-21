@@ -18,10 +18,6 @@ final class AccountsStore {
     /// roll back from the Restore view.
     let backups: BackupService
 
-    /// Optional iCloud sync service — pushes after each save,
-    /// records tombstones on delete.
-    @ObservationIgnored var cloudSync: CloudSyncService?
-
     // MARK: - Init / defaults
 
     init(
@@ -98,7 +94,6 @@ final class AccountsStore {
             encoder.dateEncodingStrategy = .iso8601
             let data = try encoder.encode(file)
             try data.write(to: storageURL, options: .atomic)
-            cloudSync?.push(accounts: accounts)
         } catch {
             throw StoreError.writeFailed(error.localizedDescription)
         }
@@ -129,7 +124,6 @@ final class AccountsStore {
             throw StoreError.notFound(id)
         }
         accounts.removeAll { $0.id == id }
-        cloudSync?.recordDeletion(id: id)
         try save()
     }
 

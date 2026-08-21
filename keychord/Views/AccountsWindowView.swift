@@ -14,7 +14,6 @@ struct AccountsWindowView: View {
     @State private var statusIsError = false
     @State private var showingKeygen = false
     @State private var showingRestore = false
-    @State private var showingCloudSync = false
     @State private var showingSettings = false
     @State private var importBatch: ImportBatch?
 
@@ -31,31 +30,31 @@ struct AccountsWindowView: View {
             ToolbarItemGroup(placement: .primaryAction) {
                 Button { beginNew() } label: {
                     Label("Add account", systemImage: "plus")
+                        .accountsToolbarSymbol()
                 }
                 .help("Add a new account")
 
                 Button { showingKeygen = true } label: {
                     Label("New SSH key", systemImage: "key.horizontal")
+                        .accountsToolbarSymbol()
                 }
                 .help("Generate a new SSH key")
 
                 Button { importFromExistingConfig() } label: {
                     Label("Import", systemImage: "square.and.arrow.down")
+                        .accountsToolbarSymbol()
                 }
                 .help("Import from existing config")
 
                 Button { showingRestore = true } label: {
                     Label("Restore", systemImage: "clock.arrow.circlepath")
+                        .accountsToolbarSymbol()
                 }
                 .help("Restore from backup")
 
-                Button { showingCloudSync = true } label: {
-                    Label("iCloud sync", systemImage: "icloud")
-                }
-                .help("iCloud Sync settings")
-
                 Button { showingSettings = true } label: {
                     Label("Settings", systemImage: "gearshape")
+                        .accountsToolbarSymbol()
                 }
                 .help("Settings")
             }
@@ -79,14 +78,7 @@ struct AccountsWindowView: View {
                 backups: appState.accountsStore.backups,
                 onDismiss: { showingRestore = false }
             )
-            .frame(width: 420, height: 400)
-        }
-        .sheet(isPresented: $showingCloudSync) {
-            CloudSyncView(
-                cloudSync: appState.cloudSync,
-                onDismiss: { showingCloudSync = false }
-            )
-            .frame(width: 420, height: 340)
+            .frame(width: 480, height: 440)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(onDismiss: { showingSettings = false })
@@ -407,4 +399,18 @@ private struct AccountsSidebarRow: View {
 private struct ImportBatch: Identifiable {
     let id = UUID()
     let accounts: [Account]
+}
+
+// MARK: - Toolbar symbol optics
+
+private extension Label where Title == Text, Icon == Image {
+    /// Keep primary-action SF Symbols optically aligned in the accounts
+    /// window toolbar (mixed symbol templates otherwise look uneven).
+    func accountsToolbarSymbol() -> some View {
+        self
+            .labelStyle(.iconOnly)
+            .font(.body)
+            .imageScale(.large)
+            .symbolRenderingMode(.monochrome)
+    }
 }

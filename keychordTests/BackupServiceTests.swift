@@ -130,6 +130,50 @@ struct BackupServiceTests {
         }
     }
 
+    @Test func listEntriesSummarizesAccountsJson() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            let json = """
+            {
+              "version": 1,
+              "accounts": [
+                { "label": "work", "id": "11111111-1111-1111-1111-111111111111" },
+                { "label": "", "id": "22222222-2222-2222-2222-222222222222" }
+              ]
+            }
+            """
+            try Self.writeFile(json, at: source)
+
+            let date = Date(timeIntervalSince1970: 1_800_000_000)
+            _ = try service.backup(originalPath: source.path, at: date)
+
+            let entries = try service.listEntries(for: source.path)
+            #expect(entries.count == 1)
+            #expect(entries[0].accountCount == 2)
+            #expect(entries[0].labels == ["work", ""])
+            #expect(entries[0].byteCount != nil)
+            #expect((entries[0].byteCount ?? 0) > 0)
+        }
+    }
+
+    @Test func listEntriesMarksUnreadableSnapshots() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("not-json\n", at: source)
+
+            _ = try service.backup(
+                originalPath: source.path,
+                at: Date(timeIntervalSince1970: 1_800_000_000)
+            )
+
+            let entries = try service.listEntries(for: source.path)
+            #expect(entries.count == 1)
+            #expect(entries[0].accountCount == nil)
+            #expect(entries[0].labels.isEmpty)
+            #expect(entries[0].byteCount != nil)
+        }
+    }
+
     @Test func listDistinguishesSimilarlyNamedSources() throws {
         try Self.withTempRoot { service, root in
             // ~/.gitconfig and ~/.gitconfig-work share the prefix "gitconfig"

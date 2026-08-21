@@ -8,6 +8,24 @@ struct BackupRecord: Equatable, Hashable, Identifiable, Sendable {
     var id: String { backupPath }
 }
 
+/// List-row details derived from a backup file so Restore can show more
+/// than a bare timestamp without opening the JSON by hand.
+struct BackupListEntry: Equatable, Identifiable, Sendable {
+    let record: BackupRecord
+    /// On-disk size of the backup file, when readable.
+    let byteCount: Int64?
+    /// Account count parsed from the snapshot; `nil` if the file is not a
+    /// recognizable accounts.json envelope.
+    let accountCount: Int?
+    /// Display labels in snapshot order (empty string → treated as unnamed
+    /// by the view). Empty when unreadable.
+    let labels: [String]
+
+    var id: String { record.id }
+
+    var timestamp: Date { record.timestamp }
+}
+
 enum BackupError: Swift.Error, CustomStringConvertible {
     case sourceNotFound(String)
     case backupNotFound(String)
@@ -83,6 +101,12 @@ struct BackupService: Sendable {
     func list(for originalPath: String) throws -> [BackupRecord] {
         let base = Self.backupBaseName(for: originalPath)
         return try list(forBaseName: base, mapTo: originalPath)
+    }
+
+    /// Same ordering as `list(for:)`, with cheap per-file summary metadata
+    /// for the Restore UI.
+    func listEntries(for originalPath: String) throws -> [BackupListEntry] {
+        try list(for: originalPath).map(Self.makeListEntry(for:))
     }
 
     private func list(forBaseName base: String, mapTo originalPath: String) throws -> [BackupRecord] {
@@ -175,6 +199,50 @@ struct BackupService: Sendable {
         // succeeds when it is — so a successful call means "refuse".
         if let _ = try? FileManager.default.destinationOfSymbolicLink(atPath: path) {
             throw BackupError.symlinkNotAllowed(path)
+        }
+    }
+
+    // MARK: - Snapshot summary
+
+    static func makeListEntry(for record: BackupRecord) -> BackupListEntry {
+        let attrs = try? FileManager.default.attributesOfItem(atPath: record.backupPath)
+        let byteCount = (attrs?[.size] as? NSNumber)?.int64Value
+
+        guard
+            let data = try? Data(contentsOf: URL(fileURLWithPath: record.backupPath)),
+            let envelope = try? JSONDecoder().decode(AccountsSnapshotEnvelope.self, from: data)
+        else {
+            return BackupListEntry(
+                record: record,
+                byteCount: byteCount,
+                accountCount: nil,
+                labels: []
+            )
+        }
+
+        return BackupListEntry(
+            record: record,
+            byteCount: byteCount,
+            accountCount: envelope.accounts.count,
+            labels: envelope.accounts.map(\.label)
+        )
+    }
+
+    /// Minimal decode of accounts.json — only the labels needed for Restore.
+    private struct AccountsSnapshotEnvelope: Decodable {
+        var accounts: [SnapshotAccount]
+    }
+
+    private struct SnapshotAccount: Decodable {
+        var label: String
+
+        init(from decoder: Decoder) throws {
+            let container = try decoder.container(keyedBy: CodingKeys.self)
+            label = try container.decodeIfPresent(String.self, forKey: .label) ?? ""
+        }
+
+        private enum CodingKeys: String, CodingKey {
+            case label
         }
     }
 
