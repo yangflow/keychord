@@ -21,6 +21,8 @@ struct LocalizationCatalogTests {
         "Accounts",
         "Key Type",
         "iCloud Sync",
+        "Requires a signed build with the iCloud entitlement.",
+        "Unavailable",
         "Backups",
         "Refresh",
     ]

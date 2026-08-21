@@ -11,11 +11,13 @@ import Observation
 /// When an account exists on both sides, the copy with the newer
 /// `updatedAt` wins. Accounts deleted locally are tracked in a
 /// tombstone set so they don't reappear from a stale remote copy.
+///
+/// Private keys are never synced — only account metadata in `accounts.json`.
 @MainActor
 @Observable
 final class CloudSyncService {
 
-    enum SyncState: Equatable {
+    enum SyncState: Equatable, Sendable {
         case idle
         case syncing
         case synced(Date)
@@ -23,8 +25,31 @@ final class CloudSyncService {
     }
 
     private(set) var state: SyncState = .idle
+
+    /// User-facing enabled flag. Always `false` when iCloud capability is
+    /// unavailable, even if a stale preference remains in UserDefaults.
     var isEnabled: Bool {
-        didSet { UserDefaults.standard.set(isEnabled, forKey: Self.enabledKey) }
+        get { availability.isAvailable && storedIsEnabled }
+        set {
+            guard availability.isAvailable else { return }
+            storedIsEnabled = newValue
+            UserDefaults.standard.set(newValue, forKey: Self.enabledKey)
+        }
+    }
+
+    /// Raw preference as stored (may be true when entitlement is missing).
+    private(set) var storedIsEnabled: Bool
+
+    /// Whether the process can actually use iCloud sync.
+    let availability: ICloudAvailability
+
+    /// UI flags derived from capability + preference + sync state.
+    var presentation: CloudSyncPresentation {
+        CloudSyncPresentation.from(
+            availability: availability,
+            preferenceEnabled: storedIsEnabled,
+            syncState: state
+        )
     }
 
     @ObservationIgnored private let kvStore = NSUbiquitousKeyValueStore.default
@@ -37,19 +62,31 @@ final class CloudSyncService {
 
     // MARK: - Init
 
-    init() {
-        self.isEnabled = UserDefaults.standard.bool(forKey: Self.enabledKey)
+    init(
+        availability: ICloudAvailability = .live(),
+        enabledPreference: Bool? = nil
+    ) {
+        self.availability = availability
+        self.storedIsEnabled = enabledPreference
+            ?? UserDefaults.standard.bool(forKey: Self.enabledKey)
+        if !availability.isAvailable {
+            state = .idle
+        }
     }
 
     // MARK: - Lifecycle
 
     func start(store: AccountsStore) {
         self.accountsStore = store
-        guard isEnabled else { return }
+        guard availability.isAvailable, storedIsEnabled else { return }
         activate()
     }
 
     func activate() {
+        guard availability.isAvailable else {
+            state = .idle
+            return
+        }
         kvStore.synchronize()
         cancellable = NotificationCenter.default
             .publisher(for: NSUbiquitousKeyValueStore.didChangeExternallyNotification)
@@ -67,7 +104,7 @@ final class CloudSyncService {
     // MARK: - Push (local → iCloud)
 
     func push(accounts: [Account]) {
-        guard isEnabled else { return }
+        guard availability.isAvailable, isEnabled else { return }
         state = .syncing
         do {
             let encoder = JSONEncoder()
@@ -85,7 +122,7 @@ final class CloudSyncService {
     // MARK: - Pull (iCloud → local)
 
     func pull() {
-        guard isEnabled, let store = accountsStore else { return }
+        guard availability.isAvailable, isEnabled, let store = accountsStore else { return }
         guard let data = kvStore.data(forKey: Self.dataKey) else { return }
         state = .syncing
         do {
@@ -106,7 +143,7 @@ final class CloudSyncService {
     // MARK: - Tombstones
 
     func recordDeletion(id: UUID) {
-        guard isEnabled else { return }
+        guard availability.isAvailable, isEnabled else { return }
         var tombstones = loadTombstones()
         tombstones.insert(id.uuidString)
         kvStore.set(Array(tombstones), forKey: Self.tombstoneKey)
@@ -165,6 +202,7 @@ final class CloudSyncService {
     // MARK: - Remote change handler
 
     private func handleRemoteChange(_ notification: Notification) {
+        guard availability.isAvailable else { return }
         guard let info = notification.userInfo,
               let reason = info[NSUbiquitousKeyValueStoreChangeReasonKey] as? Int else {
             pull()

@@ -4,6 +4,10 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- **iCloud Sync toggle when entitlement is missing** — unsigned / no-iCloud builds no longer show a half-working switch that looks enabled or synced. `ICloudAvailability` probes the signing entitlement (and ubiquity container when relevant); Settings disables the toggle, shows that a signed build is required, and keeps status as Unavailable. Private keys remain local-only.
+
 ### Added
 
 - **SSH probe cache** — popover opens reuse the last `ssh -T` result for each alias (10-minute TTL). Successful probes stay cached until **Refresh**; failures and never-probed aliases auto-reprobe after the TTL. The menu-bar icon keeps the cached worst severity instead of flashing key → warning on every open.
