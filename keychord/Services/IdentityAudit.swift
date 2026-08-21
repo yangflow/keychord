@@ -54,22 +54,24 @@ struct IdentityAudit: Equatable, Sendable {
         let accountEmail = normalized(account.gitUserEmail)
         let gitEmail = normalized(identity.userEmail ?? "")
 
-        if gitEmail.isEmpty {
-            if !accountEmail.isEmpty {
+        // An account that claims no email cannot contradict the work tree, so
+        // stay quiet rather than blaming a perfectly good author.
+        if !accountEmail.isEmpty {
+            if gitEmail.isEmpty {
                 findings.append(.authorMissing)
-            }
-        } else if gitEmail.caseInsensitiveCompare(accountEmail) != .orderedSame {
-            let other = accounts.first {
-                $0.id != account.id
-                    && normalized($0.gitUserEmail).caseInsensitiveCompare(gitEmail) == .orderedSame
-            }
-            if let other {
-                findings.append(.authorIsOtherAccount(
-                    email: gitEmail,
-                    label: other.label.isEmpty ? String(localized: "(unnamed)") : other.label
-                ))
-            } else {
-                findings.append(.authorIsUnmanaged(email: gitEmail))
+            } else if gitEmail.caseInsensitiveCompare(accountEmail) != .orderedSame {
+                let other = accounts.first {
+                    $0.id != account.id
+                        && normalized($0.gitUserEmail).caseInsensitiveCompare(gitEmail) == .orderedSame
+                }
+                if let other {
+                    findings.append(.authorIsOtherAccount(
+                        email: gitEmail,
+                        label: other.label.isEmpty ? String(localized: "(unnamed)") : other.label
+                    ))
+                } else {
+                    findings.append(.authorIsUnmanaged(email: gitEmail))
+                }
             }
         }
 
@@ -93,19 +95,23 @@ struct IdentityAudit: Equatable, Sendable {
         }
         let tokens = command
             .split(whereSeparator: \.isWhitespace)
-            .map { unquote(String($0)) }
+            .map(String.init)
 
         var iterator = tokens.makeIterator()
         while let token = iterator.next() {
             if token == "-i" {
-                if let next = iterator.next(), !next.isEmpty { return next }
-                return nil
+                guard let next = iterator.next() else { return nil }
+                return nonEmpty(unquote(next))
             }
             if token.hasPrefix("-i"), token.count > 2 {
-                return String(token.dropFirst(2))
+                return nonEmpty(unquote(String(token.dropFirst(2))))
             }
         }
         return nil
+    }
+
+    private static func nonEmpty(_ value: String) -> String? {
+        value.isEmpty ? nil : value
     }
 
     private static func unquote(_ token: String) -> String {

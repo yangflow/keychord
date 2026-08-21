@@ -141,7 +141,7 @@ struct ProbeCacheTests {
             return .ok(username: "yangflow")
         }
 
-        #expect(counter.count == 1)
+        #expect(await counter.count == 1)
         #expect(state == .ok(username: "yangflow"))
         #expect(cache.state(for: "github-work") == .ok(username: "yangflow"))
     }
@@ -157,7 +157,7 @@ struct ProbeCacheTests {
             return .failed(reason: "permission denied (publickey)")
         }
 
-        #expect(counter.count == 1)
+        #expect(await counter.count == 1)
         #expect(state == .failed(reason: "permission denied (publickey)"))
     }
 

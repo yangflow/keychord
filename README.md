@@ -17,7 +17,7 @@ keychord makes the identity set a first-class thing you can CRUD from a window, 
 ## Features
 
 - **Account CRUD** — add, edit, delete accounts from a native `NavigationSplitView` window. Source of truth: `~/.config/keychord/accounts.json`.
-- **`gitdir:` scoping** — each account can be global or scoped to a working directory via git's `includeIf gitdir:` mechanism.
+- **`gitdir:` scoping** — each account can be global or scoped to one or more working directories via git's `includeIf gitdir:` mechanism.
 - **URL rewrites** — per-account `insteadOf` / `pushInsteadOf` rules land in the generated gitconfig.
 - **Selective import** — detect logical accounts from your current `~/.ssh/config` + `~/.gitconfig`, then pick which ones to import via a checkbox sheet. Existing aliases are flagged and skipped automatically.
 - **Doctor & Fixer** — diagnose common config problems (missing keys, wrong permissions, dangling `Include`, conflicting `IdentityFile`) and apply one-click fixes.

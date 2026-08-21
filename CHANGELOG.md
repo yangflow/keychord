@@ -4,6 +4,22 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+### Added
+
+- **Drop hint in the popover** — a quiet dashed card explains the drop-on-icon gesture (“drag a project folder onto the menu bar icon”). Illustration only: drops still land on the status-item icon, never inside the popover. Shown while there is no current match, under the account list and above Doctor. (#24)
+- **One-click `gitdir:` bind** — a dropped folder with no matching identity now lists **Bind to** plus one row per account. Tapping a row adds the folder to that account's scope (trailing slash, `~` under `$HOME`), saves `accounts.json`, regenerates the managed files, and re-resolves to the matched state. No confirmation dialog; a failed write shows an error on the card. (#25)
+- **Clone under a popover account row** — the trailing disclosure on an account row reveals the same compact `org/repo` field + icon-only copy used by the match card. The match-card clone stays; Accounts detail still has none. (#26)
+- **Several `gitdir:` paths per account** — `Account.Scope` holds a list, binding **adds** a path instead of replacing one, and the projector writes one `includeIf` per path pointing at the account's single managed sub file. The resolver matches every path (longest prefix still wins), popover rows list the paths, and Accounts detail edits them individually. Old single-path `accounts.json` and backups still load, and saved files stay readable by 0.5.0. (#27)
+- **Zero-account empty state** — with no accounts the popover offers **Import from existing config** (the Settings → Import flow) and **Add identity**, plus a footer note about dragging a folder onto the icon. (#28)
+- **Next actions when a probe fails** — a failing account row shows **Copy public key** and **Open … SSH settings** (copy only for custom providers), plus a **Probe again** retry that bypasses the 10-minute probe cache for that alias. Doctor states the diagnosis without repeating the buttons. (#29)
+- **Restore confirmation** — restoring a snapshot now asks first, listing how many identities are replaced and the labels/emails inside the snapshot. (#30)
+- **Git author vs SSH identity check** — after a drop, keychord compares the work tree's live `user.email` / `core.sshCommand` with the account that owns the SSH alias and flags a repo that would commit as one identity and push as another, on the match card and in Doctor (`GIT001`), with a re-project as the only automatic fix. (#31)
+- **Menu-bar tooltip** — while a match is active the status item reads `KeyChord · <label>` (or `KeyChord · no match`); the idle icon is unchanged. (#32)
+
+### Fixed
+
+- **Backups taken in the same second disappeared from Restore** — the timestamp parser dropped collision-suffixed file names, so a pre-restore snapshot written in the same second as an existing one was unlistable (and never pruned). Restore's pre-restore snapshot is now always recoverable.
+
 ## [0.5.0] — 2026-08-22
 
 ### Fixed

@@ -164,8 +164,8 @@ enum CurrentRepoResolver {
     // MARK: - Effective git identity in a work tree
 
     /// What git itself would use for a commit in a directory, after
-    /// `includeIf` resolution — the numbers to compare against the account
-    /// that owns the SSH alias.
+    /// `includeIf` resolution — the values to compare against the account that
+    /// owns the SSH alias.
     struct EffectiveGitIdentity: Equatable, Sendable {
         var userName: String?
         var userEmail: String?

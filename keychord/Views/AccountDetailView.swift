@@ -259,7 +259,7 @@ struct AccountDetailView: View {
             TextField(
                 "Directory",
                 text: gitdirBinding(index),
-                prompt: Text(verbatim: "~/work/")
+                prompt: Text("~/work/")
             )
             .disableAutocorrection(true)
             Button {

@@ -108,6 +108,17 @@ struct IdentityAuditTests {
         #expect(audit.findings == [.authorMissing])
     }
 
+    @Test func accountWithoutAnEmailNeverBlamesTheAuthor() {
+        let blank = Self.account(label: "Blank", email: "")
+        let audit = IdentityAudit.audit(
+            account: blank,
+            repoRoot: "/tmp/repo",
+            identity: Self.identity(email: "someone@example.com"),
+            accounts: [blank]
+        )
+        #expect(audit.isClean)
+    }
+
     @Test func staysQuietWhenNeitherSideHasAnEmail() {
         let blank = Self.account(label: "Blank", email: "")
         let audit = IdentityAudit.audit(
