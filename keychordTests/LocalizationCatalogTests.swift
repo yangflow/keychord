@@ -36,8 +36,6 @@ struct LocalizationCatalogTests {
         "Includes",
         "Remove Include (keep accounts.json)",
         "Include markers removed",
-        "Clone",
-        "Repository",
         "org/repo",
         "Copy clone command",
         "Startup",

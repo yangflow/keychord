@@ -146,7 +146,6 @@ struct CurrentRepoMatchedRow: View {
                 if !account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
                     CloneAsIdentityView(
                         account: account,
-                        compact: true,
                         initialInput: clonePrefill
                     )
                     // Recreate when prefill arrives so @State picks it up.

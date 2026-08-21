@@ -14,10 +14,9 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ### Changed
 
-- **Clone row copy/layout** — Account detail section is plain “Clone” / “克隆” with a Form-style repository field and icon-only copy control; dropped the slogan helper line. Menubar compact clone field still works.
+- **Clone row** — removed from Accounts detail. Menubar match card keeps the compact clone field (prefilled from `origin` after an icon drop).
 - **Account color** — removed the Appearance swatch row; click the title marker to open the system color panel. Colors store as `#RRGGBB` (legacy `blue`/`green`/… names still decode). Sidebar dots track the draft color live.
 - **Menu bar icon folder drop** — drag a folder onto the KeyChord menu bar icon to resolve which account applies, then automatically open the popover with the match card. No Choose Folder button or idle drop-zone prompt; popover `.onDrop` remains a secondary convenience. Opening after a drop suppresses match clearing so a transient MenuBarExtra `onDisappear` cannot wipe the result. The match is one-shot: dismissing the popover (or the card’s clear control) clears it; silent Finder auto-resolve on open is gone. Matched repos with `origin` prefill the compact clone field as `owner/repo` so copy is enabled immediately.
-- **Clone detail preview** — Accounts form always shows a `git clone git@<alias>:…` line (example `org/repo` when the field is empty). When `AppState.accountMatch` is this account, the field prefills from that repo’s `origin`.
 
 ## [0.4.0] — 2026-08-22
 
