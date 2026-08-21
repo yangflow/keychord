@@ -138,8 +138,33 @@ struct AccountsWindowView: View {
         }
     }
 
+    /// Deleting clears the draft, so the outcome — including “the private key
+    /// was kept because …” — has to be readable without a selected account.
     @ViewBuilder
     private var emptyDetail: some View {
+        VStack(spacing: 0) {
+            emptyDetailBody
+
+            if let statusMessage {
+                Divider()
+                HStack {
+                    Label {
+                        Text(verbatim: statusMessage)
+                    } icon: {
+                        Image(systemName: statusIsError ? "xmark.circle" : "checkmark.circle")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(statusIsError ? Color.red : Color.green)
+                    Spacer()
+                }
+                .padding(.horizontal, KC.space20)
+                .padding(.vertical, KC.space12)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyDetailBody: some View {
         if appState.accountsStore.accounts.isEmpty {
             ContentUnavailableView {
                 Label("No accounts yet", systemImage: "person.2.circle")

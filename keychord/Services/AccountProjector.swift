@@ -118,14 +118,19 @@ enum AccountProjector {
         var subs: [ProjectedOutput.SubFile] = []
         for account in accounts {
             guard case .gitdir(let rawPaths) = account.scope else { continue }
-            let subPath = paths.subFilePath(for: account.id)
-            let subTildePath = Self.toTilde(subPath)
-
-            var emitted: Set<String> = []
+            // A scope with no usable path (every entry blank, or the last one
+            // just unbound) gets no includeIf and no sub file to go stale.
+            var dirs: [String] = []
             for raw in rawPaths {
                 let dir = CurrentRepoResolver.normalizeGitdir(raw)
-                guard !emitted.contains(dir) else { continue }
-                emitted.insert(dir)
+                guard !dir.isEmpty, !dirs.contains(dir) else { continue }
+                dirs.append(dir)
+            }
+            guard !dirs.isEmpty else { continue }
+
+            let subPath = paths.subFilePath(for: account.id)
+            let subTildePath = Self.toTilde(subPath)
+            for dir in dirs {
                 git += "[includeIf \"gitdir:\(dir)\"]\n"
                 git += "\tpath = \(subTildePath)\n\n"
             }

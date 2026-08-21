@@ -329,6 +329,18 @@ struct AccountProjectorTests {
         #expect(output.gitConfig.contains("[includeIf \"gitdir:~/side/\"]"))
     }
 
+    @Test func scopeWithNoUsablePathProjectsNothing() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(paths: ["", "   "])
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+
+        #expect(!output.gitConfig.contains("includeIf"))
+        // No sub file either, so unbinding the last path leaves nothing stale.
+        #expect(output.subFiles.isEmpty)
+        // The Host block still exists — the account can still be cloned with.
+        #expect(output.sshConfig.contains("Host github-work"))
+    }
+
     @Test func gitdirWithoutTrailingSlashStillNormalizedOnProject() {
         var account = Self.scopedAccount()
         account.scope = .gitdir("~/work")
