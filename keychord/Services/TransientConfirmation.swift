@@ -11,7 +11,9 @@ import Observation
 @MainActor
 @Observable
 final class TransientConfirmation {
-    static let defaultDuration: Duration = .milliseconds(1200)
+    /// `nonisolated` so the `init` default argument below — a nonisolated
+    /// expression by rule — can read it, same as `ProbeCache.defaultTTL`.
+    nonisolated static let defaultDuration: Duration = .milliseconds(1200)
 
     private(set) var isShowing = false
 

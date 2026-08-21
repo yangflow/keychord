@@ -16,10 +16,12 @@ struct CloneAsIdentityView: View {
     @State private var copied = TransientConfirmation()
     @State private var rememberedPrefix: String?
 
+    /// `prefixMemory` has no default: a default argument expression is
+    /// nonisolated, and the shared instance lives on the main actor.
     init(
         account: Account,
         initialInput: String = "",
-        prefixMemory: ClonePrefixMemory = .shared,
+        prefixMemory: ClonePrefixMemory,
         onCopy: (() -> Void)? = nil
     ) {
         self.account = account

@@ -355,6 +355,7 @@ struct CurrentRepoMatchedRow: View {
                     CloneAsIdentityView(
                         account: account,
                         initialInput: clonePrefill,
+                        prefixMemory: .shared,
                         onCopy: onCloneCopied
                     )
                     // Recreate when prefill arrives so @State picks it up.
@@ -646,7 +647,11 @@ struct AccountRow: View {
                     Text("Clone")
                         .font(KC.sectionLabel)
                         .foregroundStyle(.secondary)
-                    CloneAsIdentityView(account: record, onCopy: onCloneCopied)
+                    CloneAsIdentityView(
+                        account: record,
+                        prefixMemory: .shared,
+                        onCopy: onCloneCopied
+                    )
                 }
                 .padding(.horizontal, 14)
                 .padding(.bottom, KC.space8)

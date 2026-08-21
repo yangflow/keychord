@@ -184,7 +184,9 @@ struct AccountsWindowView: View {
                 Text("Import your existing SSH + gitconfig, or add a new account to get started.")
             } actions: {
                 Button("Import existing", systemImage: "square.and.arrow.down", action: importFromExistingConfig)
-                Button("Add new", systemImage: "plus", action: beginNew)
+                // Not `action: beginNew`: the prefill parameter (#41) makes the
+                // bare reference `(Account?) -> Void`.
+                Button("Add new", systemImage: "plus") { beginNew() }
                     .buttonStyle(.borderedProminent)
             }
         } else {

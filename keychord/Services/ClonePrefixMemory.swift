@@ -7,9 +7,12 @@ import Foundation
 /// another, and mixing them up produces a wrong URL that looks right.
 @MainActor
 final class ClonePrefixMemory {
+    /// Main-actor isolated like the rest of the type. Callers name it from the
+    /// main actor (a view body); it deliberately is not a default argument
+    /// value, because those expressions are nonisolated.
     static let shared = ClonePrefixMemory()
 
-    static let defaultsKeyPrefix = "keychord.clonePrefix."
+    nonisolated static let defaultsKeyPrefix = "keychord.clonePrefix."
 
     private let defaults: UserDefaults
 
