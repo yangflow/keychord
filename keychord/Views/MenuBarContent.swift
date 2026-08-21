@@ -39,8 +39,6 @@ struct MenuBarPopoverView: View {
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
 
-    @State private var isDropTargeted = false
-
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             content
@@ -48,14 +46,13 @@ struct MenuBarPopoverView: View {
             footer
         }
         .frame(width: KC.popoverWidth, height: KC.popoverHeight)
-        .onDrop(of: [.fileURL], isTargeted: $isDropTargeted) { providers in
+        // Secondary convenience — primary path is drop on the menu bar icon.
+        .onDrop(of: [.fileURL], isTargeted: nil) { providers in
             handleDrop(providers)
         }
         .task { await refresh() }
         .onDisappear {
-            // NSOpenPanel tears down the MenuBarExtra window; keep the match
-            // so Choose Folder can reopen with the new result.
-            guard !appState.isChoosingFolder else { return }
+            guard !appState.suppressAccountMatchClear else { return }
             appState.clearAccountMatch()
         }
     }
@@ -110,12 +107,11 @@ struct MenuBarPopoverView: View {
             if let reason = appState.accountMatch?.unresolvedReason {
                 CurrentRepoUnresolvedRow(
                     reason: reason,
-                    onChooseFolder: chooseFolder,
                     onClear: { appState.clearAccountMatch() }
                 )
             }
         case nil:
-            CurrentRepoDropZone(isTargeted: isDropTargeted, onChooseFolder: chooseFolder)
+            EmptyView()
         }
     }
 
@@ -244,49 +240,6 @@ struct MenuBarPopoverView: View {
             }
         }
         return true
-    }
-
-    private func chooseFolder() {
-        let panel = NSOpenPanel()
-        panel.canChooseFiles = false
-        panel.canChooseDirectories = true
-        panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
-
-        // Keep the MenuBarExtra content window open under the sheet. runModal /
-        // keyWindow sheets still let the extra dismiss on resign-key.
-        appState.isChoosingFolder = true
-
-        guard let host = MenuBarStatusItemLocator.contentWindow() else {
-            panel.begin { [appState] response in
-                Task { @MainActor in
-                    defer { appState.isChoosingFolder = false }
-                    guard response == .OK, let url = panel.url else { return }
-                    await appState.resolveCurrentRepo(at: url.path)
-                    try? await Task.sleep(for: .milliseconds(50))
-                    StatusItemDropTargetController.shared.openPopoverShowingMatch()
-                }
-            }
-            return
-        }
-
-        let pin = MenuBarExtraWindowPin()
-        pin.pin(host)
-
-        panel.beginSheetModal(for: host) { [appState] response in
-            Task { @MainActor in
-                pin.unpin()
-                defer { appState.isChoosingFolder = false }
-                guard response == .OK, let url = panel.url else { return }
-                await appState.resolveCurrentRepo(at: url.path)
-                // If SwiftUI still tore the extra down, reopen so the match is visible.
-                if MenuBarStatusItemLocator.contentWindow() == nil || !host.isVisible {
-                    try? await Task.sleep(for: .milliseconds(50))
-                    StatusItemDropTargetController.shared.openPopoverShowingMatch()
-                }
-            }
-        }
     }
 
     // MARK: - Load + probe

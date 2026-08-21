@@ -2,50 +2,45 @@ import SwiftUI
 
 // Row components used by the popover and the accounts window.
 
-// MARK: - CurrentRepoDropZone (idle prompt + choose folder)
+// MARK: - CurrentRepoUnresolvedRow
 
-struct CurrentRepoDropZone: View {
-    let isTargeted: Bool
-    let onChooseFolder: () -> Void
+struct CurrentRepoUnresolvedRow: View {
+    let reason: String
+    var onClear: (() -> Void)? = nil
 
     var body: some View {
         VStack(alignment: .leading, spacing: KC.space8) {
-            HStack(spacing: KC.space8) {
-                Image(systemName: "folder.badge.questionmark")
+            HStack(alignment: .top, spacing: KC.space8) {
+                Image(systemName: "questionmark.folder")
                     .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
-                Text(
-                    isTargeted
-                        ? "Drop to resolve account"
-                        : "Drop a folder on the menu bar icon, or choose a folder."
-                )
+                    .foregroundStyle(.secondary)
+                Text(verbatim: reason)
                     .font(KC.rowCaption)
-                    .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
-                    .lineLimit(3)
+                    .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                if let onClear {
+                    Button(action: onClear) {
+                        Image(systemName: "xmark")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .help("Clear current repo")
+                    .accessibilityLabel(Text("Clear current repo"))
+                }
             }
-            Button("Choose Folder…", action: onChooseFolder)
-                .buttonStyle(.borderless)
-                .font(KC.rowCaption)
-                .foregroundStyle(.tint)
         }
         .padding(.horizontal, KC.space14)
         .padding(.vertical, KC.space12)
         .frame(maxWidth: .infinity, alignment: .leading)
         .background(
             RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                .strokeBorder(
-                    isTargeted ? Color.accentColor.opacity(0.55) : Color.primary.opacity(0.12),
-                    style: StrokeStyle(lineWidth: 1, dash: isTargeted ? [] : [5, 4])
-                )
-                .background(
-                    RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                        .fill(isTargeted ? Color.accentColor.opacity(0.08) : Color.primary.opacity(0.03))
-                )
+                .fill(Color.primary.opacity(0.04))
         )
         .padding(.horizontal, KC.space10)
         .padding(.top, KC.space10)
-        .animation(.easeOut(duration: 0.15), value: isTargeted)
     }
 }
 
@@ -210,53 +205,6 @@ struct CurrentRepoMatchedRow: View {
         case .probing: return .orange
         case .idle:    return account.color.color
         }
-    }
-}
-
-// MARK: - CurrentRepoUnresolvedRow
-
-struct CurrentRepoUnresolvedRow: View {
-    let reason: String
-    let onChooseFolder: () -> Void
-    var onClear: (() -> Void)? = nil
-
-    var body: some View {
-        VStack(alignment: .leading, spacing: KC.space8) {
-            HStack(alignment: .top, spacing: KC.space8) {
-                Image(systemName: "questionmark.folder")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.secondary)
-                Text(verbatim: reason)
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.secondary)
-                    .fixedSize(horizontal: false, vertical: true)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-
-                if let onClear {
-                    Button(action: onClear) {
-                        Image(systemName: "xmark")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                    .buttonStyle(.borderless)
-                    .foregroundStyle(.secondary)
-                    .help("Clear current repo")
-                    .accessibilityLabel(Text("Clear current repo"))
-                }
-            }
-            Button("Choose Folder…", action: onChooseFolder)
-                .buttonStyle(.borderless)
-                .font(KC.rowCaption)
-                .foregroundStyle(.tint)
-        }
-        .padding(.horizontal, KC.space14)
-        .padding(.vertical, KC.space12)
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .background(
-            RoundedRectangle(cornerRadius: KC.heroCornerRadius, style: .continuous)
-                .fill(Color.primary.opacity(0.04))
-        )
-        .padding(.horizontal, KC.space10)
-        .padding(.top, KC.space10)
     }
 }
 

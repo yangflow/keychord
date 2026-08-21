@@ -40,11 +40,12 @@ struct CloneAsIdentityView: View {
                 .accessibilityLabel(Text(didCopy ? "Copied" : "Copy clone command"))
             }
 
-            // Accounts detail shows the rewritten command; popover compact does not.
-            if !compact, let command = cloneCommand {
-                Text(verbatim: command)
+            // Accounts detail always shows a command line (example when empty).
+            // Popover compact keeps the field only.
+            if !compact, let preview = commandPreview {
+                Text(verbatim: preview)
                     .font(KC.rowCaptionMono)
-                    .foregroundStyle(.secondary)
+                    .foregroundStyle(cloneCommand == nil ? .tertiary : .secondary)
                     .lineLimit(2)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
@@ -76,6 +77,14 @@ struct CloneAsIdentityView: View {
 
     private var cloneCommand: String? {
         account.cloneCommand(for: input)
+    }
+
+    /// Live rewrite when input is valid; otherwise an example using the alias.
+    private var commandPreview: String? {
+        if let cloneCommand { return cloneCommand }
+        let alias = account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !alias.isEmpty else { return nil }
+        return "git clone git@\(alias):org/repo.git"
     }
 
     private func applyInitialInputIfNeeded() {

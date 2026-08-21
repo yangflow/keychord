@@ -56,23 +56,46 @@ final class StatusItemDropTargetController {
 
     private func handleDroppedFolders(_ urls: [URL]) async {
         guard let appState, let path = urls.first?.path else { return }
+
         await appState.resolveCurrentRepo(at: path)
+        let snapshot = appState.accountMatch
+
+        // Opening MenuBarExtra can fire onDisappear on a transient host and
+        // would clear the match; suppress until the popover is showing.
+        appState.suppressAccountMatchClear = true
+        defer { appState.suppressAccountMatchClear = false }
+
         // Let the drag session finish before mimicking a status-item click.
+        try? await Task.sleep(for: .milliseconds(150))
+        await openPopoverShowingMatch()
+
         try? await Task.sleep(for: .milliseconds(50))
-        openPopoverShowingMatch()
+        if appState.accountMatch == nil {
+            if let snapshot {
+                appState.accountMatch = snapshot
+            } else {
+                await appState.resolveCurrentRepo(at: path)
+            }
+        }
     }
 
     /// Opens the MenuBarExtra window if it is not already presented.
-    func openPopoverShowingMatch() {
+    /// Does not click when already open — that would toggle closed and clear
+    /// the match card.
+    func openPopoverShowingMatch() async {
         ensureInstalled()
-        guard let item = MenuBarStatusItemLocator.keychordStatusItem(),
-              let button = item.button else {
+        guard let button = MenuBarStatusItemLocator.keychordStatusItem()?.button else {
             return
         }
-        // Already open — AppState.accountMatch update is enough.
         if button.state == .on {
             return
         }
         button.performClick(nil)
+        if button.state != .on {
+            try? await Task.sleep(for: .milliseconds(100))
+            guard let retryButton = MenuBarStatusItemLocator.keychordStatusItem()?.button,
+                  retryButton.state != .on else { return }
+            retryButton.performClick(nil)
+        }
     }
 }

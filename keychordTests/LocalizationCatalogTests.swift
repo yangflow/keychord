@@ -10,9 +10,7 @@ struct LocalizationCatalogTests {
     private static let requiredKeys: [String] = [
         "Identity",
         "Loading config…",
-        "Choose Folder…",
         "Clear current repo",
-        "Drop a folder on the menu bar icon, or choose a folder.",
         "Use with this account",
         "Open GitHub SSH settings",
         "Open GitLab SSH settings",

@@ -10,7 +10,9 @@ struct AccountDetailView: View {
     let onRevert: () -> Void
     let onDelete: (() -> Void)?
 
+    @Environment(AppState.self) private var appState
     @State private var scopeDir: String = ""
+    @State private var clonePrefill: String = ""
 
     var body: some View {
         VStack(spacing: 0) {
@@ -108,7 +110,11 @@ struct AccountDetailView: View {
                 }
 
                 Section {
-                    CloneAsIdentityView(account: draft)
+                    CloneAsIdentityView(
+                        account: draft,
+                        initialInput: clonePrefill
+                    )
+                    .id("clone-\(draft.id.uuidString)-\(clonePrefill)")
                 } header: {
                     Text("Clone")
                 }
@@ -142,6 +148,39 @@ struct AccountDetailView: View {
         .onAppear {
             if case .gitdir(let dir) = draft.scope {
                 scopeDir = dir
+            }
+        }
+        .task(id: "\(draft.id.uuidString)-\(clonePrefillTaskKey)") {
+            await loadClonePrefill()
+        }
+    }
+
+    /// Invalidates the prefill task when the current-repo match changes.
+    private var clonePrefillTaskKey: String {
+        switch appState.accountMatch {
+        case .matched(let account, let repoRoot, let originURL):
+            return "\(account.id.uuidString)|\(repoRoot)|\(originURL ?? "")"
+        default:
+            return "none"
+        }
+    }
+
+    private func loadClonePrefill() async {
+        guard case .matched(let matched, let repoRoot, let originURL) = appState.accountMatch,
+              matched.id == draft.id else {
+            return
+        }
+        if let originURL, !originURL.isEmpty {
+            let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: originURL)
+            if !preferred.isEmpty {
+                clonePrefill = preferred
+                return
+            }
+        }
+        if let origin = await CurrentRepoResolver.readOriginURL(at: repoRoot) {
+            let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: origin)
+            if !preferred.isEmpty {
+                clonePrefill = preferred
             }
         }
     }

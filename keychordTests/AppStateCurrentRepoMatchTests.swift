@@ -20,7 +20,7 @@ struct AppStateCurrentRepoMatchTests {
         #expect(state.accountMatch == nil)
     }
 
-    @Test func choosingFolderFlagDefaultsFalse() {
+    @Test func suppressAccountMatchClearDefaultsFalse() {
         let state = AppState(
             accountsStore: AccountsStore(
                 storageURL: FileManager.default.temporaryDirectory
@@ -28,6 +28,6 @@ struct AppStateCurrentRepoMatchTests {
                 autoLoad: false
             )
         )
-        #expect(state.isChoosingFolder == false)
+        #expect(state.suppressAccountMatchClear == false)
     }
 }

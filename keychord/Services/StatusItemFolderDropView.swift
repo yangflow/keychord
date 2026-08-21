@@ -1,6 +1,6 @@
 import AppKit
 
-/// Transparent overlay on the MenuBarExtra status-item button that accepts
+/// Transparent overlay on the menu-bar status-item button that accepts
 /// folder drops from Finder while forwarding clicks to the button underneath.
 final class StatusItemFolderDropView: NSView {
     var onFolderURLs: (([URL]) -> Void)?

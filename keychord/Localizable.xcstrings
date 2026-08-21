@@ -273,23 +273,6 @@
         }
       }
     },
-    "Choose Folder…": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose Folder…"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择文件夹…"
-          }
-        }
-      }
-    },
     "Clear current repo": {
       "extractionState": "manual",
       "localizations": {
@@ -694,57 +677,6 @@
           "stringUnit": {
             "state": "translated",
             "value": "更新未配置"
-          }
-        }
-      }
-    },
-    "Drop to resolve account": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop to resolve account"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "松开以解析账号"
-          }
-        }
-      }
-    },
-    "Drop a folder on the menu bar icon, or choose a folder.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Drop a folder on the menu bar icon, or choose a folder."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "把文件夹拖到菜单栏图标上，或点选文件夹。"
-          }
-        }
-      }
-    },
-    "Choose a folder or git working copy to resolve which account applies.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Choose a folder or git working copy to resolve which account applies."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "选择文件夹或 Git 工作副本，以解析适用的账号。"
           }
         }
       }
