@@ -338,6 +338,37 @@ struct CurrentRepoResolverTests {
         #expect(account.id == global.id)
     }
 
+    // MARK: - normalizeGitdir (storage form from folder picker)
+
+    @Test func normalizeGitdirAddsTrailingSlashToAbsoluteHomePath() {
+        let abs = NSHomeDirectory() + "/work"
+        #expect(CurrentRepoResolver.normalizeGitdir(abs) == "~/work/")
+    }
+
+    @Test func normalizeGitdirAddsTrailingSlashToTildePath() {
+        #expect(CurrentRepoResolver.normalizeGitdir("~/work") == "~/work/")
+        #expect(CurrentRepoResolver.normalizeGitdir("~/work/") == "~/work/")
+    }
+
+    @Test func normalizeGitdirTrimsWhitespace() {
+        #expect(CurrentRepoResolver.normalizeGitdir("  ~/projects  ") == "~/projects/")
+    }
+
+    @Test func normalizeGitdirLeavesEmptyUnchanged() {
+        #expect(CurrentRepoResolver.normalizeGitdir("") == "")
+        #expect(CurrentRepoResolver.normalizeGitdir("   ") == "")
+    }
+
+    @Test func normalizeGitdirKeepsNonHomeAbsolutePath() {
+        #expect(CurrentRepoResolver.normalizeGitdir("/opt/repos") == "/opt/repos/")
+    }
+
+    @Test func ensureTrailingSlashIsIdempotent() {
+        #expect(CurrentRepoResolver.ensureTrailingSlash("/a/b") == "/a/b/")
+        #expect(CurrentRepoResolver.ensureTrailingSlash("/a/b/") == "/a/b/")
+        #expect(CurrentRepoResolver.ensureTrailingSlash("") == "")
+    }
+
     // MARK: - Helpers
 
     static func makeRepo(

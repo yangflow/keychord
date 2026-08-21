@@ -6,6 +6,7 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ### Added
 
+- **Account detail path pickers** — `gitdir` and private key fields keep TextFields (paste still works) and gain folder/file chooser buttons. Chosen directories are stored with a trailing slash (and `~` when under `$HOME`); chosen keys default the panel to `~/.ssh` and store an absolute or `~` path that still projects.
 - **Attach generated SSH key to an account** — after keygen succeeds, **Use with this account** picks an existing account or creates a new one, writes `keyPath` / fingerprint, saves `accounts.json`, and regenerates managed files. Copy public key and **Open GitHub SSH settings** remain available; cancelling the attach picker does not write an account.
 - **Current Repo in the MenuBarExtra popover** — drop a folder or git working copy onto the popover, or use **Choose Folder…**, to see which account applies (label, alias, email, scope). Unresolved paths explain why: not a git repo, no matching `gitdir:`, or conflicting globals. Optionally reads Finder's frontmost window path and stays quiet on Automation / AppleScript failure. Reuses `CurrentRepoResolver` with account/`gitdir:` matching; does not restore a custom `NSStatusItem`.
 ## [0.3.1] — 2026-04-14

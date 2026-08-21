@@ -116,8 +116,8 @@ enum AccountProjector {
         // Scoped accounts → includeIf in main + a per-account sub file.
         var subs: [ProjectedOutput.SubFile] = []
         for account in accounts {
-            guard case .gitdir(var dir) = account.scope else { continue }
-            if !dir.hasSuffix("/") { dir += "/" }
+            guard case .gitdir(let raw) = account.scope else { continue }
+            let dir = CurrentRepoResolver.normalizeGitdir(raw)
             let subPath = paths.subFilePath(for: account.id)
             let subTildePath = Self.toTilde(subPath)
 
@@ -233,6 +233,14 @@ enum AccountProjector {
             return "~" + abs.dropFirst(home.count)
         }
         return abs
+    }
+
+    /// Storage form for a private key path chosen via picker (or paste):
+    /// absolute paths under `$HOME` become `~/...`; other paths stay as-is.
+    static func normalizeKeyPath(_ raw: String) -> String {
+        let trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return trimmed }
+        return toTilde(trimmed)
     }
 
     private static func iso8601(_ date: Date) -> String {

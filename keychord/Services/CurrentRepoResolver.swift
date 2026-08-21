@@ -184,15 +184,27 @@ enum CurrentRepoResolver {
         }
     }
 
+    /// Ensure a path ends with `/` (empty string stays empty).
+    static func ensureTrailingSlash(_ path: String) -> String {
+        if path.isEmpty || path.hasSuffix("/") { return path }
+        return path + "/"
+    }
+
+    /// Storage / projection form for a `gitdir:` scope: tilde-abbreviate
+    /// when under `$HOME`, always end with `/` (git includeIf prefix).
+    /// Does not expand `~` away — keeps portable account JSON.
+    static func normalizeGitdir(_ raw: String) -> String {
+        var dir = raw.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !dir.isEmpty else { return dir }
+        dir = AccountProjector.toTilde(dir)
+        return ensureTrailingSlash(dir)
+    }
+
     /// `gitdir:` patterns ending in `/` are prefixes of the `.git` path.
-    /// Mirrors AccountProjector's trailing-slash normalization. Symlinks
-    /// are resolved so `/var/...` and `/private/var/...` compare equal.
+    /// Expands `~` and resolves symlinks so `/var/...` and
+    /// `/private/var/...` compare equal.
     static func normalizeGitdirPattern(_ raw: String) -> String {
-        var expanded = resolveFilesystemPath(ConfigStore.expand(raw))
-        if !expanded.hasSuffix("/") {
-            expanded += "/"
-        }
-        return expanded
+        ensureTrailingSlash(resolveFilesystemPath(ConfigStore.expand(raw)))
     }
 
     static func gitdirMatches(repoRoot: String, pattern: String) -> Bool {
