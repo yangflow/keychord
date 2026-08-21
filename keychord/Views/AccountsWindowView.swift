@@ -78,7 +78,7 @@ struct AccountsWindowView: View {
                 backups: appState.accountsStore.backups,
                 onDismiss: { showingRestore = false }
             )
-            .frame(width: 480, height: 440)
+            .frame(width: 520, height: 500)
         }
         .sheet(isPresented: $showingSettings) {
             SettingsView(onDismiss: { showingSettings = false })
