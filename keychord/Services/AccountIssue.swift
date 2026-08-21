@@ -29,15 +29,15 @@ enum AccountIssue: Equatable, Hashable, Sendable {
     var localizedTitle: String {
         switch self {
         case .keyLocked:
-            return String(localized: "Key is locked")
+            return String.loc("Key is locked")
         case .authRejected:
-            return String(localized: "Authentication failed")
+            return String.loc("Authentication failed")
         case .keyFileMissing:
-            return String(localized: "Private key is missing")
+            return String.loc("Private key is missing")
         case .unreachable:
-            return String(localized: "Could not reach the host")
+            return String.loc("Could not reach the host")
         case .httpsRemote:
-            return String(localized: "Remote is HTTPS, so clone and push take different paths")
+            return String.loc("Remote is HTTPS, so clone and push take different paths")
         }
     }
 
@@ -45,11 +45,11 @@ enum AccountIssue: Equatable, Hashable, Sendable {
     var localizedDetail: String {
         switch self {
         case .keyLocked(let keyPath):
-            return String(localized: "ssh-agent does not hold \(keyPath.abbreviatedHomePath()).")
+            return String.loc("ssh-agent does not hold \(keyPath.abbreviatedHomePath()).")
         case .authRejected(let reason):
             return reason
         case .keyFileMissing(let path):
-            return String(localized: "Nothing at \(path.abbreviatedHomePath()).")
+            return String.loc("Nothing at \(path.abbreviatedHomePath()).")
         case .unreachable(let reason):
             return reason
         case .httpsRemote(let origin):

@@ -1,0 +1,109 @@
+import Foundation
+
+/// Catalog lookups for strings built in code, resolved against the language the
+/// user picked *now* rather than the one the process launched with.
+///
+/// SwiftUI `Text` re-resolves through `\.locale`, which every scene already
+/// carries, so those labels follow a language change on their own.
+/// `String(localized:)` does not: it goes through `Bundle.main`, whose
+/// preferred localization is fixed for the life of the process. Pointing those
+/// lookups at the chosen language's `.lproj` bundle is what lets status lines,
+/// Doctor findings and the menu-bar tooltip change language without quitting.
+enum AppLocalization {
+
+    /// Language and bundle imperative lookups should use. `nil` while
+    /// `Bundle.main` already answers in the chosen language, which keeps the
+    /// untouched case byte-for-byte the behaviour it had before.
+    private struct Override {
+        let locale: Locale
+        let bundle: Bundle
+    }
+
+    private static let lock = NSLock()
+    nonisolated(unsafe) private static var activeOverride: Override?
+
+    /// Route imperative lookups through `preference`.
+    ///
+    /// Called at launch as well as on every change: at launch this is normally
+    /// a no-op, but when `AppleLanguages` was written too late for
+    /// `Bundle.main` to see it, the override is what makes the saved choice
+    /// take effect anyway.
+    static func apply(_ preference: AppLanguagePreference, in bundle: Bundle = .main) {
+        let resolved = resolveOverride(preference, in: bundle)
+        lock.lock()
+        activeOverride = resolved
+        lock.unlock()
+    }
+
+    /// Catalog value for `key`, honouring an in-session language change.
+    static func string(for key: String.LocalizationValue) -> String {
+        lock.lock()
+        let active = activeOverride
+        lock.unlock()
+        guard let active else { return String(localized: key) }
+        return String(localized: key, bundle: active.bundle, locale: active.locale)
+    }
+
+    private static func resolveOverride(
+        _ preference: AppLanguagePreference,
+        in bundle: Bundle
+    ) -> Override? {
+        guard let target = targetLocalization(preference, in: bundle) else { return nil }
+        // Nothing to override while the bundle already answers in that language.
+        if let current = bundle.preferredLocalizations.first,
+           current.caseInsensitiveCompare(target) == .orderedSame {
+            return nil
+        }
+        guard let path = bundle.path(forResource: target, ofType: "lproj"),
+              let languageBundle = Bundle(path: path)
+        else {
+            return nil
+        }
+        return Override(locale: preference.locale, bundle: languageBundle)
+    }
+
+    /// `.lproj` the chosen language should read from. Follow System resolves
+    /// through the user's language order, which stops including our own
+    /// `AppleLanguages` entry as soon as it is removed.
+    private static func targetLocalization(
+        _ preference: AppLanguagePreference,
+        in bundle: Bundle
+    ) -> String? {
+        if let code = preference.appleLanguageCode {
+            return localizationName(for: code, available: bundle.localizations)
+        }
+        return Bundle.preferredLocalizations(
+            from: bundle.localizations,
+            forPreferences: nil
+        ).first
+    }
+
+    /// `.lproj` name in `available` that serves `code`: an exact match first,
+    /// then the bare language (`zh-Hans` → `zh`), then a regional variant of it
+    /// (`zh` → `zh-Hans`), so the lookup still lands if the catalog is renamed.
+    static func localizationName(for code: String?, available: [String]) -> String? {
+        guard let code, !code.isEmpty else { return nil }
+        if let exact = available.first(where: { $0.caseInsensitiveCompare(code) == .orderedSame }) {
+            return exact
+        }
+        let language = code.split(separator: "-").first.map(String.init) ?? code
+        if let bare = available.first(where: {
+            $0.caseInsensitiveCompare(language) == .orderedSame
+        }) {
+            return bare
+        }
+        let prefix = language.lowercased() + "-"
+        return available.first { $0.lowercased().hasPrefix(prefix) }
+    }
+}
+
+extension String {
+    /// Catalog lookup that follows the in-app language choice.
+    ///
+    /// Prefer this over `String(localized:)` for anything a running window can
+    /// show, so switching language in Settings does not leave the sentence in
+    /// the previous language until the next launch.
+    static func loc(_ key: String.LocalizationValue) -> String {
+        AppLocalization.string(for: key)
+    }
+}

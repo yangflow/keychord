@@ -20,7 +20,7 @@ struct GitdirOverlap: Equatable, Sendable {
         var id: String { "\(account.id.uuidString)::\(path)" }
 
         var displayLabel: String {
-            account.label.isEmpty ? String(localized: "(unnamed)") : account.label
+            account.label.isEmpty ? String.loc("(unnamed)") : account.label
         }
     }
 

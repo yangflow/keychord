@@ -27,7 +27,7 @@ enum StaleGitdirRepair {
         let reason: Reason
 
         var displayLabel: String {
-            account.label.isEmpty ? String(localized: "(unnamed)") : account.label
+            account.label.isEmpty ? String.loc("(unnamed)") : account.label
         }
     }
 

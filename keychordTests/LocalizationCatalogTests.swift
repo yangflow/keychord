@@ -49,8 +49,6 @@ struct LocalizationCatalogTests {
         "Could not enable Open at Login. Check System Settings → Login Items.",
         "Language",
         "Follow System",
-        "Relaunch KeyChord to apply the language everywhere.",
-        "Relaunch",
         "Account color",
         "Ed25519",
         "Delete",
@@ -162,6 +160,13 @@ struct LocalizationCatalogTests {
         "Written",
         "Copied",
         "Scope",
+        // First-launch menubar hint (#48)
+        "KeyChord is up here",
+        "Click the icon to manage Git identities",
+        // Prefilled git author (#49)
+        "From git config --global",
+        // Language applied in place (#51)
+        "Some text updates the next time you open KeyChord.",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]
@@ -189,6 +194,29 @@ struct LocalizationCatalogTests {
                         "Key \"\(key)\" has empty \(locale) value")
             }
         }
+    }
+
+    /// `String(localized:)` reads the launch catalog, so a language change would
+    /// leave those sentences in the old language until the app is reopened
+    /// (#51). ``AppLocalization`` is the one place allowed to call it.
+    @Test func codeBuiltStringsGoThroughAppLocalization() throws {
+        let sourceRoot = try Self.repoRoot().appendingPathComponent("keychord", isDirectory: true)
+        var offenders: [String] = []
+        for file in try Self.swiftFiles(under: sourceRoot) {
+            guard file.lastPathComponent != "AppLocalization.swift" else { continue }
+            let source = try String(contentsOf: file, encoding: .utf8)
+            let lines = source.split(separator: "\n", omittingEmptySubsequences: false)
+            let calls = lines.filter {
+                $0.contains("String(localized:") && !$0.contains("///")
+            }
+            if !calls.isEmpty {
+                offenders.append(file.lastPathComponent)
+            }
+        }
+        #expect(
+            offenders.isEmpty,
+            "Use String.loc(…) so a language change applies in place. Offenders: \(offenders)"
+        )
     }
 
     @Test func sectionHeadersPreferHeaderClosureStyle() throws {
@@ -239,6 +267,19 @@ struct LocalizationCatalogTests {
     private static func repoRoot() throws -> URL {
         let testsDir = URL(fileURLWithPath: #filePath).deletingLastPathComponent()
         return testsDir.deletingLastPathComponent()
+    }
+
+    /// Every Swift file under `root`, recursively.
+    private static func swiftFiles(under root: URL) throws -> [URL] {
+        guard let walker = FileManager.default.enumerator(
+            at: root,
+            includingPropertiesForKeys: nil
+        ) else {
+            return []
+        }
+        return walker
+            .compactMap { $0 as? URL }
+            .filter { $0.pathExtension == "swift" }
     }
 
     private static func loadCatalog() throws -> Catalog {

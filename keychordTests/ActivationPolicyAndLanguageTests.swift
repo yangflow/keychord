@@ -51,8 +51,9 @@ struct AppLanguageStoreTests {
     @Test func defaultsToSystem() {
         let defaults = freshDefaults()
         let store = AppLanguageStore(defaults: defaults)
-        #expect(store.preference == .system)
-        #expect(store.preference.appleLanguageCode == nil)
+        let preference = store.preference
+        #expect(preference == .system)
+        #expect(preference.appleLanguageCode == nil)
     }
 
     @Test func persistingEnglishWritesAppleLanguages() {
@@ -61,10 +62,44 @@ struct AppLanguageStoreTests {
 
         store.preference = .english
 
+        let identifier = store.locale.identifier
         #expect(defaults.string(forKey: AppLanguageStore.preferenceKey) == "english")
         #expect(defaults.array(forKey: "AppleLanguages") as? [String] == ["en"])
-        #expect(store.pendingRelaunch)
-        #expect(store.locale.identifier.hasPrefix("en"))
+        #expect(identifier.hasPrefix("en"))
+    }
+
+    /// #51: no relaunch demand. The note only appears while the choice differs
+    /// from the language the process started in, which is exactly when window
+    /// titles and the app menu are still reading the launch catalog.
+    @Test func theNoteAppearsOnlyAfterAChange() {
+        let defaults = freshDefaults()
+        let store = AppLanguageStore(defaults: defaults)
+        let quietAtLaunch = store.showsLaunchCatalogNote
+
+        store.preference = .english
+        let afterChange = store.showsLaunchCatalogNote
+
+        #expect(!quietAtLaunch)
+        #expect(afterChange)
+    }
+
+    @Test func switchingBackToTheLaunchLanguageClearsTheNote() {
+        let defaults = freshDefaults()
+        defaults.set(
+            AppLanguagePreference.simplifiedChinese.rawValue,
+            forKey: AppLanguageStore.preferenceKey
+        )
+        let store = AppLanguageStore(defaults: defaults)
+        let launchPreference = store.launchPreference
+
+        store.preference = .english
+        let afterChange = store.showsLaunchCatalogNote
+        store.preference = .simplifiedChinese
+        let afterSwitchingBack = store.showsLaunchCatalogNote
+
+        #expect(launchPreference == .simplifiedChinese)
+        #expect(afterChange)
+        #expect(!afterSwitchingBack)
     }
 
     @Test func persistingSimplifiedChineseWritesAppleLanguages() {
@@ -87,6 +122,14 @@ struct AppLanguageStoreTests {
 
         #expect(defaults.object(forKey: "AppleLanguages") == nil)
         #expect(defaults.string(forKey: AppLanguageStore.preferenceKey) == "system")
+    }
+
+    @Test func storedPreferenceSurvivesAnUnknownRawValue() {
+        let defaults = freshDefaults()
+        defaults.set("klingon", forKey: AppLanguageStore.preferenceKey)
+
+        let stored = AppLanguageStore.storedPreference(defaults: defaults)
+        #expect(stored == .system)
     }
 
     @Test func bootstrapAppliesStoredPreference() {

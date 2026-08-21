@@ -42,7 +42,7 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
             case .github: return "GitHub"
             case .gitlab: return "GitLab"
             case .gitea:  return "Gitea"
-            case .custom: return String(localized: "Custom")
+            case .custom: return String.loc("Custom")
             }
         }
 

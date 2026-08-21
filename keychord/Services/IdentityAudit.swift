@@ -67,7 +67,7 @@ struct IdentityAudit: Equatable, Sendable {
                 if let other {
                     findings.append(.authorIsOtherAccount(
                         email: gitEmail,
-                        label: other.label.isEmpty ? String(localized: "(unnamed)") : other.label
+                        label: other.label.isEmpty ? String.loc("(unnamed)") : other.label
                     ))
                 } else {
                     findings.append(.authorIsUnmanaged(email: gitEmail))
@@ -140,13 +140,13 @@ extension IdentityAudit.Finding {
     var localizedDetail: String {
         switch self {
         case .authorIsOtherAccount(let email, let label):
-            return String(localized: "Commits would be authored as \(email) (\(label)).")
+            return String.loc("Commits would be authored as \(email) (\(label)).")
         case .authorIsUnmanaged(let email):
-            return String(localized: "Commits would be authored as \(email), which no account owns.")
+            return String.loc("Commits would be authored as \(email), which no account owns.")
         case .authorMissing:
-            return String(localized: "This repository has no git user.email, so commits have no author.")
+            return String.loc("This repository has no git user.email, so commits have no author.")
         case .keyOverride(let keyPath):
-            return String(localized: "core.sshCommand pins the key \(keyPath.abbreviatedHomePath()).")
+            return String.loc("core.sshCommand pins the key \(keyPath.abbreviatedHomePath()).")
         }
     }
 }

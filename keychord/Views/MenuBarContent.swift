@@ -39,6 +39,7 @@ struct MenuBarIconLabel: View {
 
 struct MenuBarPopoverView: View {
     @Environment(AppState.self) private var appState
+    @Environment(AppLanguageStore.self) private var languageStore
     @Environment(\.openWindow) private var openWindow
 
     @State private var model = ConfigModel()
@@ -101,6 +102,11 @@ struct MenuBarPopoverView: View {
         // this only fires once nothing inside wants it (#46).
         .onExitCommand {
             StatusItemDropTargetController.shared.closePopover()
+        }
+        // Doctor findings were built as plain strings when the run happened, so
+        // a language change has to run it again to relabel them (#51).
+        .onChange(of: languageStore.preference) { _, _ in
+            Task { await runDoctor() }
         }
     }
 

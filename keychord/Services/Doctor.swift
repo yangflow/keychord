@@ -85,7 +85,7 @@ enum Doctor {
 
             let fixes = toRemove.map { alias in
                 FixOption(
-                    label: String(localized: "Remove \(alias)"),
+                    label: String.loc("Remove \(alias)"),
                     fixID: .ssh001_removeHost(alias: alias),
                     isDestructive: true
                 )
@@ -95,10 +95,10 @@ enum Doctor {
             return Diagnosis(
                 severity: .warning,
                 code: "SSH001",
-                title: String(localized: "Duplicate Host blocks"),
-                detail: String(localized: "Hosts \(aliasesJoined) share identical HostName / Port / IdentityFile."),
+                title: String.loc("Duplicate Host blocks"),
+                detail: String.loc("Hosts \(aliasesJoined) share identical HostName / Port / IdentityFile."),
                 fixHint: fixes.isEmpty
-                    ? String(localized: "Delete the redundant block or differentiate its IdentityFile/User.")
+                    ? String.loc("Delete the redundant block or differentiate its IdentityFile/User.")
                     : nil,
                 affectedFiles: ["~/.ssh/config"],
                 fixes: fixes
@@ -112,13 +112,13 @@ enum Doctor {
         hosts.compactMap { host in
             guard host.port == 443 else { return nil }
             guard host.hostName != "ssh.github.com" else { return nil }
-            let hostName = host.hostName ?? String(localized: "<none>")
+            let hostName = host.hostName ?? String.loc("<none>")
             return Diagnosis(
                 severity: .error,
                 code: "SSH002",
-                title: String(localized: "Port 443 without ssh.github.com"),
-                detail: String(localized: "Host `\(host.alias)` uses Port 443 but HostName is `\(hostName)`. GitHub's 443 fallback only works with HostName ssh.github.com."),
-                fixHint: String(localized: "Set HostName to ssh.github.com or remove Port 443."),
+                title: String.loc("Port 443 without ssh.github.com"),
+                detail: String.loc("Host `\(host.alias)` uses Port 443 but HostName is `\(hostName)`. GitHub's 443 fallback only works with HostName ssh.github.com."),
+                fixHint: String.loc("Set HostName to ssh.github.com or remove Port 443."),
                 affectedFiles: ["~/.ssh/config"]
             )
         }
@@ -133,13 +133,13 @@ enum Doctor {
             return Diagnosis(
                 severity: .warning,
                 code: "SSH003",
-                title: String(localized: "Missing HostKeyAlias for 443 fallback"),
-                detail: String(localized: "Host `\(host.alias)` uses ssh.github.com without `HostKeyAlias github.com`. known_hosts may flag a host-key mismatch."),
+                title: String.loc("Missing HostKeyAlias for 443 fallback"),
+                detail: String.loc("Host `\(host.alias)` uses ssh.github.com without `HostKeyAlias github.com`. known_hosts may flag a host-key mismatch."),
                 fixHint: nil,
                 affectedFiles: ["~/.ssh/config"],
                 fixes: [
                     FixOption(
-                        label: String(localized: "Add HostKeyAlias"),
+                        label: String.loc("Add HostKeyAlias"),
                         fixID: .ssh003_addHostKeyAlias(alias: host.alias),
                         isDestructive: false
                     )
@@ -163,9 +163,9 @@ enum Doctor {
             return Diagnosis(
                 severity: .error,
                 code: "NET001",
-                title: String(localized: "SSH probe failed"),
-                detail: String(localized: "`\(host.alias)` cannot authenticate: \(reason)."),
-                fixHint: String(localized: "Run `ssh -vT git@\(host.alias)` to debug."),
+                title: String.loc("SSH probe failed"),
+                detail: String.loc("`\(host.alias)` cannot authenticate: \(reason)."),
+                fixHint: String.loc("Run `ssh -vT git@\(host.alias)` to debug."),
                 affectedFiles: ["~/.ssh/config"]
             )
         }
@@ -180,13 +180,13 @@ enum Doctor {
         guard let audit, !audit.isClean else { return [] }
 
         let pushLabel = audit.account.label.isEmpty
-            ? String(localized: "(unnamed)")
+            ? String.loc("(unnamed)")
             : audit.account.label
         let detail = audit.findings.map(\.localizedDetail).joined(separator: " ")
         let fixes: [FixOption] = audit.account.scope.isScoped
             ? [
                 FixOption(
-                    label: String(localized: "Re-apply managed config"),
+                    label: String.loc("Re-apply managed config"),
                     fixID: .git001_reprojectManagedFiles,
                     isDestructive: false
                 )
@@ -197,10 +197,10 @@ enum Doctor {
             Diagnosis(
                 severity: audit.severity ?? .warning,
                 code: "GIT001",
-                title: String(localized: "Git author does not match the SSH identity"),
-                detail: String(localized: "\(audit.repoRoot.abbreviatedHomePath()) pushes as \(pushLabel). \(detail)"),
+                title: String.loc("Git author does not match the SSH identity"),
+                detail: String.loc("\(audit.repoRoot.abbreviatedHomePath()) pushes as \(pushLabel). \(detail)"),
                 fixHint: fixes.isEmpty
-                    ? String(localized: "Set this account's git email, or give it a gitdir scope that covers this folder.")
+                    ? String.loc("Set this account's git email, or give it a gitdir scope that covers this folder.")
                     : nil,
                 affectedFiles: ["~/.gitconfig"],
                 fixes: fixes

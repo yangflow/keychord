@@ -63,7 +63,7 @@ struct DeleteAccountSheet: View {
     }
 
     private var displayLabel: String {
-        account.label.isEmpty ? String(localized: "(unnamed)") : account.label
+        account.label.isEmpty ? String.loc("(unnamed)") : account.label
     }
 
     @ViewBuilder
