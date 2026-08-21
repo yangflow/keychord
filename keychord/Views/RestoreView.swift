@@ -132,6 +132,7 @@ private struct BackupRestoreCard: View {
     let onDelete: () -> Void
 
     @State private var isExpanded = false
+    @State private var detailAccount: BackupAccountPreview?
 
     private let cardRadius: CGFloat = 12
 
@@ -159,16 +160,24 @@ private struct BackupRestoreCard: View {
                 Spacer(minLength: KC.space8)
 
                 HStack(spacing: KC.space10) {
-                    Button("Restore", action: onRestore)
-                        .buttonStyle(.borderless)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                        .disabled(isBusy)
+                    Button(action: onRestore) {
+                        Image(systemName: "arrow.counterclockwise")
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .help("Restore")
+                    .accessibilityLabel(Text("Restore"))
+                    .disabled(isBusy)
 
-                    Button("Delete", role: .destructive, action: onDelete)
-                        .buttonStyle(.borderless)
-                        .font(.caption)
-                        .disabled(isBusy)
+                    Button(role: .destructive, action: onDelete) {
+                        Image(systemName: "trash")
+                    }
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .help("Delete")
+                    .accessibilityLabel(Text("Delete"))
+                    .disabled(isBusy)
                 }
             }
 
@@ -185,6 +194,9 @@ private struct BackupRestoreCard: View {
             RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
                 .fill(Color.primary.opacity(0.06))
         )
+        .sheet(item: $detailAccount) { account in
+            BackupAccountDetailSheet(account: account)
+        }
     }
 
     @ViewBuilder
@@ -222,7 +234,12 @@ private struct BackupRestoreCard: View {
         } else {
             VStack(alignment: .leading, spacing: KC.space8) {
                 ForEach(entry.accounts) { account in
-                    BackupAccountPreviewBlock(account: account)
+                    Button {
+                        detailAccount = account
+                    } label: {
+                        BackupAccountPreviewRow(account: account)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -258,39 +275,156 @@ private struct BackupRestoreCard: View {
     }
 }
 
-// MARK: - Account preview (compact)
+// MARK: - Compact row (tappable)
 
-private struct BackupAccountPreviewBlock: View {
+private struct BackupAccountPreviewRow: View {
     let account: BackupAccountPreview
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 2) {
-            Text(displayLabel)
-                .font(.caption.weight(.semibold))
-                .foregroundStyle(.primary)
-                .lineLimit(1)
-                .truncationMode(.tail)
-
-            if !detailLine.isEmpty {
-                Text(verbatim: detailLine)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+        HStack(alignment: .center, spacing: KC.space8) {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(displayLabel)
+                    .font(.caption.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .lineLimit(1)
-                    .truncationMode(.middle)
+                    .truncationMode(.tail)
+
+                if !detailLine.isEmpty {
+                    Text(verbatim: detailLine)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                        .truncationMode(.middle)
+                }
             }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            Image(systemName: "chevron.right")
+                .font(.caption.weight(.semibold))
+                .foregroundStyle(.tertiary)
         }
-        .frame(maxWidth: .infinity, alignment: .leading)
+        .contentShape(Rectangle())
         .accessibilityElement(children: .combine)
+        .accessibilityHint(Text("Show snapshot account details"))
     }
 
     private var displayLabel: String {
         account.label.isEmpty ? String(localized: "(unnamed)") : account.label
     }
 
-    /// `alias · email` (skip empty parts).
     private var detailLine: String {
         let alias = account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines)
         let email = account.gitUserEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         return [alias, email].filter { !$0.isEmpty }.joined(separator: " · ")
+    }
+}
+
+// MARK: - Snapshot detail sheet
+
+private struct BackupAccountDetailSheet: View {
+    let account: BackupAccountPreview
+    @Environment(\.dismiss) private var dismiss
+
+    var body: some View {
+        VStack(spacing: 0) {
+            Form {
+                Section {
+                    detailRow("Label", displayLabel)
+                    detailRow("Git name", blankable(account.gitUserName))
+                    detailRow("Git email", blankable(account.gitUserEmail))
+                } header: {
+                    Text("Identity")
+                }
+
+                Section {
+                    detailRow("Provider", account.provider.localizedLabel)
+                    detailRow("Alias", blankable(account.sshAlias))
+                    detailRow("Port", account.sshPort.displayName)
+                    detailRow("Private key", keyPathDisplay)
+                } header: {
+                    Text("SSH")
+                }
+
+                Section {
+                    detailRow("Scope", scopeDisplay)
+                } header: {
+                    Text("Scope")
+                }
+
+                Section {
+                    if account.urlRewrites.isEmpty {
+                        Text("No URL rewrites")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    } else {
+                        ForEach(Array(account.urlRewrites.enumerated()), id: \.offset) { _, rule in
+                            Text(verbatim: "\(rule.from) → \(rule.to)")
+                                .font(.caption)
+                                .textSelection(.enabled)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                        }
+                    }
+                } header: {
+                    Text("URL Rewrites")
+                }
+            }
+            .formStyle(.grouped)
+
+            Divider()
+
+            HStack {
+                Spacer()
+                Button("Done") { dismiss() }
+                    .buttonStyle(.borderedProminent)
+                    .keyboardShortcut(.defaultAction)
+            }
+            .padding(.horizontal, KC.space20)
+            .padding(.vertical, KC.space12)
+        }
+        .frame(minWidth: 420, minHeight: 440)
+    }
+
+    private var displayLabel: String {
+        account.label.isEmpty ? String(localized: "(unnamed)") : account.label
+    }
+
+    private var keyPathDisplay: String {
+        let path = account.keyPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !path.isEmpty else { return "—" }
+        return path.abbreviatedHomePath()
+    }
+
+    private var scopeDisplay: String {
+        switch account.scope {
+        case .global:
+            return String(localized: "Global")
+        case .gitdir(let path):
+            return String(localized: "scope: gitdir:\(path.abbreviatedHomePath())")
+        }
+    }
+
+    private func blankable(_ value: String) -> String {
+        let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? "—" : trimmed
+    }
+
+    private func detailRow(_ title: LocalizedStringKey, _ value: String) -> some View {
+        LabeledContent(title) {
+            Text(verbatim: value)
+                .foregroundStyle(.secondary)
+                .textSelection(.enabled)
+                .multilineTextAlignment(.trailing)
+        }
+    }
+}
+
+private extension Account.Provider {
+    var localizedLabel: String {
+        switch self {
+        case .github: return String(localized: "GitHub")
+        case .gitlab: return String(localized: "GitLab")
+        case .gitea: return String(localized: "Gitea")
+        case .custom: return String(localized: "Custom")
+        }
     }
 }
