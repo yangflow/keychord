@@ -213,6 +213,73 @@ struct AccountsStoreTests {
         }
     }
 
+    // MARK: - Last used (popover ordering, #43)
+
+    @Test func touchByAliasRecordsAndPersistsTheTimestamp() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            let account = Self.sample(label: "Work")
+            try store.add(account)
+            #expect(store.accounts.first?.lastUsedAt == nil)
+
+            let when = Date(timeIntervalSince1970: 1_800_000_000)
+            store.touchLastUsed(sshAlias: account.sshAlias, at: when)
+
+            #expect(store.accounts.first?.lastUsedAt == when)
+            #expect(Self.makeStore(url: url).accounts.first?.lastUsedAt == when)
+        }
+    }
+
+    @Test func touchByIDWorksBeforeAnAliasExists() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            var account = Self.sample(label: "Fresh")
+            account.sshAlias = ""
+            try store.add(account)
+
+            let when = Date(timeIntervalSince1970: 1_800_000_100)
+            store.touchLastUsed(id: account.id, at: when)
+            #expect(store.accounts.first?.lastUsedAt == when)
+
+            // The alias path cannot help here, and must not touch anyone else.
+            store.touchLastUsed(sshAlias: "", at: Date(timeIntervalSince1970: 2_000_000_000))
+            #expect(store.accounts.first?.lastUsedAt == when)
+        }
+    }
+
+    @Test func touchingAnUnknownAccountIsANoOp() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            try store.add(Self.sample(label: "Work"))
+
+            store.touchLastUsed(id: UUID())
+            store.touchLastUsed(sshAlias: "github-nope")
+
+            #expect(store.accounts.count == 1)
+            #expect(store.accounts.first?.lastUsedAt == nil)
+        }
+    }
+
+    @Test func touchOnlyMovesTheTargetedAccount() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            var work = Self.sample(label: "Work")
+            work.sshAlias = "github-work"
+            var personal = Self.sample(label: "Personal")
+            personal.sshAlias = "github-personal"
+            try store.add(work)
+            try store.add(personal)
+
+            let when = Date(timeIntervalSince1970: 1_800_000_200)
+            store.touchLastUsed(id: personal.id, at: when)
+
+            #expect(store.accounts.first(where: { $0.id == work.id })?.lastUsedAt == nil)
+            #expect(store.accounts.first(where: { $0.id == personal.id })?.lastUsedAt == when)
+            // And the popover order follows.
+            #expect(AccountOrdering.byLastUsed(store.accounts).first?.id == personal.id)
+        }
+    }
+
     // MARK: - Scope Codable round-trip
 
     @Test func scopeEnumRoundTripsViaJSON() async throws {
@@ -231,8 +298,53 @@ struct AccountsStoreTests {
             let reloaded = Self.makeStore(url: url)
             let record = reloaded.accounts.first
             #expect(record?.scope == .gitdir("~/work/"))
+            #expect(record?.scope.directories == ["~/work/"])
             #expect(record?.urlRewrites.count == 1)
             #expect(record?.urlRewrites.first?.to == "git@github-acme:Acme/")
         }
+    }
+
+    @Test func multipleGitdirPathsRoundTripViaJSON() async throws {
+        try await Self.withTempURL { url in
+            let store = Self.makeStore(url: url)
+            var scoped = Self.sample(label: "Work")
+            scoped.scope = .gitdir(paths: ["~/work/", "~/src/new-app/"])
+            try store.add(scoped)
+
+            let reloaded = Self.makeStore(url: url)
+            #expect(reloaded.accounts.first?.scope.directories == ["~/work/", "~/src/new-app/"])
+            // Single-path accessor keeps reporting the first path for the
+            // editors that show one directory at a time.
+            #expect(reloaded.accounts.first?.scope.directory == "~/work/")
+        }
+    }
+
+    @Test func scopeStillDecodesSinglePathJSONFromOlderBuilds() throws {
+        let legacy = """
+        {"gitdir":{"_0":"~/work/"}}
+        """
+        let decoded = try JSONDecoder().decode(
+            Account.Scope.self,
+            from: Data(legacy.utf8)
+        )
+        #expect(decoded == .gitdir(paths: ["~/work/"]))
+    }
+
+    @Test func scopeKeepsWritingTheSinglePathKeyForOlderBuilds() throws {
+        let encoded = try JSONEncoder().encode(
+            Account.Scope.gitdir(paths: ["~/work/", "~/src/new-app/"])
+        )
+        let json = try #require(
+            try JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        let gitdir = try #require(json["gitdir"] as? [String: Any])
+        #expect(gitdir["_0"] as? String == "~/work/")
+        #expect(gitdir["paths"] as? [String] == ["~/work/", "~/src/new-app/"])
+    }
+
+    @Test func globalScopeRoundTrips() throws {
+        let encoded = try JSONEncoder().encode(Account.Scope.global)
+        let decoded = try JSONDecoder().decode(Account.Scope.self, from: encoded)
+        #expect(decoded == .global)
     }
 }

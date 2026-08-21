@@ -9,6 +9,15 @@ struct MenuBarIconLabel: View {
 
     var body: some View {
         Image(nsImage: icon)
+            // Tooltip is the only place a match shows without opening the
+            // popover; the glyph itself stays severity-driven.
+            .onChange(of: tooltip, initial: true) { _, text in
+                MenuBarTooltip.apply(text)
+            }
+    }
+
+    private var tooltip: String {
+        MenuBarTooltip.text(for: appState.accountMatch)
     }
 
     private var icon: NSImage {
@@ -38,6 +47,19 @@ struct MenuBarPopoverView: View {
     @State private var isLoading = true
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
+    @State private var doctorSignature = ""
+    @State private var doctorHasRun = false
+    @State private var expandedAccountID: UUID?
+    @State private var reprobingAliases: Set<String> = []
+    @State private var isBinding = false
+    @State private var bindError: String?
+    @State private var matchActionError: String?
+    @State private var isMatchActionRunning = false
+    @State private var keyStates: [UUID: SSHKeyState] = [:]
+    @State private var issueErrors: [UUID: String] = [:]
+    @State private var fixingAccountIDs: Set<UUID> = []
+    @State private var filterQuery = ""
+    @State private var filterProvider: Account.Provider?
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -69,9 +91,16 @@ struct MenuBarPopoverView: View {
             handleDrop(providers)
         }
         .task { await refresh() }
-        .onDisappear {
-            guard !appState.suppressAccountMatchClear else { return }
-            appState.clearAccountMatch()
+        // The match outlives the popover, so a fresh drop must not inherit the
+        // error text from whatever the user tried on the previous one.
+        .onChange(of: appState.accountMatch) { _, _ in
+            bindError = nil
+            matchActionError = nil
+        }
+        // Escape dismisses the popover. Menus and sheets consume it first, so
+        // this only fires once nothing inside wants it (#46).
+        .onExitCommand {
+            StatusItemDropTargetController.shared.closePopover()
         }
     }
 
@@ -81,12 +110,49 @@ struct MenuBarPopoverView: View {
     private var content: some View {
         if isLoading {
             loadingView
+        } else if appState.accountsStore.accounts.isEmpty {
+            ScrollView(showsIndicators: false) {
+                VStack(alignment: .leading, spacing: 0) {
+                    currentRepoSection
+                    AccountsEmptyStateCard(
+                        onImport: { openSettingsWindow(pane: .importAccounts) },
+                        onAddAccount: { openAccounts(addNew: true) }
+                    )
+                }
+                .padding(.bottom, KC.space8)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity)
         } else {
             ScrollView(showsIndicators: false) {
                 VStack(alignment: .leading, spacing: 0) {
                     currentRepoSection
 
-                    if !appState.accountsStore.accounts.isEmpty, !diagnoses.isEmpty {
+                    if AccountFilter.shouldOfferSearch(
+                        accountCount: appState.accountsStore.accounts.count
+                    ) {
+                        AccountFilterBar(
+                            query: $filterQuery,
+                            provider: $filterProvider,
+                            providers: AccountFilter.chipProviders(
+                                for: appState.accountsStore.accounts
+                            )
+                        )
+                    }
+
+                    accountsSection
+
+                    // Illustration only: drops land on the status-item icon.
+                    if appState.accountMatch == nil {
+                        DropFolderHintCard()
+                    }
+
+                    if diagnoses.isEmpty {
+                        // All clear: one line, no scanning a tall block (#44).
+                        // Only after a real run, so probing does not flash it.
+                        if doctorHasRun {
+                            DoctorHealthyRow()
+                        }
+                    } else {
                         DoctorSummaryRow(
                             diagnoses: diagnoses,
                             isExpanded: isDoctorExpanded,
@@ -102,7 +168,6 @@ struct MenuBarPopoverView: View {
                             }
                         }
                     }
-                    accountsSection
                 }
                 .padding(.bottom, KC.space8)
             }
@@ -114,17 +179,58 @@ struct MenuBarPopoverView: View {
     private var currentRepoSection: some View {
         switch appState.accountMatch {
         case .matched(let account, let repoRoot, let originURL):
+            if let overlap = appState.gitdirOverlap {
+                GitdirOverlapCard(
+                    overlap: overlap,
+                    isBusy: isMatchActionRunning,
+                    errorMessage: matchActionError,
+                    onClaimWinner: { winner in
+                        Task { await claimMatchedFolder(for: winner) }
+                    },
+                    onReleaseLoser: { path, loser in
+                        Task { await releaseGitdirPath(path, from: loser) }
+                    }
+                )
+            }
             CurrentRepoMatchedRow(
                 account: account,
                 repoRoot: repoRoot,
                 probe: probeStates[account.sshAlias] ?? .idle,
                 originURL: originURL,
+                audit: appState.identityAudit,
+                rebindTargets: appState.accountsStore.accounts.filter { $0.id != account.id },
+                canUnbind: GitdirBinder.exactPath(
+                    forFolderPath: repoRoot,
+                    in: account.scope
+                ) != nil,
+                isBusy: isMatchActionRunning,
+                actionError: matchActionError,
+                scopeUndo: undo(for: repoRoot),
+                onUnbind: { Task { await unbindMatchedFolder() } },
+                onRebind: { target in Task { await rebindMatchedFolder(to: target) } },
+                onUndo: { Task { await undoScopeChange() } },
+                onCloneCopied: { appState.accountsStore.touchLastUsed(id: account.id) },
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
+            if let candidate = appState.staleGitdir {
+                StaleGitdirCard(
+                    candidate: candidate,
+                    isBusy: isMatchActionRunning,
+                    errorMessage: matchActionError,
+                    onRetarget: { Task { await repairStaleGitdir() } },
+                    onKeepOldPath: { appState.dismissStaleGitdir() }
+                )
+            }
             if let reason = appState.accountMatch?.unresolvedReason {
                 CurrentRepoUnresolvedRow(
                     reason: reason,
+                    bindPath: appState.accountMatch?.bindableRepoRoot,
+                    bindTargets: appState.accountsStore.accounts,
+                    isBinding: isBinding,
+                    bindError: bindError,
+                    onBind: { account in Task { await bind(to: account) } },
+                    onCreateAccount: { Task { await createAccountForDroppedFolder() } },
                     onClear: { appState.clearAccountMatch() }
                 )
             }
@@ -148,23 +254,68 @@ struct MenuBarPopoverView: View {
     // MARK: - Accounts section
 
     private var accountsSection: some View {
-        let records = appState.accountsStore.accounts
+        let records = visibleAccounts
         return VStack(spacing: 0) {
             ForEach(records) { record in
-                Button {
-                    openAccounts(selecting: record.id)
-                } label: {
-                    AccountRow(
-                        record: record,
-                        probe: probeStates[record.sshAlias] ?? .idle
-                    )
-                }
-                .buttonStyle(.plain)
+                AccountRow(
+                    record: record,
+                    probe: probeStates[record.sshAlias] ?? .idle,
+                    issue: issue(for: record),
+                    issueError: issueErrors[record.id],
+                    isExpanded: expandedAccountID == record.id,
+                    isReprobing: reprobingAliases.contains(record.sshAlias),
+                    isFixingIssue: fixingAccountIDs.contains(record.id),
+                    onOpenDetail: { openAccounts(selecting: record.id) },
+                    onToggleExpanded: {
+                        expandedAccountID = expandedAccountID == record.id ? nil : record.id
+                    },
+                    onReprobe: { Task { await reprobe(record.sshAlias) } },
+                    onUnlockKey: { Task { await unlockKey(for: record) } },
+                    onApplySSHRewrite: { Task { await applySSHRewrite(to: record) } },
+                    onOpenKeySettings: { openSettingsWindow(pane: .keys) },
+                    onCloneCopied: { appState.accountsStore.touchLastUsed(id: record.id) }
+                )
 
                 Divider().padding(.leading, 32)
             }
+
+            if records.isEmpty {
+                Text("No identity matches this filter")
+                    .font(KC.rowCaption)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, KC.rowHPadding)
+                    .padding(.vertical, KC.space10)
+            }
+
             AddAccountRow(onTap: { openAccounts(addNew: true) })
         }
+    }
+
+    /// Most recently used first, then the filter — sorting before filtering
+    /// keeps the order stable while the user types.
+    private var visibleAccounts: [Account] {
+        AccountFilter.apply(
+            accounts: AccountOrdering.byLastUsed(appState.accountsStore.accounts),
+            query: filterQuery,
+            provider: filterProvider
+        )
+    }
+
+    /// The single next action for a row: a classified probe failure, or an HTTPS
+    /// remote on the repository this account currently owns.
+    private func issue(for account: Account) -> AccountIssue? {
+        var matchedOrigin: String?
+        if case .matched(let matched, _, let originURL) = appState.accountMatch,
+           matched.id == account.id {
+            matchedOrigin = originURL
+        }
+        return AccountIssueClassifier.classify(
+            account: account,
+            probe: probeStates[account.sshAlias] ?? .idle,
+            keyState: keyStates[account.id],
+            matchedOriginURL: matchedOrigin
+        )
     }
 
     // MARK: - Footer
@@ -206,7 +357,11 @@ struct MenuBarPopoverView: View {
     // MARK: - Window helpers
 
     private func openAccounts(selecting id: UUID? = nil, addNew: Bool = false) {
-        if let id { appState.pendingAccountSelection = id }
+        if let id {
+            // Opening an identity counts as using it (#43).
+            appState.accountsStore.touchLastUsed(id: id)
+            appState.pendingAccountSelection = id
+        }
         if addNew { appState.pendingAddNew = true }
         let popover = NSApp.keyWindow
         NSApp.setActivationPolicy(.regular)
@@ -223,12 +378,146 @@ struct MenuBarPopoverView: View {
         popover?.close()
     }
 
-    private func openSettingsWindow() {
+    private func openSettingsWindow(pane: SettingsPane? = nil) {
+        if let pane { appState.pendingSettingsPane = pane }
         let popover = NSApp.keyWindow
         NSApp.setActivationPolicy(.regular)
         openWindow(id: "settings")
         NSApp.activate(ignoringOtherApps: true)
         popover?.close()
+    }
+
+    // MARK: - Bind a dropped folder
+
+    private func bind(to account: Account) async {
+        isBinding = true
+        bindError = nil
+        defer { isBinding = false }
+        bindError = await appState.bindCurrentFolder(to: account)
+        guard bindError == nil else { return }
+        await probeAll()
+        await runDoctor()
+    }
+
+    // MARK: - Match card actions (open / unbind / rebind)
+
+    private func unbindMatchedFolder() async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.unbindMatchedFolder()
+        await runDoctor()
+    }
+
+    private func rebindMatchedFolder(to account: Account) async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.rebindMatchedFolder(to: account)
+        guard matchActionError == nil else { return }
+        await probeAll()
+        await runDoctor()
+    }
+
+    // MARK: - Overlapping and stale scopes
+
+    private func claimMatchedFolder(for account: Account) async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.claimMatchedFolder(for: account)
+        await runDoctor()
+    }
+
+    private func releaseGitdirPath(_ path: String, from account: Account) async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.releaseGitdirPath(path, from: account)
+        await runDoctor()
+    }
+
+    private func repairStaleGitdir() async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.repairStaleGitdir()
+        guard matchActionError == nil else { return }
+        await probeAll()
+        await runDoctor()
+    }
+
+    // MARK: - Account row fixes (unlock key / add SSH rewrite)
+
+    private func unlockKey(for account: Account) async {
+        fixingAccountIDs.insert(account.id)
+        issueErrors[account.id] = nil
+        defer { fixingAccountIDs.remove(account.id) }
+
+        let outcome = await SSHAgentService.unlockWithKeychain(
+            privateKeyPath: account.keyPath
+        )
+        switch outcome {
+        case .success:
+            // The agent holds the key now; a fresh probe is the proof, and it
+            // re-reads key state on the way through.
+            await reprobe(account.sshAlias)
+        case .failure(let error):
+            issueErrors[account.id] = error.localizedMessage
+        }
+    }
+
+    private func applySSHRewrite(to account: Account) async {
+        fixingAccountIDs.insert(account.id)
+        issueErrors[account.id] = nil
+        defer { fixingAccountIDs.remove(account.id) }
+
+        if let message = await appState.applySSHRewrites(to: account) {
+            issueErrors[account.id] = message
+            return
+        }
+        await runDoctor()
+    }
+
+    /// Only show the undo toast for the folder it belongs to — a later drop must
+    /// not inherit the previous card's toast.
+    private func undo(for repoRoot: String) -> AppState.ScopeUndo? {
+        guard let undo = appState.scopeUndo, undo.repoRoot == repoRoot else { return nil }
+        return undo
+    }
+
+    private func undoScopeChange() async {
+        isMatchActionRunning = true
+        matchActionError = nil
+        defer { isMatchActionRunning = false }
+        matchActionError = await appState.undoScopeChange()
+        await runDoctor()
+    }
+
+    /// #41: the full account form lives in the Accounts window, prefilled with
+    /// this folder as its gitdir.
+    private func createAccountForDroppedFolder() async {
+        guard await appState.prepareNewAccountDraftForMatch() else { return }
+        openAccounts()
+    }
+
+    // MARK: - Manual per-alias re-probe
+
+    /// Re-probes one alias immediately, ignoring the cache TTL, so returning
+    /// from the forge's SSH settings page shows the new state right away.
+    private func reprobe(_ alias: String) async {
+        let trimmed = alias.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return }
+        reprobingAliases.insert(trimmed)
+        probeStates[trimmed] = .probing
+        defer { reprobingAliases.remove(trimmed) }
+
+        let state = await appState.probeCache.reprobe(trimmed) { target in
+            await Prober.probeAlias(target)
+        }
+        probeStates[trimmed] = state
+        await gatherKeyStates()
+        await runDoctor()
     }
 
     // MARK: - Drop / choose folder / Finder
@@ -265,7 +554,23 @@ struct MenuBarPopoverView: View {
         hydrateProbeStatesFromCache()
         await reload()
         await probeAll(force: forceProbe)
+        await gatherKeyStates()
         await runDoctor()
+    }
+
+    /// Inspect key material only for accounts whose probe failed — that is the
+    /// only case where “locked agent” vs “rejected key” changes the button, and
+    /// it keeps `ssh-add` / `ssh-keygen` off the healthy path.
+    private func gatherKeyStates() async {
+        let failing = appState.accountsStore.accounts.filter { account in
+            if case .failed = probeStates[account.sshAlias] ?? .idle { return true }
+            return false
+        }
+        for account in failing {
+            keyStates[account.id] = await SSHAgentService.keyState(for: account)
+        }
+        let failingIDs = Set(failing.map(\.id))
+        keyStates = keyStates.filter { failingIDs.contains($0.key) }
     }
 
     private func reload() async {
@@ -322,8 +627,18 @@ struct MenuBarPopoverView: View {
         scoped.sshHosts = scoped.sshHosts.filter { accountAliases.contains($0.alias) }
         diagnoses = await Doctor.runAgainstCurrentSystem(
             model: scoped,
-            probeStates: probeStates
+            probeStates: probeStates,
+            identityAudit: appState.identityAudit
         )
+        // A new set of findings opens itself; refreshing the same set respects
+        // whatever the user last chose (#44).
+        isDoctorExpanded = DoctorPresentation.shouldExpand(
+            diagnoses: diagnoses,
+            previousSignature: doctorSignature,
+            wasExpanded: isDoctorExpanded
+        )
+        doctorSignature = DoctorPresentation.signature(of: diagnoses)
+        doctorHasRun = true
         // Doctor runs only after probeAll merges cache + fresh results, so
         // severity updates in one step instead of key → warning mid-probe.
         appState.highestSeverity = diagnoses.map(\.severity).max()
@@ -335,8 +650,14 @@ struct MenuBarPopoverView: View {
         try? await Fixer.execute(
             fixID,
             sshConfigPath: ConfigStore.expand("~/.ssh/config"),
-            gitConfigPath: ConfigStore.expand("~/.gitconfig")
+            gitConfigPath: ConfigStore.expand("~/.gitconfig"),
+            accounts: appState.accountsStore.accounts
         )
+        // Re-resolving first keeps the identity audit in step with a fix that
+        // rewrote the managed gitconfig for the matched repository.
+        if case .matched(_, let repoRoot, _) = appState.accountMatch {
+            await appState.resolveCurrentRepo(at: repoRoot)
+        }
         await refresh(forceProbe: true)
     }
 }

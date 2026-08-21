@@ -19,7 +19,7 @@ keychord 把"账号集合"当成一等公民，用一个专门的窗口做 CRUD�
 ## 功能
 
 - **账号 CRUD**：原生 `NavigationSplitView` 窗口增删改查账号。真实来源是 `~/.config/keychord/accounts.json`。
-- **`gitdir:` 目录级作用域**：每个账号可以是全局，也可以通过 git 自带的 `includeIf gitdir:` 机制绑定到某个工作目录。
+- **`gitdir:` 目录级作用域**：每个账号可以是全局，也可以通过 git 自带的 `includeIf gitdir:` 机制绑定到一个或多个工作目录。
 - **URL 改写**：每个账号都能带自己的 `insteadOf` / `pushInsteadOf` 规则。
 - **选择性导入**：自动从你现有的 `~/.ssh/config` + `~/.gitconfig` 推断出逻辑账号，然后用勾选框选取要导入的账号。已存在的 alias 会自动标注并跳过。
 - **Doctor & Fixer**：检测常见配置问题（key 丢失、权限错、悬空 `Include`、`IdentityFile` 冲突），并给出一键修复。

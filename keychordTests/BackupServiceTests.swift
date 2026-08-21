@@ -326,6 +326,53 @@ struct BackupServiceTests {
         }
     }
 
+    @Test func collisionSuffixedSnapshotsStayVisibleInTheList() throws {
+        try Self.withTempRoot { service, root in
+            // Two snapshots in the same second — what a restore right after an
+            // add produces. Both must remain listable, or the pre-restore
+            // snapshot is unreachable and the restore is not undoable.
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("v1\n", at: source)
+            let date = Date(timeIntervalSince1970: 1_800_000_000)
+            _ = try service.backup(originalPath: source.path, at: date)
+            try Self.writeFile("v2\n", at: source)
+            _ = try service.backup(originalPath: source.path, at: date)
+
+            let records = try service.list(for: source.path)
+            #expect(records.count == 2)
+            #expect(records.allSatisfy { $0.timestamp == date })
+            let contents = Set(try records.map {
+                try String(contentsOfFile: $0.backupPath, encoding: .utf8)
+            })
+            #expect(contents == ["v1\n", "v2\n"])
+        }
+    }
+
+    @Test func preRestoreSnapshotCanUndoTheRestore() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("old-list\n", at: source)
+            let oldSnapshot = try service.backup(
+                originalPath: source.path,
+                at: Date(timeIntervalSince1970: 1_800_000_000)
+            )
+
+            try Self.writeFile("current-list\n", at: source)
+            try service.safeRestore(oldSnapshot)
+            #expect(try String(contentsOf: source, encoding: .utf8) == "old-list\n")
+
+            // The snapshot taken immediately before the restore is listed, so
+            // the pre-restore list can be restored in turn.
+            let preRestore = try #require(
+                try service.list(for: source.path).first {
+                    (try? String(contentsOfFile: $0.backupPath, encoding: .utf8)) == "current-list\n"
+                }
+            )
+            try service.restore(preRestore)
+            #expect(try String(contentsOf: source, encoding: .utf8) == "current-list\n")
+        }
+    }
+
     @Test func backupRefusesSymlinkSource() throws {
         try Self.withTempRoot { service, root in
             let target = root.appendingPathComponent("real-file")

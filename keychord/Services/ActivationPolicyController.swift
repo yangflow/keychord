@@ -39,8 +39,9 @@ final class ActivationPolicyController: NSObject {
         )
     }
 
-    /// Pure check used by the restore path and unit tests.
-    static func shouldRestoreAccessory(windows: [TitledWindowPresence]) -> Bool {
+    /// Pure check used by the restore path and unit tests. `nonisolated`
+    /// because it only reads a Sendable snapshot — no window, no main actor.
+    nonisolated static func shouldRestoreAccessory(windows: [TitledWindowPresence]) -> Bool {
         !windows.contains { !$0.isClosing && $0.isTitled && $0.isVisible }
     }
 

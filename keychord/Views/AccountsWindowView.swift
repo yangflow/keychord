@@ -13,6 +13,12 @@ struct AccountsWindowView: View {
     @State private var statusMessage: String?
     @State private var statusIsError = false
     @State private var importBatch: ImportBatch?
+    /// Account awaiting delete confirmation. Delete leaves a private key and
+    /// gitdir paths behind, so the user sees them first.
+    @State private var pendingDelete: Account?
+    /// Timestamp of the last successful write, which makes the Save button
+    /// flash its acknowledgement (#45).
+    @State private var lastSavedAt: Date?
 
     var body: some View {
         NavigationSplitView {
@@ -48,6 +54,20 @@ struct AccountsWindowView: View {
             )
             .frame(width: 460, height: 420)
         }
+        .sheet(item: $pendingDelete) { account in
+            DeleteAccountSheet(
+                account: account,
+                leftovers: KeyFileRemover.leftovers(
+                    for: account,
+                    in: appState.accountsStore.accounts
+                ),
+                onCancel: { pendingDelete = nil },
+                onConfirm: { removeKey in
+                    pendingDelete = nil
+                    delete(account, removePrivateKey: removeKey)
+                }
+            )
+        }
         .onChange(of: selection) { _, newSelection in
             loadDraftForSelection(newSelection)
         }
@@ -61,8 +81,16 @@ struct AccountsWindowView: View {
             appState.pendingAddNew = false
             beginNew()
         }
+        .onChange(of: appState.pendingNewAccountDraft) { _, newValue in
+            guard let prefilled = newValue else { return }
+            appState.pendingNewAccountDraft = nil
+            beginNew(prefilled: prefilled)
+        }
         .onAppear {
-            if appState.pendingAddNew {
+            if let prefilled = appState.pendingNewAccountDraft {
+                appState.pendingNewAccountDraft = nil
+                beginNew(prefilled: prefilled)
+            } else if appState.pendingAddNew {
                 appState.pendingAddNew = false
                 beginNew()
             } else if let pending = appState.pendingAccountSelection {
@@ -79,7 +107,7 @@ struct AccountsWindowView: View {
     private var sidebar: some View {
         List(selection: $selection) {
             Section {
-                ForEach(appState.accountsStore.accounts) { account in
+                ForEach(AccountOrdering.byLastUsed(appState.accountsStore.accounts)) { account in
                     AccountsSidebarRow(
                         account: account,
                         color: sidebarColor(for: account)
@@ -114,15 +142,41 @@ struct AccountsWindowView: View {
                 statusIsError: statusIsError,
                 onSave: saveDraft,
                 onRevert: revertDraft,
-                onDelete: isNewDraft ? nil : { delete(id: draftID) }
+                onDelete: isNewDraft ? nil : { requestDelete(id: draftID) },
+                savedAt: lastSavedAt
             )
         } else {
             emptyDetail
         }
     }
 
+    /// Deleting clears the draft, so the outcome — including “the private key
+    /// was kept because …” — has to be readable without a selected account.
     @ViewBuilder
     private var emptyDetail: some View {
+        VStack(spacing: 0) {
+            emptyDetailBody
+
+            if let statusMessage {
+                Divider()
+                HStack {
+                    Label {
+                        Text(verbatim: statusMessage)
+                    } icon: {
+                        Image(systemName: statusIsError ? "xmark.circle" : "checkmark.circle")
+                    }
+                    .font(.caption)
+                    .foregroundStyle(statusIsError ? Color.red : Color.green)
+                    Spacer()
+                }
+                .padding(.horizontal, KC.space20)
+                .padding(.vertical, KC.space12)
+            }
+        }
+    }
+
+    @ViewBuilder
+    private var emptyDetailBody: some View {
         if appState.accountsStore.accounts.isEmpty {
             ContentUnavailableView {
                 Label("No accounts yet", systemImage: "person.2.circle")
@@ -130,7 +184,9 @@ struct AccountsWindowView: View {
                 Text("Import your existing SSH + gitconfig, or add a new account to get started.")
             } actions: {
                 Button("Import existing", systemImage: "square.and.arrow.down", action: importFromExistingConfig)
-                Button("Add new", systemImage: "plus", action: beginNew)
+                // Not `action: beginNew`: the prefill parameter (#41) makes the
+                // bare reference `(Account?) -> Void`.
+                Button("Add new", systemImage: "plus") { beginNew() }
                     .buttonStyle(.borderedProminent)
             }
         } else {
@@ -144,8 +200,10 @@ struct AccountsWindowView: View {
 
     // MARK: - Draft lifecycle
 
-    private func beginNew() {
-        draft = Account(
+    /// `prefilled` comes from a failed drop (#41): already scoped to that
+    /// folder, with the global git identity and port 443 filled in.
+    private func beginNew(prefilled: Account? = nil) {
+        draft = prefilled ?? Account(
             id: UUID(),
             label: "",
             username: "",
@@ -198,6 +256,7 @@ struct AccountsWindowView: View {
     private func saveDraft() {
         guard var updated = draft else { return }
         updated.updatedAt = Date()
+        let wasNew = isNewDraft
         do {
             if isNewDraft {
                 try appState.accountsStore.add(updated)
@@ -210,17 +269,35 @@ struct AccountsWindowView: View {
             draft = updated
             statusIsError = false
             statusMessage = String(localized: "Saved · \(updated.label)")
+            lastSavedAt = Date()
         } catch {
             statusIsError = true
             statusMessage = String(localized: "Save failed: \(String(describing: error))")
+            return
+        }
+
+        // The identity was created to claim a dropped folder (#41): resolve it
+        // again and show the popover with the match the user asked for.
+        if wasNew, appState.isPendingBindDraft(updated.id) {
+            Task {
+                await appState.finishPendingBind()
+                await StatusItemDropTargetController.shared.openPopoverShowingMatch()
+            }
         }
     }
 
-    private func delete(id: UUID) {
+    private func requestDelete(id: UUID) {
+        guard let account = appState.accountsStore.accounts.first(where: { $0.id == id }) else {
+            return
+        }
+        pendingDelete = account
+    }
+
+    private func delete(_ account: Account, removePrivateKey: Bool) {
         do {
-            try appState.accountsStore.delete(id: id)
+            try appState.accountsStore.delete(id: account.id)
             try regenerate()
-            if selection == id {
+            if selection == account.id {
                 selection = nil
                 draft = nil
             }
@@ -229,6 +306,21 @@ struct AccountsWindowView: View {
         } catch {
             statusIsError = true
             statusMessage = String(localized: "Delete failed: \(String(describing: error))")
+            return
+        }
+
+        // The record is gone either way; a key that refuses to go says so
+        // without pretending the delete failed.
+        guard removePrivateKey else { return }
+        do {
+            try KeyFileRemover.removePrivateKey(
+                of: account,
+                in: appState.accountsStore.accounts
+            )
+            statusMessage = String(localized: "Deleted · private key removed")
+        } catch {
+            statusIsError = true
+            statusMessage = String(localized: "Deleted, but the private key was kept: \(String(describing: error))")
         }
     }
 

@@ -9,8 +9,11 @@ struct AccountDetailView: View {
     let onSave: () -> Void
     let onRevert: () -> Void
     let onDelete: (() -> Void)?
+    /// Bumped by the parent after a successful write, so the Save button can
+    /// flash a short acknowledgement (#45).
+    var savedAt: Date? = nil
 
-    @State private var scopeDir: String = ""
+    @State private var wrote = TransientConfirmation()
 
     var body: some View {
         VStack(spacing: 0) {
@@ -62,21 +65,14 @@ struct AccountDetailView: View {
                         Text("gitdir scoped").tag(1)
                     }
                     .pickerStyle(.segmented)
-                    if case .gitdir = draft.scope {
-                        HStack(spacing: KC.space6) {
-                            TextField("Directory", text: $scopeDir, prompt: Text("~/work/"))
-                                .disableAutocorrection(true)
-                                .onChange(of: scopeDir) { _, newValue in
-                                    draft.scope = .gitdir(newValue)
-                                }
-                            Button {
-                                pickGitdir()
-                            } label: {
-                                Image(systemName: "folder")
-                            }
-                            .buttonStyle(.borderless)
-                            .help("Choose directory…")
-                            .accessibilityLabel(Text("Choose gitdir directory"))
+                    if draft.scope.isScoped {
+                        ForEach(Array(draft.scope.directories.indices), id: \.self) { idx in
+                            gitdirRow(index: idx)
+                        }
+                        Button {
+                            draft.scope = .gitdir(paths: draft.scope.directories + [""])
+                        } label: {
+                            Label("Add gitdir path", systemImage: "plus.circle")
                         }
                     }
                 } header: {
@@ -127,16 +123,6 @@ struct AccountDetailView: View {
 
             Divider()
             footer
-        }
-        .onChange(of: draft.scope) { _, newScope in
-            if case .gitdir(let dir) = newScope {
-                scopeDir = dir
-            }
-        }
-        .onAppear {
-            if case .gitdir(let dir) = draft.scope {
-                scopeDir = dir
-            }
         }
     }
 
@@ -205,30 +191,39 @@ struct AccountDetailView: View {
                 }
             }
             Button("Revert", action: onRevert)
-            Button(isNew ? "Create" : "Save", action: onSave)
-                .buttonStyle(.borderedProminent)
-                .keyboardShortcut("s", modifiers: .command)
+            Button(action: onSave) {
+                if wrote.isShowing {
+                    Label("Written", systemImage: "checkmark")
+                } else {
+                    Text(isNew ? "Create" : "Save")
+                }
+            }
+            .buttonStyle(.borderedProminent)
+            .keyboardShortcut("s", modifiers: .command)
         }
         .padding(.horizontal, KC.space20)
         .padding(.vertical, KC.space12)
+        .onChange(of: savedAt) { _, newValue in
+            guard newValue != nil else { return }
+            wrote.flash()
+        }
     }
 
     // MARK: - Path pickers
 
-    private func pickGitdir() {
+    private func pickGitdir(index: Int) {
         let panel = NSOpenPanel()
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
         panel.prompt = String(localized: "Choose")
         panel.message = String(localized: "Choose the directory this account gitdir scope applies to.")
-        if !scopeDir.isEmpty {
-            panel.directoryURL = URL(fileURLWithPath: ConfigStore.expand(scopeDir), isDirectory: true)
+        let current = gitdirPath(at: index)
+        if !current.isEmpty {
+            panel.directoryURL = URL(fileURLWithPath: ConfigStore.expand(current), isDirectory: true)
         }
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        let normalized = CurrentRepoResolver.normalizeGitdir(url.path)
-        scopeDir = normalized
-        draft.scope = .gitdir(normalized)
+        setGitdirPath(CurrentRepoResolver.normalizeGitdir(url.path), at: index)
     }
 
     private func pickPrivateKey() {
@@ -271,18 +266,72 @@ struct AccountDetailView: View {
 
     // MARK: - Scope binding
 
+    /// One editable `gitdir:` path. An account can own several, so each row
+    /// carries its own picker and remove control.
+    @ViewBuilder
+    private func gitdirRow(index: Int) -> some View {
+        HStack(spacing: KC.space6) {
+            TextField(
+                "Directory",
+                text: gitdirBinding(index),
+                prompt: Text("~/work/")
+            )
+            .disableAutocorrection(true)
+            Button {
+                pickGitdir(index: index)
+            } label: {
+                Image(systemName: "folder")
+            }
+            .buttonStyle(.borderless)
+            .help("Choose directory…")
+            .accessibilityLabel(Text("Choose gitdir directory"))
+            Button(role: .destructive) {
+                removeGitdirPath(at: index)
+            } label: {
+                Image(systemName: "minus.circle")
+            }
+            .buttonStyle(.borderless)
+            .disabled(draft.scope.directories.count <= 1)
+            .accessibilityLabel(Text("Remove gitdir path"))
+        }
+    }
+
+    private func gitdirPath(at index: Int) -> String {
+        let dirs = draft.scope.directories
+        return dirs.indices.contains(index) ? dirs[index] : ""
+    }
+
+    private func setGitdirPath(_ value: String, at index: Int) {
+        var dirs = draft.scope.directories
+        guard dirs.indices.contains(index) else { return }
+        dirs[index] = value
+        draft.scope = .gitdir(paths: dirs)
+    }
+
+    private func removeGitdirPath(at index: Int) {
+        var dirs = draft.scope.directories
+        guard dirs.indices.contains(index), dirs.count > 1 else { return }
+        dirs.remove(at: index)
+        draft.scope = .gitdir(paths: dirs)
+    }
+
+    private func gitdirBinding(_ index: Int) -> Binding<String> {
+        Binding(
+            get: { gitdirPath(at: index) },
+            set: { setGitdirPath($0, at: index) }
+        )
+    }
+
     private var scopeBinding: Binding<Int> {
         Binding(
-            get: {
-                if case .gitdir = draft.scope { return 1 }
-                return 0
-            },
+            get: { draft.scope.isScoped ? 1 : 0 },
             set: { newValue in
-                if newValue == 1 {
-                    draft.scope = .gitdir(scopeDir.isEmpty ? "~/" : scopeDir)
-                } else {
+                guard newValue == 1 else {
                     draft.scope = .global
+                    return
                 }
+                let existing = draft.scope.directories
+                draft.scope = .gitdir(paths: existing.isEmpty ? ["~/"] : existing)
             }
         )
     }

@@ -296,6 +296,72 @@ struct AccountProjectorTests {
         #expect(output.sshConfig.contains("IdentityFile ~/.ssh/id_picker_test"))
     }
 
+    // MARK: - Multiple gitdir paths per account
+
+    @Test func everyGitdirPathGetsItsOwnIncludeIf() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(paths: ["~/work/", "~/src/new-app/"])
+        let paths = AccountProjector.ManagedPaths.default
+        let output = AccountProjector.project(
+            [account],
+            generatedAt: Self.fixedDate,
+            paths: paths
+        )
+
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/work/\"]"))
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/src/new-app/\"]"))
+
+        // Both includeIf lines point at the account's single sub file.
+        let subTilde = AccountProjector.toTilde(paths.subFilePath(for: account.id))
+        let pointerCount = output.gitConfig.components(separatedBy: "path = \(subTilde)").count - 1
+        #expect(pointerCount == 2)
+        #expect(output.subFiles.count == 1)
+    }
+
+    @Test func multiplePathsAreNormalizedAndDeduplicated() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(paths: ["~/work", "~/work/", "~/side"])
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+
+        let includeCount = output.gitConfig
+            .components(separatedBy: "[includeIf \"gitdir:~/work/\"]").count - 1
+        #expect(includeCount == 1)
+        #expect(output.gitConfig.contains("[includeIf \"gitdir:~/side/\"]"))
+    }
+
+    /// git applies every matching `includeIf` in file order and the last one
+    /// wins, so the broad scope has to be written before the narrow one.
+    @Test func includeIfBlocksAreOrderedLeastSpecificFirst() {
+        var personal = Self.globalAccount()
+        personal.scope = .gitdir("~/")
+        var work = Self.scopedAccount()
+        work.scope = .gitdir(paths: ["~/work/client/", "~/work/"])
+
+        // Declared narrow-first on purpose; the projection must reorder.
+        let output = AccountProjector.project([work, personal], generatedAt: Self.fixedDate)
+        let broad = output.gitConfig.range(of: "[includeIf \"gitdir:~/\"]")?.lowerBound
+        let mid = output.gitConfig.range(of: "[includeIf \"gitdir:~/work/\"]")?.lowerBound
+        let narrow = output.gitConfig.range(of: "[includeIf \"gitdir:~/work/client/\"]")?.lowerBound
+
+        #expect(broad != nil && mid != nil && narrow != nil)
+        if let broad, let mid, let narrow {
+            #expect(broad < mid)
+            #expect(mid < narrow)
+        }
+    }
+
+    @Test func scopeWithNoUsablePathProjectsNothing() {
+        var account = Self.scopedAccount()
+        account.scope = .gitdir(paths: ["", "   "])
+        let output = AccountProjector.project([account], generatedAt: Self.fixedDate)
+
+        #expect(!output.gitConfig.contains("includeIf"))
+        // No sub file either, so unbinding the last path leaves nothing stale.
+        #expect(output.subFiles.isEmpty)
+        // The Host block still exists — the account can still be cloned with.
+        #expect(output.sshConfig.contains("Host github-work"))
+    }
+
     @Test func gitdirWithoutTrailingSlashStillNormalizedOnProject() {
         var account = Self.scopedAccount()
         account.scope = .gitdir("~/work")

@@ -18,7 +18,7 @@ struct KeygenView: View {
     @State private var result: KeygenResult?
     @State private var errorMessage: String?
     @State private var showingAttachPicker = false
-    @State private var didCopy = false
+    @State private var copied = TransientConfirmation()
 
     init(
         defaultComment: String,
@@ -176,7 +176,10 @@ struct KeygenView: View {
                     Button {
                         copyPublicKey(result.publicKeyContent)
                     } label: {
-                        Label(didCopy ? "Copied" : "Copy public key", systemImage: didCopy ? "checkmark" : "doc.on.doc")
+                        Label(
+                            copied.isShowing ? "Copied" : "Copy public key",
+                            systemImage: copied.isShowing ? "checkmark" : "doc.on.doc"
+                        )
                     }
                     .buttonStyle(.borderless)
 
@@ -328,7 +331,7 @@ struct KeygenView: View {
                 comment: comment
             )
             result = r
-            didCopy = false
+            copied.reset()
         } catch {
             errorMessage = String(describing: error)
         }
@@ -345,7 +348,7 @@ struct KeygenView: View {
     private func copyPublicKey(_ content: String) {
         NSPasteboard.general.clearContents()
         NSPasteboard.general.setString(content, forType: .string)
-        didCopy = true
+        copied.flash()
     }
 
     private func revealInFinder(_ path: String) {

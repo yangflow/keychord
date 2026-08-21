@@ -45,6 +45,10 @@ struct SystemProcessRunner: ProcessRunner {
         let stderrPipe = Pipe()
         process.standardOutput = stdoutPipe
         process.standardError = stderrPipe
+        // None of the tools we spawn need input, and a menu-bar app has no
+        // terminal to answer a prompt on: `ssh-add` asking for a passphrase
+        // must fail fast instead of hanging `waitUntilExit()`.
+        process.standardInput = FileHandle.nullDevice
 
         do {
             try process.run()

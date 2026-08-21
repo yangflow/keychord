@@ -214,14 +214,17 @@ struct SSHConfigParserTests {
           HostName c.com
         """
         var doc = SSHConfigDocument.parse(input)
-        #expect(doc.removeHost(alias: "b") == true)
+        // Mutating call outside `#expect`, which rebinds a receiver it inspects.
+        let removed = doc.removeHost(alias: "b")
+        #expect(removed)
         let hosts = doc.extractHosts().map(\.alias)
         #expect(hosts == ["a", "c"])
     }
 
     @Test func removeHostReturnsFalseForUnknown() {
         var doc = SSHConfigDocument.parse("Host foo\n  HostName bar\n")
-        #expect(doc.removeHost(alias: "nope") == false)
+        let removed = doc.removeHost(alias: "nope")
+        #expect(!removed)
         #expect(doc.extractHosts().count == 1)
     }
 

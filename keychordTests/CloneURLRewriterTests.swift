@@ -143,6 +143,73 @@ struct CloneURLRewriterTests {
         )
     }
 
+    // MARK: - git remote set-url for an HTTPS remote (#42)
+
+    @Test func setURLCommandRewritesAnHTTPSRemote() {
+        let account = makeAccount(alias: "github-work", provider: .github)
+        #expect(
+            CloneURLRewriter.remoteSetURLCommand(
+                for: account,
+                originURL: "https://github.com/acme/api.git"
+            ) == "git remote set-url origin git@github-work:acme/api.git"
+        )
+    }
+
+    /// Subgroups survive, and the URL always ends in `.git` — the same
+    /// canonical form the clone helper produces, so set-url only changes host
+    /// and transport.
+    @Test func setURLCommandKeepsSubgroupsAndEndsInGit() {
+        let account = makeAccount(alias: "gitlab-work", provider: .gitlab)
+        for origin in [
+            "https://gitlab.com/acme/group/api",
+            "https://gitlab.com/acme/group/api.git",
+            "https://gitlab.com/acme/group/api/",
+        ] {
+            #expect(
+                CloneURLRewriter.remoteSetURLCommand(for: account, originURL: origin)
+                    == "git remote set-url origin git@gitlab-work:acme/group/api.git",
+                "origin: \(origin)"
+            )
+        }
+    }
+
+    @Test func setURLCommandIsNilForAnSSHRemote() {
+        let account = makeAccount(alias: "github-work", provider: .github)
+        #expect(
+            CloneURLRewriter.remoteSetURLCommand(
+                for: account,
+                originURL: "git@github.com:acme/api.git"
+            ) == nil
+        )
+        #expect(
+            CloneURLRewriter.remoteSetURLCommand(
+                for: account,
+                originURL: "git@github-work:acme/api.git"
+            ) == nil
+        )
+    }
+
+    @Test func setURLCommandIsNilWithoutAnAlias() {
+        let account = makeAccount(alias: "", provider: .github)
+        #expect(
+            CloneURLRewriter.remoteSetURLCommand(
+                for: account,
+                originURL: "https://github.com/acme/api.git"
+            ) == nil
+        )
+    }
+
+    @Test func setURLCommandHonorsAnExplicitRemoteName() {
+        let account = makeAccount(alias: "github-work", provider: .github)
+        #expect(
+            CloneURLRewriter.remoteSetURLCommand(
+                for: account,
+                originURL: "https://github.com/acme/api.git",
+                remoteName: "upstream"
+            ) == "git remote set-url upstream git@github-work:acme/api.git"
+        )
+    }
+
     // MARK: - Helpers
 
     private func makeAccount(alias: String, provider: Account.Provider) -> Account {

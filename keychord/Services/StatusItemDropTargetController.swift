@@ -37,6 +37,9 @@ final class StatusItemDropTargetController {
         guard let button = MenuBarStatusItemLocator.keychordStatusItem()?.button else {
             return
         }
+        // SwiftUI can recreate the button; the tooltip lives on the button, so
+        // reapply it here as well as when the match changes.
+        button.toolTip = MenuBarTooltip.text(for: appState?.accountMatch)
         if installedButton === button, dropView?.superview === button {
             return
         }
@@ -58,25 +61,21 @@ final class StatusItemDropTargetController {
         guard let appState, let path = urls.first?.path else { return }
 
         await appState.resolveCurrentRepo(at: path)
-        let snapshot = appState.accountMatch
 
-        // Opening MenuBarExtra can fire onDisappear on a transient host and
-        // would clear the match; suppress until the popover is showing.
-        appState.suppressAccountMatchClear = true
-        defer { appState.suppressAccountMatchClear = false }
-
-        // Let the drag session finish before mimicking a status-item click.
+        // Let the drag session finish before mimicking a status-item click. The
+        // match now outlives the popover, so nothing has to be restored here.
         try? await Task.sleep(for: .milliseconds(150))
         await openPopoverShowingMatch()
+    }
 
-        try? await Task.sleep(for: .milliseconds(50))
-        if appState.accountMatch == nil {
-            if let snapshot {
-                appState.accountMatch = snapshot
-            } else {
-                await appState.resolveCurrentRepo(at: path)
-            }
+    /// Closes the MenuBarExtra window if it is showing, by toggling the status
+    /// item the same way a click outside would. No-op when already closed.
+    func closePopover() {
+        guard let button = MenuBarStatusItemLocator.keychordStatusItem()?.button,
+              button.state == .on else {
+            return
         }
+        button.performClick(nil)
     }
 
     /// Opens the MenuBarExtra window if it is not already presented.

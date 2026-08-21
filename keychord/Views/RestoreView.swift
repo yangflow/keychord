@@ -9,6 +9,9 @@ struct RestoreView: View {
     @State private var statusMessage: String?
     @State private var isBusy = false
     @State private var hasLoaded = false
+    /// Snapshot awaiting confirmation. Restore replaces the whole list, so it
+    /// never fires on a single tap.
+    @State private var pendingRestore: BackupListEntry?
 
     var body: some View {
         ScrollView {
@@ -20,7 +23,7 @@ struct RestoreView: View {
                     && statusMessage == nil
                     && hasLoaded
                     && !isBusy {
-                    Text("No backups yet — a snapshot is taken when you add a new account.")
+                    Text("No backups yet — a snapshot is taken when you add an account or before a restore.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
@@ -32,7 +35,7 @@ struct RestoreView: View {
                     BackupRestoreCard(
                         entry: entry,
                         isBusy: isBusy,
-                        onRestore: { Task { await restore(entry.record) } },
+                        onRestore: { pendingRestore = entry },
                         onDelete: { Task { await delete(entry.record) } }
                     )
                 }
@@ -49,6 +52,47 @@ struct RestoreView: View {
             .frame(maxWidth: .infinity, alignment: .topLeading)
         }
         .onAppear { reload() }
+        .confirmationDialog(
+            "Restore this snapshot?",
+            isPresented: Binding(
+                get: { pendingRestore != nil },
+                set: { presented in if !presented { pendingRestore = nil } }
+            ),
+            titleVisibility: .visible,
+            presenting: pendingRestore
+        ) { entry in
+            Button("Restore") {
+                let record = entry.record
+                pendingRestore = nil
+                Task { await restore(record) }
+            }
+            Button("Cancel", role: .cancel) {
+                pendingRestore = nil
+            }
+        } message: { entry in
+            Text(verbatim: confirmationMessage(for: entry))
+        }
+    }
+
+    /// "N current identities will be replaced with:" followed by the labels and
+    /// emails inside the snapshot.
+    private func confirmationMessage(for entry: BackupListEntry) -> String {
+        let current = accountsStore.accounts.count
+        let head = current == 1
+            ? String(localized: "1 current identity will be replaced with:")
+            : String(localized: "\(current) current identities will be replaced with:")
+
+        let lines = entry.accounts.map { account -> String in
+            let label = account.label.isEmpty
+                ? String(localized: "(unnamed)")
+                : account.label
+            let email = account.gitUserEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+            return email.isEmpty ? label : "\(label) · \(email)"
+        }
+        guard !lines.isEmpty else {
+            return head + "\n" + String(localized: "No accounts in this snapshot")
+        }
+        return ([head] + lines).joined(separator: "\n")
     }
 
     @ViewBuilder
@@ -406,12 +450,9 @@ private struct BackupAccountDetailSheet: View {
     }
 
     private var scopeDisplay: String {
-        switch account.scope {
-        case .global:
-            return String(localized: "Global")
-        case .gitdir(let path):
-            return String(localized: "scope: gitdir:\(path.abbreviatedHomePath())")
-        }
+        AccountScopeText.paths(of: account.scope).isEmpty
+            ? String(localized: "Global")
+            : AccountScopeText.scopeLine(of: account.scope)
     }
 
     private func blankable(_ value: String) -> String {

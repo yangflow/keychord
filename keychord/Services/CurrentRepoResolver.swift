@@ -40,6 +40,21 @@ enum AccountMatchResult: Equatable, Sendable {
         }
     }
 
+    /// Repository root a one-tap `gitdir:` bind should use, when binding can
+    /// fix this result. `nil` when there is nothing to scope — a matched
+    /// account needs no bind, and a folder that is not a repository would not
+    /// gain an identity from one.
+    var bindableRepoRoot: String? {
+        switch self {
+        case .noMatchingGitdir(let repoRoot):
+            return repoRoot
+        case .conflictingGlobals(let repoRoot, _):
+            return repoRoot
+        case .matched, .notARepo:
+            return nil
+        }
+    }
+
     private static func displayPath(_ path: String) -> String {
         let home = NSHomeDirectory()
         if path.hasPrefix(home) {
@@ -146,6 +161,47 @@ enum CurrentRepoResolver {
         }.value
     }
 
+    // MARK: - Effective git identity in a work tree
+
+    /// What git itself would use for a commit in a directory, after
+    /// `includeIf` resolution — the values to compare against the account that
+    /// owns the SSH alias.
+    struct EffectiveGitIdentity: Equatable, Sendable {
+        var userName: String?
+        var userEmail: String?
+        /// `core.sshCommand`, which can pin a different private key than the
+        /// `IdentityFile` of the Host block the remote resolves to.
+        var sshCommand: String?
+    }
+
+    static func readEffectiveIdentity(
+        at path: String,
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) async -> EffectiveGitIdentity {
+        await Task.detached(priority: .userInitiated) {
+            readEffectiveIdentitySync(at: path, env: env, runner: runner)
+        }.value
+    }
+
+    static func readEffectiveIdentitySync(
+        at path: String,
+        env: [String: String]? = nil,
+        runner: any ProcessRunner = SystemProcessRunner.shared
+    ) -> EffectiveGitIdentity {
+        EffectiveGitIdentity(
+            userName: stringOrNil(
+                runGit(at: path, args: ["config", "--get", "user.name"], env: env, runner: runner)
+            ),
+            userEmail: stringOrNil(
+                runGit(at: path, args: ["config", "--get", "user.email"], env: env, runner: runner)
+            ),
+            sshCommand: stringOrNil(
+                runGit(at: path, args: ["config", "--get", "core.sshCommand"], env: env, runner: runner)
+            )
+        )
+    }
+
     /// Read `remote.origin.url`, falling back to `ls-remote --get-url origin`.
     static func readOriginURL(
         at path: String,
@@ -192,15 +248,12 @@ enum CurrentRepoResolver {
         accounts: [Account],
         originURL: String? = nil
     ) -> AccountMatchResult {
-        let scopedHits = accounts.compactMap { account -> (Account, String)? in
-            guard case .gitdir(let raw) = account.scope else { return nil }
-            let pattern = normalizeGitdirPattern(raw)
-            guard gitdirMatches(repoRoot: repoRoot, pattern: pattern) else { return nil }
-            return (account, pattern)
-        }
-
-        if let best = scopedHits.max(by: { $0.1.count < $1.1.count }) {
-            return .matched(account: best.0, repoRoot: repoRoot, originURL: originURL)
+        // Ask the same ordering the projector writes: git applies every matching
+        // includeIf in file order and the last one wins, so the winner is the
+        // last matching block, not simply the longest path.
+        if let winner = GitdirPrecedence.winningBlock(forRepoRoot: repoRoot, accounts: accounts),
+           let account = accounts.first(where: { $0.id == winner.accountID }) {
+            return .matched(account: account, repoRoot: repoRoot, originURL: originURL)
         }
 
         let globals = accounts.filter { $0.scope == .global }

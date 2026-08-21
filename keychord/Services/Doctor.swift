@@ -5,6 +5,19 @@ enum Doctor {
     struct Input: Sendable {
         let model: ConfigModel
         let probeStates: [String: HostProbeState]
+        /// Author-vs-key comparison for the repository the user just dropped,
+        /// when there is one.
+        let identityAudit: IdentityAudit?
+
+        init(
+            model: ConfigModel,
+            probeStates: [String: HostProbeState],
+            identityAudit: IdentityAudit? = nil
+        ) {
+            self.model = model
+            self.probeStates = probeStates
+            self.identityAudit = identityAudit
+        }
     }
 
     // MARK: - Pure entry point
@@ -18,6 +31,7 @@ enum Doctor {
             hosts: input.model.sshHosts,
             probes: input.probeStates
         )
+        out += ruleIdentityMismatch(input.identityAudit)
         return out.sorted { $0.severity > $1.severity }
     }
 
@@ -25,11 +39,13 @@ enum Doctor {
 
     static func runAgainstCurrentSystem(
         model: ConfigModel,
-        probeStates: [String: HostProbeState]
+        probeStates: [String: HostProbeState],
+        identityAudit: IdentityAudit? = nil
     ) async -> [Diagnosis] {
         diagnose(Input(
             model: model,
-            probeStates: probeStates
+            probeStates: probeStates,
+            identityAudit: identityAudit
         ))
     }
 
@@ -134,6 +150,9 @@ enum Doctor {
 
     // MARK: - Rule 4: SSH probe failed for a host (NET001)
 
+    /// The copy-public-key / open-SSH-settings buttons live under the failing
+    /// account row in the popover — this rule only states the diagnosis so the
+    /// same two actions are not offered twice.
     static func ruleProbeFailure(
         hosts: [SSHHost],
         probes: [String: HostProbeState]
@@ -150,5 +169,42 @@ enum Doctor {
                 affectedFiles: ["~/.ssh/config"]
             )
         }
+    }
+
+    // MARK: - Rule 5: git author vs SSH identity (GIT001)
+
+    /// A repository that would commit as one identity and push as another.
+    /// Re-projecting the managed files is the only safe automatic fix — this
+    /// never rewrites commits or the user's own `[user]` section.
+    static func ruleIdentityMismatch(_ audit: IdentityAudit?) -> [Diagnosis] {
+        guard let audit, !audit.isClean else { return [] }
+
+        let pushLabel = audit.account.label.isEmpty
+            ? String(localized: "(unnamed)")
+            : audit.account.label
+        let detail = audit.findings.map(\.localizedDetail).joined(separator: " ")
+        let fixes: [FixOption] = audit.account.scope.isScoped
+            ? [
+                FixOption(
+                    label: String(localized: "Re-apply managed config"),
+                    fixID: .git001_reprojectManagedFiles,
+                    isDestructive: false
+                )
+              ]
+            : []
+
+        return [
+            Diagnosis(
+                severity: audit.severity ?? .warning,
+                code: "GIT001",
+                title: String(localized: "Git author does not match the SSH identity"),
+                detail: String(localized: "\(audit.repoRoot.abbreviatedHomePath()) pushes as \(pushLabel). \(detail)"),
+                fixHint: fixes.isEmpty
+                    ? String(localized: "Set this account's git email, or give it a gitdir scope that covers this folder.")
+                    : nil,
+                affectedFiles: ["~/.gitconfig"],
+                fixes: fixes
+            )
+        ]
     }
 }

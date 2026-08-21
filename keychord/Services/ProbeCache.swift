@@ -63,6 +63,27 @@ final class ProbeCache {
         return result
     }
 
+    /// Forget the cached outcome for one alias so the next automatic pass
+    /// probes it again. Used when the user changes something that could fix
+    /// authentication (adding the public key to the forge, for instance).
+    func invalidate(_ alias: String) {
+        entries.removeValue(forKey: alias)
+    }
+
+    /// Probe a single alias right now, ignoring the TTL and any cached
+    /// success/failure, and record the result. This is the manual retry path
+    /// under a failing account row: coming back from the forge's SSH settings
+    /// page must not wait out the 10-minute window.
+    func reprobe(
+        _ alias: String,
+        probe: @escaping @Sendable (String) async -> HostProbeState
+    ) async -> HostProbeState {
+        invalidate(alias)
+        let state = await probe(alias)
+        record(state, for: alias)
+        return state
+    }
+
     /// Persist a terminal probe outcome. Non-terminal states are ignored.
     func record(_ state: HostProbeState, for alias: String) {
         switch state {

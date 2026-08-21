@@ -58,4 +58,9 @@ enum FixID: Equatable, Hashable, Sendable {
 
     /// Add `HostKeyAlias github.com` to the given SSH Host block.
     case ssh003_addHostKeyAlias(alias: String)
+
+    /// Rewrite keychord's managed SSH / git files from `accounts.json` and
+    /// reinstall the Include lines. Touches no user-authored config beyond the
+    /// managed marker blocks.
+    case git001_reprojectManagedFiles
 }

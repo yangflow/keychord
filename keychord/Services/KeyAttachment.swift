@@ -11,6 +11,28 @@ enum KeyAttachment {
         provider.sshSettingsURL
     }
 
+    /// Conventional `.pub` sibling of a private key path, expanded for disk
+    /// access. Empty when the account has no key yet.
+    static func publicKeyPath(forPrivateKeyPath privateKeyPath: String) -> String {
+        let trimmed = privateKeyPath.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !trimmed.isEmpty else { return "" }
+        let expanded = ConfigStore.expand(trimmed)
+        return expanded.hasSuffix(".pub") ? expanded : expanded + ".pub"
+    }
+
+    /// Public key text to hand to the forge's SSH settings page. `nil` when
+    /// the `.pub` file is missing or unreadable — callers must say so instead
+    /// of copying an empty clipboard.
+    static func readPublicKey(forPrivateKeyPath privateKeyPath: String) -> String? {
+        let path = publicKeyPath(forPrivateKeyPath: privateKeyPath)
+        guard !path.isEmpty,
+              let content = try? String(contentsOfFile: path, encoding: .utf8) else {
+            return nil
+        }
+        let trimmed = content.trimmingCharacters(in: .whitespacesAndNewlines)
+        return trimmed.isEmpty ? nil : trimmed
+    }
+
     /// Apply a generated key's path + fingerprint onto an existing account.
     /// Private key bytes are never copied — only the filesystem path.
     static func apply(result: KeygenResult, to account: Account) -> Account {

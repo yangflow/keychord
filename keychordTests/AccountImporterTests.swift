@@ -101,8 +101,8 @@ struct AccountImporterTests {
 
         #expect(work?.sshAlias == "github-work")
         #expect(work?.sshPort == .port443)
-        if case .gitdir(let dir) = work?.scope {
-            #expect(dir == "~/work/")
+        if case .gitdir(let dirs) = work?.scope {
+            #expect(dirs == ["~/work/"])
         } else {
             Issue.record("work account should be .gitdir scoped")
         }

@@ -137,13 +137,16 @@ struct BackupService: Sendable {
         let prefix = "\(base)."
         var records: [BackupRecord] = []
 
+        // Length of "yyyyMMdd-HHmmss", i.e. the index of a collision suffix's dash.
+        let timestampLength = 8 + 1 + 6
+
         for name in entries where name.hasPrefix(prefix) {
             let tail = String(name.dropFirst(prefix.count))
             // tail = "yyyyMMdd-HHmmss" or "yyyyMMdd-HHmmss-N"
             let tsPart: String
             if let dashRange = tail.range(of: "-", options: .backwards),
-               tail.distance(from: tail.startIndex, to: dashRange.lowerBound) > 8 + 1 + 6 {
-                // There are three dashes worth of structure; the last one is the collision suffix.
+               tail.distance(from: tail.startIndex, to: dashRange.lowerBound) == timestampLength {
+                // Two snapshots landed in the same second; drop the suffix.
                 tsPart = String(tail[..<dashRange.lowerBound])
             } else {
                 tsPart = tail

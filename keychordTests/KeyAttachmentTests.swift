@@ -184,6 +184,63 @@ struct KeyAttachmentTests {
         }
     }
 
+    // MARK: - Public key lookup (probe-failure actions)
+
+    @Test func publicKeyPathAppendsPubAndExpandsTilde() {
+        let home = NSHomeDirectory()
+        #expect(
+            KeyAttachment.publicKeyPath(forPrivateKeyPath: "~/.ssh/id_work")
+                == "\(home)/.ssh/id_work.pub"
+        )
+        #expect(
+            KeyAttachment.publicKeyPath(forPrivateKeyPath: "~/.ssh/id_work.pub")
+                == "\(home)/.ssh/id_work.pub"
+        )
+        #expect(KeyAttachment.publicKeyPath(forPrivateKeyPath: "  ") == "")
+    }
+
+    @Test func readsPublicKeyNextToThePrivateKey() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keychord-pubkey-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        let privateKey = dir.appendingPathComponent("id_test")
+        let publicKey = dir.appendingPathComponent("id_test.pub")
+        try "ssh-ed25519 AAAAPublicOnly you@example.com\n".write(
+            to: publicKey,
+            atomically: true,
+            encoding: .utf8
+        )
+
+        #expect(
+            KeyAttachment.readPublicKey(forPrivateKeyPath: privateKey.path)
+                == "ssh-ed25519 AAAAPublicOnly you@example.com"
+        )
+    }
+
+    @Test func readPublicKeyReturnsNilWhenMissingOrUnset() throws {
+        let dir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("keychord-pubkey-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: dir) }
+
+        #expect(KeyAttachment.readPublicKey(forPrivateKeyPath: "") == nil)
+        #expect(
+            KeyAttachment.readPublicKey(
+                forPrivateKeyPath: dir.appendingPathComponent("absent").path
+            ) == nil
+        )
+
+        let blank = dir.appendingPathComponent("blank")
+        try "\n  \n".write(
+            to: dir.appendingPathComponent("blank.pub"),
+            atomically: true,
+            encoding: .utf8
+        )
+        #expect(KeyAttachment.readPublicKey(forPrivateKeyPath: blank.path) == nil)
+    }
+
     @Test func sshSettingsURLIsProviderAware() {
         #expect(
             KeyAttachment.sshSettingsURL(for: .github)?.absoluteString
