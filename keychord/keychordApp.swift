@@ -20,6 +20,9 @@ struct KeychordApp: App {
                 .environment(\.locale, languageStore.locale)
         } label: {
             MenuBarIconLabel(appState: appState)
+                .onAppear {
+                    StatusItemDropTargetController.shared.start(appState: appState)
+                }
         }
         .menuBarExtraStyle(.window)
 

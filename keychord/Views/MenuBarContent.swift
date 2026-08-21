@@ -39,7 +39,6 @@ struct MenuBarPopoverView: View {
     @State private var isFixing = false
     @State private var isDoctorExpanded = false
 
-    @State private var accountMatch: AccountMatchResult?
     @State private var isDropTargeted = false
     @State private var didAttemptFinderResolve = false
 
@@ -93,7 +92,7 @@ struct MenuBarPopoverView: View {
 
     @ViewBuilder
     private var currentRepoSection: some View {
-        switch accountMatch {
+        switch appState.accountMatch {
         case .matched(let account, let repoRoot):
             CurrentRepoMatchedRow(
                 account: account,
@@ -101,7 +100,7 @@ struct MenuBarPopoverView: View {
                 probe: probeStates[account.sshAlias] ?? .idle
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:
-            if let reason = accountMatch?.unresolvedReason {
+            if let reason = appState.accountMatch?.unresolvedReason {
                 CurrentRepoUnresolvedRow(reason: reason, onChooseFolder: chooseFolder)
             }
         case nil:
@@ -230,7 +229,7 @@ struct MenuBarPopoverView: View {
                 return
             }
             Task { @MainActor in
-                await resolveAccount(at: url.path)
+                await appState.resolveCurrentRepo(at: url.path)
             }
         }
         return true
@@ -244,16 +243,7 @@ struct MenuBarPopoverView: View {
         panel.prompt = String(localized: "Choose")
         panel.message = String(localized: "Choose a folder or git working copy to resolve which account applies.")
         guard panel.runModal() == .OK, let url = panel.url else { return }
-        Task { await resolveAccount(at: url.path) }
-    }
-
-    private func resolveAccount(at path: String) async {
-        let accounts = appState.accountsStore.accounts
-        let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
-        accountMatch = result
-        if case .matched(let account, _) = result, !account.sshAlias.isEmpty {
-            appState.accountsStore.touchLastUsed(sshAlias: account.sshAlias)
-        }
+        Task { await appState.resolveCurrentRepo(at: url.path) }
     }
 
     /// Best-effort: if Finder's front window is a directory, resolve it.
@@ -262,9 +252,9 @@ struct MenuBarPopoverView: View {
     private func tryResolveFromFinder() async {
         guard !didAttemptFinderResolve else { return }
         didAttemptFinderResolve = true
-        guard accountMatch == nil else { return }
+        guard appState.accountMatch == nil else { return }
         guard let path = await FinderContext.frontmostDirectory() else { return }
-        await resolveAccount(at: path)
+        await appState.resolveCurrentRepo(at: path)
     }
 
     // MARK: - Load + probe

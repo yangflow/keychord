@@ -14,10 +14,14 @@ struct CurrentRepoDropZone: View {
                 Image(systemName: "folder.badge.questionmark")
                     .font(.system(size: 14, weight: .medium))
                     .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
-                Text(isTargeted ? "Drop to resolve account" : "Drop a folder to see which account applies")
+                Text(
+                    isTargeted
+                        ? "Drop to resolve account"
+                        : "Drop a folder on the menu bar icon, or choose a folder."
+                )
                     .font(KC.rowCaption)
                     .foregroundStyle(isTargeted ? Color.accentColor : .secondary)
-                    .lineLimit(2)
+                    .lineLimit(3)
                     .fixedSize(horizontal: false, vertical: true)
             }
             Button("Choose Folder…", action: onChooseFolder)

@@ -11,6 +11,7 @@ struct LocalizationCatalogTests {
         "Identity",
         "Loading config…",
         "Choose Folder…",
+        "Drop a folder on the menu bar icon, or choose a folder.",
         "Use with this account",
         "Open GitHub SSH settings",
         "Open GitLab SSH settings",

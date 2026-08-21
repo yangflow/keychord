@@ -16,6 +16,11 @@ final class AppState {
     /// When true the Accounts window should immediately begin a new draft.
     var pendingAddNew = false
 
+    /// Current-repo match from a folder drop / Choose Folder / Finder probe.
+    /// Stored here so a status-item drop can resolve while the popover is
+    /// closed, then survive popover recreation when it opens.
+    var accountMatch: AccountMatchResult?
+
     let accountsStore: AccountsStore
     let probeCache: ProbeCache
 
@@ -25,5 +30,16 @@ final class AppState {
     ) {
         self.accountsStore = accountsStore ?? AccountsStore()
         self.probeCache = probeCache ?? ProbeCache()
+    }
+
+    /// Shared resolve path used by popover drops, Choose Folder, Finder, and
+    /// the menu-bar icon drag destination.
+    func resolveCurrentRepo(at path: String) async {
+        let accounts = accountsStore.accounts
+        let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
+        accountMatch = result
+        if case .matched(let account, _) = result, !account.sshAlias.isEmpty {
+            accountsStore.touchLastUsed(sshAlias: account.sshAlias)
+        }
     }
 }

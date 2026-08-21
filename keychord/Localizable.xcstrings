@@ -698,19 +698,19 @@
         }
       }
     },
-    "Drop a folder to see which account applies": {
+    "Drop a folder on the menu bar icon, or choose a folder.": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Drop a folder to see which account applies"
+            "value": "Drop a folder on the menu bar icon, or choose a folder."
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "拖入文件夹以查看适用账号"
+            "value": "把文件夹拖到菜单栏图标上，或点选文件夹。"
           }
         }
       }
