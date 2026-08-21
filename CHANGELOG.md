@@ -10,6 +10,7 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ### Added
 
+- **Remove Include from Settings** — Accounts window → Settings offers **Remove Include (keep accounts.json)** with a confirmation dialog. Calls `IncludeInstaller.uninstallUserIncludes` to strip only the `# --- keychord managed ---` marker blocks from `~/.ssh/config` and `~/.gitconfig`; `accounts.json`, managed files, and private keys are left alone.
 - **SSH probe cache** — popover opens reuse the last `ssh -T` result for each alias (10-minute TTL). Successful probes stay cached until **Refresh**; failures and never-probed aliases auto-reprobe after the TTL. The menu-bar icon keeps the cached worst severity instead of flashing key → warning on every open.
 - **Multi-provider accounts** — `Account` carries a `provider` (`github` / `gitlab` / `gitea` / `custom`) and a generic `username` (legacy `githubUsername` still decodes). Account detail offers one-click `insteadOf` rewrite presets for common hosts; Keygen opens the matching SSH settings URL (custom only copies the public key). Old `accounts.json` without `provider` loads as GitHub with no data loss.
 - **Account detail path pickers** — `gitdir` and private key fields keep TextFields (paste still works) and gain folder/file chooser buttons. Chosen directories are stored with a trailing slash (and `~` when under `$HOME`); chosen keys default the panel to `~/.ssh` and store an absolute or `~` path that still projects.

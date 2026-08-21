@@ -3349,6 +3349,159 @@
           }
         }
       }
+    },
+    "Settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "设置"
+          }
+        }
+      }
+    },
+    "Includes": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Includes"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include"
+          }
+        }
+      }
+    },
+    "Remove Include (keep accounts.json)": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Include (keep accounts.json)"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除 Include（保留 accounts.json）"
+          }
+        }
+      }
+    },
+    "Removes keychord’s Include markers from ~/.ssh/config and ~/.gitconfig. Your accounts.json and SSH keys stay in place.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Removes keychord’s Include markers from ~/.ssh/config and ~/.gitconfig. Your accounts.json and SSH keys stay in place."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "从 ~/.ssh/config 和 ~/.gitconfig 移除 keychord 的 Include 标记块。accounts.json 与 SSH 私钥会保留。"
+          }
+        }
+      }
+    },
+    "Remove Include blocks?": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Include blocks?"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除 Include 块？"
+          }
+        }
+      }
+    },
+    "Remove Include": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove Include"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除 Include"
+          }
+        }
+      }
+    },
+    "This only strips the # --- keychord managed --- blocks. accounts.json, managed files, and private keys are not deleted.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "This only strips the # --- keychord managed --- blocks. accounts.json, managed files, and private keys are not deleted."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "只会删除 # --- keychord managed --- 标记块。不会删除 accounts.json、托管文件或私钥。"
+          }
+        }
+      }
+    },
+    "Include markers removed": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Include markers removed"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已移除 Include 标记"
+          }
+        }
+      }
+    },
+    "Remove failed: %@": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Remove failed: %@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "移除失败：%@"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -67,6 +67,17 @@ enum IncludeInstaller {
         try uninstallBlock(targetPath: targetPath)
     }
 
+    /// Strip keychord marker-wrapped Include blocks from both user
+    /// config files. Leaves accounts.json, managed files under
+    /// ~/.config/keychord, and private keys untouched.
+    static func uninstallUserIncludes(
+        sshConfigPath: String,
+        gitConfigPath: String
+    ) throws {
+        try uninstallSSHInclude(targetPath: sshConfigPath)
+        try uninstallGitInclude(targetPath: gitConfigPath)
+    }
+
     // MARK: - Core install / uninstall
 
     enum Position { case prepend, append }

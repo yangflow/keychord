@@ -25,6 +25,10 @@ struct LocalizationCatalogTests {
         "Unavailable",
         "Backups",
         "Refresh",
+        "Settings",
+        "Includes",
+        "Remove Include (keep accounts.json)",
+        "Include markers removed",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]
