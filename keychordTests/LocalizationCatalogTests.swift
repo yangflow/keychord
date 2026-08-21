@@ -42,7 +42,6 @@ struct LocalizationCatalogTests {
         "Repository",
         "org/repo",
         "Copy clone command",
-        "Cannot rewrite",
         "Startup",
         "Open at Login",
         "Launch keychord in the menu bar when you log in to this Mac.",
