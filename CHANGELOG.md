@@ -4,9 +4,20 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
-### Fixed
+## [0.4.0] — 2026-08-22
 
-- **iCloud Sync toggle when entitlement is missing** — unsigned / no-iCloud builds no longer show a half-working switch that looks enabled or synced. `ICloudAvailability` probes the signing entitlement (and ubiquity container when relevant); Settings disables the toggle, shows that a signed build is required, and keeps status as Unavailable. Private keys remain local-only.
+### Removed
+
+- **iCloud Sync** — the Accounts toolbar button, `CloudSyncService`, and related settings are gone. `accounts.json` on disk is the only source of truth; private keys were already local-only.
+
+### Added
+
+- **English + Simplified Chinese UI** — visible strings follow the system language via `Localizable.xcstrings`.
+- **Restore snapshot preview** — backup rows show account count, labels, and size; expand a row to see git identity, SSH alias/provider/port, key path, scope, and URL rewrites before restoring.
+
+### Changed
+
+- **Accounts toolbar** — action icons share one optical size and live on the detail column only, so collapsing the sidebar no longer hitch-inserts a `»` into the action cluster.
 
 ### Added
 
