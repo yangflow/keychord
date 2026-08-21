@@ -78,13 +78,13 @@ final class AppState {
                 identity: identity,
                 accounts: accounts
             )
-        case .noMatchingGitdir(let repoRoot):
-            // A folder that matches nothing is where a renamed project shows up.
+        case .noMatchingGitdir(let repoRoot), .conflictingGlobals(let repoRoot, _):
+            // A repository no scope claims is where a renamed project shows up.
             staleGitdir = StaleGitdirRepair.candidate(
                 forDroppedFolder: repoRoot,
                 accounts: accounts
             )
-        case .notARepo, .conflictingGlobals:
+        case .notARepo:
             break
         }
     }

@@ -89,6 +89,12 @@ struct MenuBarPopoverView: View {
             handleDrop(providers)
         }
         .task { await refresh() }
+        // The match outlives the popover, so a fresh drop must not inherit the
+        // error text from whatever the user tried on the previous one.
+        .onChange(of: appState.accountMatch) { _, _ in
+            bindError = nil
+            matchActionError = nil
+        }
     }
 
     // MARK: - Content
