@@ -1,4 +1,6 @@
 import AppKit
+import CoreGraphics
+import QuartzCore
 
 /// First-launch onboarding for a menubar-only app: glow the status item and hang
 /// a small callout under it so the first run can find the icon. Shown once —

@@ -1,3 +1,4 @@
+import CoreGraphics
 import Foundation
 
 /// State and geometry for the one-shot callout that points at the status item on

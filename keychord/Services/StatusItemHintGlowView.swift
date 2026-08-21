@@ -1,4 +1,6 @@
 import AppKit
+import CoreGraphics
+import QuartzCore
 
 /// Soft accent glow drawn around the existing status-bar symbol. Same optics as
 /// the drag highlight (#37) — a tinted rounded rect with a halo — but solid
