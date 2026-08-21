@@ -3774,6 +3774,23 @@
           }
         }
       }
+    },
+    "KeyChord": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyChord"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "KeyChord"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

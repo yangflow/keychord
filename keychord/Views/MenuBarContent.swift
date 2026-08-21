@@ -41,7 +41,10 @@ struct MenuBarPopoverView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
-            HStack {
+            HStack(alignment: .center, spacing: KC.space8) {
+                Text("KeyChord")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.primary)
                 Spacer(minLength: 0)
                 Button {
                     openSettingsWindow()
@@ -54,7 +57,7 @@ struct MenuBarPopoverView: View {
             }
             .padding(.horizontal, KC.rowHPadding)
             .padding(.top, KC.space8)
-            .padding(.bottom, KC.space4)
+            .padding(.bottom, KC.space6)
 
             content
             Divider()
@@ -146,32 +149,21 @@ struct MenuBarPopoverView: View {
 
     private var accountsSection: some View {
         let records = appState.accountsStore.accounts
-        return VStack(alignment: .leading, spacing: 0) {
-            Text("Accounts")
-                .font(.system(size: 11, weight: .semibold))
-                .textCase(.uppercase)
-                .kerning(0.4)
-                .foregroundStyle(.secondary)
-                .padding(.horizontal, 14)
-                .padding(.top, 10)
-                .padding(.bottom, 4)
-
-            VStack(spacing: 0) {
-                ForEach(records) { record in
-                    Button {
-                        openAccounts(selecting: record.id)
-                    } label: {
-                        AccountRow(
-                            record: record,
-                            probe: probeStates[record.sshAlias] ?? .idle
-                        )
-                    }
-                    .buttonStyle(.plain)
-
-                    Divider().padding(.leading, 32)
+        return VStack(spacing: 0) {
+            ForEach(records) { record in
+                Button {
+                    openAccounts(selecting: record.id)
+                } label: {
+                    AccountRow(
+                        record: record,
+                        probe: probeStates[record.sshAlias] ?? .idle
+                    )
                 }
-                AddAccountRow(onTap: { openAccounts(addNew: true) })
+                .buttonStyle(.plain)
+
+                Divider().padding(.leading, 32)
             }
+            AddAccountRow(onTap: { openAccounts(addNew: true) })
         }
     }
 

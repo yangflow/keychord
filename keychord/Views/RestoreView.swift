@@ -3,7 +3,6 @@ import SwiftUI
 struct RestoreView: View {
     let accountsStore: AccountsStore
     let backups: BackupService
-    let onDismiss: () -> Void
 
     @State private var entries: [BackupListEntry] = []
     @State private var loadError: String?
@@ -12,70 +11,53 @@ struct RestoreView: View {
     @State private var hasLoaded = false
 
     var body: some View {
-        VStack(spacing: 0) {
-            Form {
-                Section {
-                    if let statusMessage {
-                        Label {
-                            Text(verbatim: statusMessage)
-                        } icon: {
-                            Image(systemName: "checkmark.circle")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.green)
+        Form {
+            Section {
+                if let statusMessage {
+                    Label {
+                        Text(verbatim: statusMessage)
+                    } icon: {
+                        Image(systemName: "checkmark.circle")
                     }
-                    if let loadError {
-                        Label {
-                            Text(verbatim: loadError)
-                        } icon: {
-                            Image(systemName: "exclamationmark.triangle")
-                        }
-                        .font(.caption)
-                        .foregroundStyle(.red)
+                    .font(.caption)
+                    .foregroundStyle(.green)
+                }
+                if let loadError {
+                    Label {
+                        Text(verbatim: loadError)
+                    } icon: {
+                        Image(systemName: "exclamationmark.triangle")
                     }
-
-                    if entries.isEmpty
-                        && loadError == nil
-                        && statusMessage == nil
-                        && hasLoaded {
-                        Text("No backups yet — edits will appear here once you save changes.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                            .fixedSize(horizontal: false, vertical: true)
-                    }
-
-                    ForEach(entries) { entry in
-                        BackupRestoreRow(entry: entry, isBusy: isBusy) {
-                            Task { await restore(entry.record) }
-                        }
-                    }
-                } header: {
-                    Text("Backups")
+                    .font(.caption)
+                    .foregroundStyle(.red)
                 }
 
-                Section {
-                    Text("Restoring rolls back all accounts to that point in time.")
+                if entries.isEmpty
+                    && loadError == nil
+                    && statusMessage == nil
+                    && hasLoaded {
+                    Text("No backups yet — edits will appear here once you save changes.")
                         .font(.caption)
-                        .foregroundStyle(.tertiary)
+                        .foregroundStyle(.secondary)
+                        .fixedSize(horizontal: false, vertical: true)
                 }
-            }
-            .formStyle(.grouped)
 
-            Divider()
+                ForEach(entries) { entry in
+                    BackupRestoreRow(entry: entry, isBusy: isBusy) {
+                        Task { await restore(entry.record) }
+                    }
+                }
 
-            HStack {
                 if isBusy {
                     ProgressView().controlSize(.small)
                 }
-                Spacer()
-                Button("Done", action: onDismiss)
-                    .buttonStyle(.borderedProminent)
-                    .keyboardShortcut(.defaultAction)
+
+                Text("Restoring rolls back all accounts to that point in time.")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
-            .padding(.horizontal, KC.space20)
-            .padding(.vertical, KC.space12)
         }
-        .frame(minWidth: 480, minHeight: 360)
+        .formStyle(.grouped)
         .onAppear { reload() }
     }
 

@@ -41,7 +41,7 @@ struct SettingsWindowView: View {
     @State private var importCandidates: [Account] = []
     @State private var importStatus: String?
     @State private var importIsError = false
-    @State private var didScanImport = false
+    @State private var importScanDone = false
 
     var body: some View {
         NavigationSplitView {
@@ -52,12 +52,19 @@ struct SettingsWindowView: View {
             .navigationSplitViewColumnWidth(min: 160, ideal: 180, max: 220)
         } detail: {
             detail
+                .navigationTitle(selection?.title ?? "")
+                .navigationSplitViewColumnWidth(min: 400, ideal: 520)
         }
         .navigationSplitViewStyle(.balanced)
         .frame(minWidth: 640, minHeight: 420)
         .onAppear {
             if selection == nil {
                 selection = .general
+            }
+        }
+        .onChange(of: selection) { _, newValue in
+            if newValue == .importAccounts, !importScanDone {
+                scanForImport()
             }
         }
     }
@@ -80,24 +87,21 @@ struct SettingsWindowView: View {
         case .importAccounts:
             SettingsImportPane(
                 candidates: importCandidates,
-                didScan: didScanImport,
+                scanDone: importScanDone,
                 statusMessage: importStatus,
                 statusIsError: importIsError,
                 existingAliases: Set(appState.accountsStore.accounts.map(\.sshAlias)),
-                onScan: scanForImport,
-                onImport: importSelected,
-                onClearStatus: {
-                    importCandidates = []
-                    didScanImport = false
-                    importStatus = nil
-                    importIsError = false
-                }
+                onImport: importSelected
             )
+            .task {
+                if !importScanDone {
+                    scanForImport()
+                }
+            }
         case .backups:
             RestoreView(
                 accountsStore: appState.accountsStore,
-                backups: appState.accountsStore.backups,
-                onDismiss: {}
+                backups: appState.accountsStore.backups
             )
         case .config:
             SettingsConfigPane()
@@ -109,7 +113,6 @@ struct SettingsWindowView: View {
     private func scanForImport() {
         importStatus = nil
         importIsError = false
-        didScanImport = true
         do {
             let current = try ConfigStore.loadFromDefaultLocations()
             importCandidates = AccountImporter.importFromExistingConfig(current)
@@ -121,6 +124,7 @@ struct SettingsWindowView: View {
             importIsError = true
             importStatus = String(localized: "Import failed: \(String(describing: error))")
         }
+        importScanDone = true
     }
 
     private func importSelected(_ chosen: [Account]) {
@@ -140,8 +144,6 @@ struct SettingsWindowView: View {
             if let first = chosen.first(where: { !existing.contains($0.sshAlias) }) {
                 appState.pendingAccountSelection = first.id
             }
-            importCandidates = []
-            didScanImport = false
             importIsError = false
             if added == 0 {
                 importStatus = String(localized: "No accounts found to import")
@@ -150,6 +152,10 @@ struct SettingsWindowView: View {
             } else {
                 importStatus = String(localized: "Imported \(added) accounts")
             }
+            // Refresh checkboxes / “exists” tags without wiping the status line.
+            let current = try ConfigStore.loadFromDefaultLocations()
+            importCandidates = AccountImporter.importFromExistingConfig(current)
+            importScanDone = true
         } catch {
             importIsError = true
             importStatus = String(localized: "Import failed: \(String(describing: error))")
@@ -169,7 +175,6 @@ struct SettingsWindowView: View {
             appState.pendingAccountSelection = account.id
             keygenResetID = UUID()
         } catch {
-            // KeygenView already surfaced generate errors; attach failures are rare.
             keygenResetID = UUID()
         }
     }
@@ -308,46 +313,38 @@ struct SettingsConfigPane: View {
 
 struct SettingsImportPane: View {
     let candidates: [Account]
-    let didScan: Bool
+    let scanDone: Bool
     let statusMessage: String?
     let statusIsError: Bool
     let existingAliases: Set<String>
-    let onScan: () -> Void
     let onImport: ([Account]) -> Void
-    let onClearStatus: () -> Void
 
     var body: some View {
         VStack(spacing: 0) {
-            if !candidates.isEmpty {
+            if let statusMessage {
+                Text(verbatim: statusMessage)
+                    .font(.caption)
+                    .foregroundStyle(statusIsError ? Color.red : Color.green)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .padding(.horizontal, KC.space20)
+                    .padding(.top, KC.space12)
+            }
+
+            if !scanDone {
+                HStack(spacing: 8) {
+                    ProgressView().controlSize(.small)
+                    Text("Loading config…")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+                .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+            } else {
                 ImportPickerView(
                     candidates: candidates,
                     existingAliases: existingAliases,
                     onImport: onImport,
-                    onDismiss: onClearStatus
+                    embedded: true
                 )
-            } else {
-                Form {
-                    Section {
-                        Text("Scan ~/.ssh/config and ~/.gitconfig for accounts KeyChord can import.")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-
-                        Button("Scan for accounts", action: onScan)
-
-                        if let statusMessage {
-                            Text(verbatim: statusMessage)
-                                .font(.caption)
-                                .foregroundStyle(statusIsError ? Color.red : Color.secondary)
-                        } else if didScan {
-                            Text("No accounts found in your existing SSH / gitconfig.")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    } header: {
-                        Text("Import")
-                    }
-                }
-                .formStyle(.grouped)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
