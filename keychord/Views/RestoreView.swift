@@ -11,39 +11,25 @@ struct RestoreView: View {
     @State private var hasLoaded = false
 
     var body: some View {
-        Form {
-            Section {
-                if let statusMessage {
-                    Label {
-                        Text(verbatim: statusMessage)
-                    } icon: {
-                        Image(systemName: "checkmark.circle")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.green)
-                }
-                if let loadError {
-                    Label {
-                        Text(verbatim: loadError)
-                    } icon: {
-                        Image(systemName: "exclamationmark.triangle")
-                    }
-                    .font(.caption)
-                    .foregroundStyle(.red)
-                }
+        ScrollView {
+            VStack(alignment: .leading, spacing: KC.space10) {
+                statusBlock
 
                 if entries.isEmpty
                     && loadError == nil
                     && statusMessage == nil
-                    && hasLoaded {
+                    && hasLoaded
+                    && !isBusy {
                     Text("No backups yet — a snapshot is taken when you add a new account.")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                         .fixedSize(horizontal: false, vertical: true)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.horizontal, 2)
                 }
 
                 ForEach(entries) { entry in
-                    BackupRestoreRow(
+                    BackupRestoreCard(
                         entry: entry,
                         isBusy: isBusy,
                         onRestore: { Task { await restore(entry.record) } },
@@ -52,12 +38,39 @@ struct RestoreView: View {
                 }
 
                 if isBusy {
-                    ProgressView().controlSize(.small)
+                    ProgressView()
+                        .controlSize(.small)
+                        .frame(maxWidth: .infinity, alignment: .center)
+                        .padding(.top, KC.space4)
                 }
             }
+            .padding(.horizontal, KC.space16)
+            .padding(.vertical, KC.space14)
+            .frame(maxWidth: .infinity, alignment: .topLeading)
         }
-        .formStyle(.grouped)
         .onAppear { reload() }
+    }
+
+    @ViewBuilder
+    private var statusBlock: some View {
+        if let statusMessage {
+            Label {
+                Text(verbatim: statusMessage)
+            } icon: {
+                Image(systemName: "checkmark.circle")
+            }
+            .font(.caption)
+            .foregroundStyle(.green)
+        }
+        if let loadError {
+            Label {
+                Text(verbatim: loadError)
+            } icon: {
+                Image(systemName: "exclamationmark.triangle")
+            }
+            .font(.caption)
+            .foregroundStyle(.red)
+        }
     }
 
     // MARK: - Actions
@@ -110,9 +123,9 @@ struct RestoreView: View {
     }
 }
 
-// MARK: - Row
+// MARK: - Card row
 
-private struct BackupRestoreRow: View {
+private struct BackupRestoreCard: View {
     let entry: BackupListEntry
     let isBusy: Bool
     let onRestore: () -> Void
@@ -120,46 +133,58 @@ private struct BackupRestoreRow: View {
 
     @State private var isExpanded = false
 
+    private let cardRadius: CGFloat = 12
+
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .top, spacing: 8) {
+        VStack(alignment: .leading, spacing: 0) {
+            HStack(alignment: .center, spacing: KC.space10) {
                 disclosureControl
-                    .padding(.top, 2)
 
                 VStack(alignment: .leading, spacing: 3) {
                     Text(
                         entry.timestamp,
                         format: .dateTime.year().month().day().hour().minute().second()
                     )
-                    .font(.caption.weight(.medium))
+                    .font(.callout.weight(.semibold))
+                    .foregroundStyle(.primary)
                     .monospacedDigit()
 
                     Text(summaryLine)
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                        .lineLimit(2)
+                        .lineLimit(1)
                         .truncationMode(.tail)
                 }
 
-                Spacer(minLength: 8)
+                Spacer(minLength: KC.space8)
 
-                Button("Restore", action: onRestore)
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-                    .disabled(isBusy)
+                HStack(spacing: KC.space10) {
+                    Button("Restore", action: onRestore)
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .disabled(isBusy)
 
-                Button("Delete", role: .destructive, action: onDelete)
-                    .buttonStyle(.borderless)
-                    .font(.caption)
-                    .disabled(isBusy)
+                    Button("Delete", role: .destructive, action: onDelete)
+                        .buttonStyle(.borderless)
+                        .font(.caption)
+                        .disabled(isBusy)
+                }
             }
 
             if isExpanded {
+                Divider()
+                    .padding(.vertical, KC.space10)
+
                 expandedContent
-                    .padding(.leading, 22)
             }
         }
-        .padding(.vertical, 2)
+        .padding(KC.space14)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(
+            RoundedRectangle(cornerRadius: cardRadius, style: .continuous)
+                .fill(Color.primary.opacity(0.06))
+        )
     }
 
     @ViewBuilder
@@ -171,7 +196,7 @@ private struct BackupRestoreRow: View {
                 }
             } label: {
                 Image(systemName: "chevron.right")
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 14, weight: .semibold))
                     .foregroundStyle(.secondary)
                     .rotationEffect(.degrees(isExpanded ? 90 : 0))
                     .frame(width: 14, height: 14)
@@ -182,6 +207,7 @@ private struct BackupRestoreRow: View {
             )
         } else {
             Image(systemName: "clock.arrow.circlepath")
+                .font(.system(size: 14, weight: .medium))
                 .foregroundStyle(.secondary)
                 .frame(width: 14, height: 14)
         }
@@ -194,15 +220,11 @@ private struct BackupRestoreRow: View {
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         } else {
-            VStack(alignment: .leading, spacing: 10) {
-                ForEach(Array(entry.accounts.enumerated()), id: \.element.id) { index, account in
+            VStack(alignment: .leading, spacing: KC.space8) {
+                ForEach(entry.accounts) { account in
                     BackupAccountPreviewBlock(account: account)
-                    if index < entry.accounts.count - 1 {
-                        Divider()
-                    }
                 }
             }
-            .padding(.vertical, 4)
         }
     }
 
@@ -236,7 +258,7 @@ private struct BackupRestoreRow: View {
     }
 }
 
-// MARK: - Account preview
+// MARK: - Account preview (compact)
 
 private struct BackupAccountPreviewBlock: View {
     let account: BackupAccountPreview
@@ -245,42 +267,17 @@ private struct BackupAccountPreviewBlock: View {
         VStack(alignment: .leading, spacing: 2) {
             Text(displayLabel)
                 .font(.caption.weight(.semibold))
+                .foregroundStyle(.primary)
                 .lineLimit(1)
                 .truncationMode(.tail)
 
-            if !identityLine.isEmpty {
-                Text(verbatim: identityLine)
+            if !detailLine.isEmpty {
+                Text(verbatim: detailLine)
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .truncationMode(.middle)
             }
-
-            Text(verbatim: sshLine)
-                .font(.caption)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            if !account.keyPath.isEmpty {
-                Text(verbatim: account.keyPath.abbreviatedHomePath())
-                    .font(.caption)
-                    .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .truncationMode(.middle)
-            }
-
-            Text(scopeLine)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .truncationMode(.middle)
-
-            Text(rewriteLine)
-                .font(.caption)
-                .foregroundStyle(.tertiary)
-                .lineLimit(1)
-                .truncationMode(.middle)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .accessibilityElement(children: .combine)
@@ -290,55 +287,10 @@ private struct BackupAccountPreviewBlock: View {
         account.label.isEmpty ? String(localized: "(unnamed)") : account.label
     }
 
-    private var identityLine: String {
-        [account.gitUserName, account.gitUserEmail]
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-            .joined(separator: " · ")
-    }
-
-    private var sshLine: String {
-        var parts: [String] = []
+    /// `alias · email` (skip empty parts).
+    private var detailLine: String {
         let alias = account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines)
-        if !alias.isEmpty {
-            parts.append(alias)
-        }
-        parts.append(providerLabel)
-        parts.append(String(localized: "Port \(account.sshPort.displayName)"))
-        return parts.joined(separator: " · ")
-    }
-
-    private var providerLabel: String {
-        switch account.provider {
-        case .github: return String(localized: "GitHub")
-        case .gitlab: return String(localized: "GitLab")
-        case .gitea: return String(localized: "Gitea")
-        case .custom: return String(localized: "Custom")
-        }
-    }
-
-    private var scopeLine: String {
-        switch account.scope {
-        case .global:
-            return String(localized: "Global")
-        case .gitdir(let path):
-            let display = path.abbreviatedHomePath()
-            return String(localized: "scope: gitdir:\(display)")
-        }
-    }
-
-    private var rewriteLine: String {
-        let rewrites = account.urlRewrites
-        if rewrites.isEmpty {
-            return String(localized: "No URL rewrites")
-        }
-        if rewrites.count == 1, let only = rewrites.first {
-            return "\(only.from) → \(only.to)"
-        }
-        if let first = rewrites.first {
-            let countText = String(localized: "\(rewrites.count) URL rewrites")
-            return "\(countText) · \(first.from) → \(first.to)"
-        }
-        return String(localized: "\(rewrites.count) URL rewrites")
+        let email = account.gitUserEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        return [alias, email].filter { !$0.isEmpty }.joined(separator: " · ")
     }
 }
