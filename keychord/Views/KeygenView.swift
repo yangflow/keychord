@@ -13,6 +13,7 @@ struct KeygenView: View {
     @State private var keyName: String = "id_keychord"
     @State private var comment: String
     @State private var keyType: KeygenService.KeyType = .ed25519
+    @State private var provider: Account.Provider = .github
     @State private var isGenerating = false
     @State private var result: KeygenResult?
     @State private var errorMessage: String?
@@ -57,6 +58,13 @@ struct KeygenView: View {
                         }
                     }
                     .pickerStyle(.segmented)
+                    .disabled(isGenerating)
+
+                    Picker("Provider", selection: $provider) {
+                        ForEach(Account.Provider.allCases) { p in
+                            Text(p.keygenLocalizedLabel).tag(p)
+                        }
+                    }
                     .disabled(isGenerating)
                 } header: {
                     Text("Key Type")
@@ -158,7 +166,7 @@ struct KeygenView: View {
                 }
 
                 Section {
-                    Text("Copy the public key and add it under GitHub → Settings → SSH and GPG keys. Then use it with an account so keychord can project the Host block.")
+                    Text(provider.keygenHint)
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                 }
@@ -176,12 +184,14 @@ struct KeygenView: View {
                     }
                     .buttonStyle(.borderless)
 
-                    Button {
-                        openGitHubSSHSettings()
-                    } label: {
-                        Label("Open GitHub SSH settings", systemImage: "safari")
+                    if let settingsURL = KeyAttachment.sshSettingsURL(for: provider) {
+                        Button {
+                            NSWorkspace.shared.open(settingsURL)
+                        } label: {
+                            Label(provider.openSettingsLabel, systemImage: "safari")
+                        }
+                        .buttonStyle(.borderless)
                     }
-                    .buttonStyle(.borderless)
 
                     Spacer()
                 }
@@ -236,7 +246,8 @@ struct KeygenView: View {
                     Button {
                         let fresh = KeyAttachment.makeNewAccount(
                             from: result,
-                            suggestedEmail: comment
+                            suggestedEmail: comment,
+                            provider: provider
                         )
                         attach(to: fresh, isNew: true, result: result)
                     } label: {
@@ -341,12 +352,40 @@ struct KeygenView: View {
         didCopy = true
     }
 
-    private func openGitHubSSHSettings() {
-        guard let url = KeyAttachment.githubSSHSettingsURL else { return }
-        NSWorkspace.shared.open(url)
-    }
-
     private func revealInFinder(_ path: String) {
         NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: path)])
+    }
+}
+
+private extension Account.Provider {
+    var keygenLocalizedLabel: LocalizedStringKey {
+        switch self {
+        case .github: return "GitHub"
+        case .gitlab: return "GitLab"
+        case .gitea:  return "Gitea"
+        case .custom: return "Custom"
+        }
+    }
+
+    var keygenHint: LocalizedStringKey {
+        switch self {
+        case .github:
+            return "Copy the public key and add it under GitHub → Settings → SSH and GPG keys. Then use it with an account so keychord can project the Host block."
+        case .gitlab:
+            return "Copy the public key and add it under GitLab → Preferences → SSH Keys. Then use it with an account so keychord can project the Host block."
+        case .gitea:
+            return "Copy the public key and add it under Gitea → Settings → SSH / GPG Keys. Then use it with an account so keychord can project the Host block."
+        case .custom:
+            return "Copy the public key and add it to your Git host’s SSH keys page. Then use it with an account so keychord can project the Host block."
+        }
+    }
+
+    var openSettingsLabel: LocalizedStringKey {
+        switch self {
+        case .github: return "Open GitHub SSH settings"
+        case .gitlab: return "Open GitLab SSH settings"
+        case .gitea:  return "Open Gitea SSH settings"
+        case .custom: return "Open SSH settings"
+        }
     }
 }

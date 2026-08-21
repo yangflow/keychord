@@ -161,7 +161,8 @@ enum AccountImporter {
         return Account(
             id: UUID(),
             label: label,
-            githubUsername: "",
+            username: "",
+            provider: .github,
             sshAlias: primaryAlias,
             keyPath: c.keyPath ?? "",
             keyFingerprint: nil,

@@ -183,7 +183,8 @@ struct AccountsWindowView: View {
         draft = Account(
             id: UUID(),
             label: "",
-            githubUsername: "",
+            username: "",
+            provider: .github,
             sshAlias: "",
             keyPath: "",
             keyFingerprint: nil,
