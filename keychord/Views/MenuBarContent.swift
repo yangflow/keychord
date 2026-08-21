@@ -98,11 +98,12 @@ struct MenuBarPopoverView: View {
     @ViewBuilder
     private var currentRepoSection: some View {
         switch appState.accountMatch {
-        case .matched(let account, let repoRoot):
+        case .matched(let account, let repoRoot, let originURL):
             CurrentRepoMatchedRow(
                 account: account,
                 repoRoot: repoRoot,
                 probe: probeStates[account.sshAlias] ?? .idle,
+                originURL: originURL,
                 onClear: { appState.clearAccountMatch() }
             )
         case .notARepo, .noMatchingGitdir, .conflictingGlobals:

@@ -48,7 +48,7 @@ final class AppState {
         let accounts = accountsStore.accounts
         let result = await CurrentRepoResolver.matchAccount(path: path, accounts: accounts)
         accountMatch = result
-        if case .matched(let account, _) = result, !account.sshAlias.isEmpty {
+        if case .matched(let account, _, _) = result, !account.sshAlias.isEmpty {
             accountsStore.touchLastUsed(sshAlias: account.sshAlias)
         }
     }

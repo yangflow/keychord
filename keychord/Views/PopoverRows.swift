@@ -55,6 +55,7 @@ struct CurrentRepoMatchedRow: View {
     let account: Account
     let repoRoot: String
     let probe: HostProbeState
+    var originURL: String? = nil
     var onClear: (() -> Void)? = nil
 
     var body: some View {
@@ -127,8 +128,12 @@ struct CurrentRepoMatchedRow: View {
                     .truncationMode(.middle)
 
                 if !account.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty {
-                    CloneAsIdentityView(account: account, compact: true)
-                        .padding(.top, KC.space4)
+                    CloneAsIdentityView(
+                        account: account,
+                        compact: true,
+                        initialInput: originURL ?? ""
+                    )
+                    .padding(.top, KC.space4)
                 }
             }
         }

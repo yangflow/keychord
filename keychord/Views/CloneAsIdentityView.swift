@@ -3,13 +3,19 @@ import AppKit
 
 /// Paste `org/repo` or an original clone URL, copy `git clone git@<alias>:…`.
 /// In the Accounts form this is a quiet Form row; `compact` keeps a bordered
-/// field for the menubar popover hero.
+/// field for the menubar popover hero (optionally prefilled from origin).
 struct CloneAsIdentityView: View {
     let account: Account
     var compact: Bool = false
 
-    @State private var input: String = ""
+    @State private var input: String
     @State private var didCopy = false
+
+    init(account: Account, compact: Bool = false, initialInput: String = "") {
+        self.account = account
+        self.compact = compact
+        self._input = State(initialValue: initialInput)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: compact ? KC.space6 : KC.space4) {
