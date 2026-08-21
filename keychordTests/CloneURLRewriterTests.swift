@@ -155,23 +155,22 @@ struct CloneURLRewriterTests {
         )
     }
 
-    /// The path is carried over exactly as the remote had it — subgroups
-    /// included, and no `.git` invented — so set-url only changes host and
-    /// transport.
-    @Test func setURLCommandKeepsSubgroupsAndTheOriginalSuffix() {
+    /// Subgroups survive, and the URL always ends in `.git` — the same
+    /// canonical form the clone helper produces, so set-url only changes host
+    /// and transport.
+    @Test func setURLCommandKeepsSubgroupsAndEndsInGit() {
         let account = makeAccount(alias: "gitlab-work", provider: .gitlab)
-        #expect(
-            CloneURLRewriter.remoteSetURLCommand(
-                for: account,
-                originURL: "https://gitlab.com/acme/group/api"
-            ) == "git remote set-url origin git@gitlab-work:acme/group/api"
-        )
-        #expect(
-            CloneURLRewriter.remoteSetURLCommand(
-                for: account,
-                originURL: "https://gitlab.com/acme/group/api.git"
-            ) == "git remote set-url origin git@gitlab-work:acme/group/api.git"
-        )
+        for origin in [
+            "https://gitlab.com/acme/group/api",
+            "https://gitlab.com/acme/group/api.git",
+            "https://gitlab.com/acme/group/api/",
+        ] {
+            #expect(
+                CloneURLRewriter.remoteSetURLCommand(for: account, originURL: origin)
+                    == "git remote set-url origin git@gitlab-work:acme/group/api.git",
+                "origin: \(origin)"
+            )
+        }
     }
 
     @Test func setURLCommandIsNilForAnSSHRemote() {

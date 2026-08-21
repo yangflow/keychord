@@ -50,7 +50,9 @@ struct StaleGitdirRepairTests {
         )
     }
 
-    @Test func missingPathInAnotherParentIsNotOffered() {
+    @Test func unrelatedMissingPathIsNotOffered() {
+        // Different parent *and* a different folder name: nothing links it to
+        // the drop, so keychord keeps its hands off.
         let work = Self.account(label: "work", paths: ["~/elsewhere/old-app/"])
         #expect(
             StaleGitdirRepair.candidate(
@@ -59,6 +61,67 @@ struct StaleGitdirRepairTests {
                 directoryExists: Self.exists([])
             ) == nil
         )
+    }
+
+    @Test func movedFolderIsMatchedByItsName() throws {
+        // Same project, new parent: ~/src/api/ is gone, ~/work/api/ was dropped.
+        let work = Self.account(label: "work", paths: ["~/src/api/"])
+        let candidate = try #require(
+            StaleGitdirRepair.candidate(
+                forDroppedFolder: "\(NSHomeDirectory())/work/api",
+                accounts: [work],
+                directoryExists: Self.exists([])
+            )
+        )
+        #expect(candidate.stalePath == "~/src/api/")
+        #expect(candidate.replacementPath == "~/work/api/")
+        #expect(candidate.reason == .sameLastComponent)
+    }
+
+    @Test func aSiblingRenameBeatsAMoveElsewhere() throws {
+        let moved = Self.account(label: "moved", paths: ["~/elsewhere/renamed-app/"])
+        let renamed = Self.account(label: "renamed", paths: ["~/src/old-app/"])
+        let candidate = try #require(
+            StaleGitdirRepair.candidate(
+                forDroppedFolder: "\(NSHomeDirectory())/src/renamed-app",
+                accounts: [moved, renamed],
+                directoryExists: Self.exists([])
+            )
+        )
+        // Same parent is the stronger signal even though `moved` is declared
+        // first and its leaf matches exactly.
+        #expect(candidate.stalePath == "~/src/old-app/")
+        #expect(candidate.reason == .sameParent)
+    }
+
+    @Test func accountLabelNamingTheFolderBreaksATie() throws {
+        let other = Self.account(label: "other", paths: ["~/src/a-app/"])
+        let named = Self.account(label: "renamed-app", paths: ["~/src/b-app/"])
+        let candidate = try #require(
+            StaleGitdirRepair.candidate(
+                forDroppedFolder: "\(NSHomeDirectory())/src/renamed-app",
+                accounts: [other, named],
+                directoryExists: Self.exists([])
+            )
+        )
+        // Both are sibling renames; the label that names the folder wins.
+        #expect(candidate.account.id == named.id)
+        #expect(candidate.stalePath == "~/src/b-app/")
+    }
+
+    @Test func aPathThatStillExistsLosesToAMissingOne() throws {
+        let work = Self.account(
+            label: "work",
+            paths: ["~/src/present-app/", "~/src/gone-app/"]
+        )
+        let candidate = try #require(
+            StaleGitdirRepair.candidate(
+                forDroppedFolder: "\(NSHomeDirectory())/src/renamed-app",
+                accounts: [work],
+                directoryExists: Self.exists(["~/src/present-app/"])
+            )
+        )
+        #expect(candidate.stalePath == "~/src/gone-app/")
     }
 
     @Test func pathAlreadyPointingAtTheDroppedFolderIsNotStale() {
@@ -126,7 +189,8 @@ struct StaleGitdirRepairTests {
         let candidate = StaleGitdirRepair.Candidate(
             account: work,
             stalePath: "~/src/old-app/",
-            replacementPath: "~/src/renamed-app/"
+            replacementPath: "~/src/renamed-app/",
+            reason: .sameParent
         )
         let repaired = StaleGitdirRepair.repair(candidate)
         #expect(repaired.scope.directories == ["~/src/renamed-app/"])
@@ -137,12 +201,13 @@ struct StaleGitdirRepairTests {
         let candidate = StaleGitdirRepair.Candidate(
             account: work,
             stalePath: "~/src/old-app/",
-            replacementPath: "~/src/renamed-app/"
+            replacementPath: "~/src/renamed-app/",
+            reason: .sameParent
         )
         #expect(StaleGitdirRepair.repair(candidate).scope.directories == ["~/work/"])
     }
 
-    // MARK: - Parent helper
+    // MARK: - Path helpers
 
     @Test func parentDirectoryOfAGitdirPath() {
         #expect(StaleGitdirRepair.parentDirectory(ofGitdirPath: "~/src/old-app/") == "~/src/")
@@ -150,5 +215,13 @@ struct StaleGitdirRepairTests {
         #expect(StaleGitdirRepair.parentDirectory(ofGitdirPath: "/opt/repos/app/") == "/opt/repos/")
         #expect(StaleGitdirRepair.parentDirectory(ofGitdirPath: "~/") == "")
         #expect(StaleGitdirRepair.parentDirectory(ofGitdirPath: "") == "")
+    }
+
+    @Test func lastPathComponentOfAGitdirPath() {
+        #expect(StaleGitdirRepair.lastPathComponent(ofGitdirPath: "~/src/old-app/") == "old-app")
+        #expect(StaleGitdirRepair.lastPathComponent(ofGitdirPath: "~/src/old-app") == "old-app")
+        #expect(StaleGitdirRepair.lastPathComponent(ofGitdirPath: "/opt/repos/app/") == "app")
+        #expect(StaleGitdirRepair.lastPathComponent(ofGitdirPath: "~/") == "")
+        #expect(StaleGitdirRepair.lastPathComponent(ofGitdirPath: "") == "")
     }
 }
