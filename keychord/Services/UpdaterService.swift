@@ -63,11 +63,14 @@ final class UpdaterService {
     private init() {}
 
     func checkForUpdates() {
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert()
         alert.messageText = String(localized: "Updates not configured")
         alert.informativeText = String(localized: "updater.notConfigured.body")
         alert.alertStyle = .informational
         alert.runModal()
+        ActivationPolicyController.shared.restoreAccessoryIfNeeded()
     }
 
     var canCheck: Bool { false }

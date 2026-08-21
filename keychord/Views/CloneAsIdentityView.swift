@@ -1,8 +1,9 @@
 import SwiftUI
 import AppKit
 
-/// Read-only field: paste `org/repo` or an original clone URL, copy the
-/// rewritten `git clone git@<alias>:…` command for this account.
+/// Paste `org/repo` or an original clone URL, copy `git clone git@<alias>:…`.
+/// In the Accounts form this is a quiet Form row; `compact` keeps a bordered
+/// field for the menubar popover hero.
 struct CloneAsIdentityView: View {
     let account: Account
     var compact: Bool = false
@@ -11,51 +12,50 @@ struct CloneAsIdentityView: View {
     @State private var didCopy = false
 
     var body: some View {
-        VStack(alignment: .leading, spacing: compact ? KC.space6 : KC.space8) {
+        VStack(alignment: .leading, spacing: compact ? KC.space6 : KC.space4) {
             HStack(spacing: KC.space6) {
-                TextField(
-                    "",
-                    text: $input,
-                    prompt: Text("org/repo or paste URL")
-                )
-                .textFieldStyle(.roundedBorder)
-                .font(KC.rowCaptionMono)
-                .disableAutocorrection(true)
-                .onChange(of: input) { _, _ in
-                    didCopy = false
-                }
+                field
+                    .font(compact ? KC.rowCaptionMono : nil)
+                    .disableAutocorrection(true)
+                    .onChange(of: input) { _, _ in
+                        didCopy = false
+                    }
 
                 Button {
                     copyCommand()
                 } label: {
-                    Label(
-                        didCopy ? "Copied" : "Copy",
-                        systemImage: didCopy ? "checkmark" : "doc.on.doc"
-                    )
+                    Image(systemName: didCopy ? "checkmark" : "doc.on.doc")
                 }
                 .buttonStyle(.borderless)
                 .disabled(cloneCommand == nil)
-                .help("Copy rewritten clone command")
-                .accessibilityLabel(Text(didCopy ? "Copied" : "Copy rewritten clone command"))
+                .help("Copy clone command")
+                .accessibilityLabel(Text(didCopy ? "Copied" : "Copy clone command"))
             }
 
             if let command = cloneCommand {
                 Text(verbatim: command)
                     .font(KC.rowCaptionMono)
                     .foregroundStyle(.secondary)
-                    .lineLimit(compact ? 2 : 3)
+                    .lineLimit(2)
                     .truncationMode(.middle)
                     .textSelection(.enabled)
                     .frame(maxWidth: .infinity, alignment: .leading)
             } else if !trimmedInput.isEmpty {
-                Text("Cannot rewrite — check alias or URL")
-                    .font(KC.rowCaption)
-                    .foregroundStyle(.tertiary)
-            } else if !compact {
-                Text("Accepts org/repo or a GitHub/GitLab/Gitea clone URL.")
+                Text("Cannot rewrite")
                     .font(KC.rowCaption)
                     .foregroundStyle(.tertiary)
             }
+        }
+    }
+
+    @ViewBuilder
+    private var field: some View {
+        let prompt = Text("org/repo")
+        if compact {
+            TextField("", text: $input, prompt: prompt)
+                .textFieldStyle(.roundedBorder)
+        } else {
+            TextField("Repository", text: $input, prompt: prompt)
         }
     }
 

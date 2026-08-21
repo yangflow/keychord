@@ -3282,36 +3282,53 @@
         }
       }
     },
-    "Clone as this identity": {
+    "Clone": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Clone as this identity"
+            "value": "Clone"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用这个身份 clone"
+            "value": "克隆"
           }
         }
       }
     },
-    "org/repo or paste URL": {
+    "Repository": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "org/repo or paste URL"
+            "value": "Repository"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "org/repo 或粘贴原 URL"
+            "value": "仓库"
+          }
+        }
+      }
+    },
+    "org/repo": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "org/repo"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "org/repo"
           }
         }
       }
@@ -3333,53 +3350,36 @@
         }
       }
     },
-    "Copy rewritten clone command": {
+    "Copy clone command": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Copy rewritten clone command"
+            "value": "Copy clone command"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "复制改写后的 clone 命令"
+            "value": "复制 clone 命令"
           }
         }
       }
     },
-    "Cannot rewrite — check alias or URL": {
+    "Cannot rewrite": {
       "extractionState": "manual",
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Cannot rewrite — check alias or URL"
+            "value": "Cannot rewrite"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "无法改写 — 请检查 alias 或 URL"
-          }
-        }
-      }
-    },
-    "Accepts org/repo or a GitHub/GitLab/Gitea clone URL.": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "Accepts org/repo or a GitHub/GitLab/Gitea clone URL."
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "支持 org/repo，或粘贴 GitHub/GitLab/Gitea 的 clone URL。"
+            "value": "无法改写"
           }
         }
       }

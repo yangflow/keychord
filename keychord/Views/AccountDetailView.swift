@@ -110,7 +110,7 @@ struct AccountDetailView: View {
                 Section {
                     CloneAsIdentityView(account: draft)
                 } header: {
-                    Text("Clone as this identity")
+                    Text("Clone")
                 }
 
                 Section {

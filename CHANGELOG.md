@@ -12,6 +12,10 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 - **In-app language** — Settings offers Follow System / English / 简体中文. The choice is persisted, applied via `AppleLanguages` + SwiftUI `locale`, and a Relaunch button appears when a full catalog refresh needs a process restart.
 
+### Changed
+
+- **Clone row copy/layout** — Account detail section is plain “Clone” / “克隆” with a Form-style repository field and icon-only copy control; dropped the slogan helper line. Menubar compact clone field still works.
+
 ## [0.4.0] — 2026-08-22
 
 ### Removed
