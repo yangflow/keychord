@@ -20,7 +20,12 @@ struct AccountDetailView: View {
             Form {
                 Section {
                     LabeledTextField(label: "Label", text: $draft.label, placeholder: "Personal")
-                    LabeledTextField(label: "GitHub username", text: $draft.githubUsername, placeholder: "octocat")
+                    Picker("Provider", selection: $draft.provider) {
+                        ForEach(Account.Provider.allCases) { provider in
+                            Text(provider.localizedLabel).tag(provider)
+                        }
+                    }
+                    LabeledTextField(label: "Username", text: $draft.username, placeholder: "octocat")
                     LabeledTextField(label: "Git name", text: $draft.gitUserName, placeholder: "Your Name")
                     LabeledTextField(label: "Git email", text: $draft.gitUserEmail, placeholder: "you@example.com")
                 } header: {
@@ -88,6 +93,15 @@ struct AccountDetailView: View {
                         )
                     } label: {
                         Label("Add rewrite", systemImage: "plus.circle")
+                    }
+                    if draft.provider != .custom {
+                        Button {
+                            draft.applyInsteadOfPreset()
+                        } label: {
+                            Label("Apply rewrite preset", systemImage: "wand.and.stars")
+                        }
+                        .disabled(draft.sshAlias.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                        .help("Add insteadOf rules for this provider’s common HTTPS and SSH clone URLs.")
                     }
                 } header: {
                     Text("URL Rewrites")
@@ -331,6 +345,17 @@ private extension Account.AccountColor {
         case .red: return "Red"
         case .purple: return "Purple"
         case .yellow: return "Yellow"
+        }
+    }
+}
+
+private extension Account.Provider {
+    var localizedLabel: LocalizedStringKey {
+        switch self {
+        case .github: return "GitHub"
+        case .gitlab: return "GitLab"
+        case .gitea:  return "Gitea"
+        case .custom: return "Custom"
         }
     }
 }

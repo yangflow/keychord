@@ -75,7 +75,8 @@ struct KeyAttachmentTests {
         #expect(fresh.gitUserEmail == "new@example.com")
         #expect(fresh.label.isEmpty)
         #expect(fresh.sshAlias.isEmpty)
-        #expect(fresh.githubUsername.isEmpty)
+        #expect(fresh.username.isEmpty)
+        #expect(fresh.provider == .github)
     }
 
     // MARK: - Persist / cancel
@@ -183,7 +184,29 @@ struct KeyAttachmentTests {
         }
     }
 
-    @Test func githubSSHSettingsURLIsCanonical() {
-        #expect(KeyAttachment.githubSSHSettingsURL?.absoluteString == "https://github.com/settings/keys")
+    @Test func sshSettingsURLIsProviderAware() {
+        #expect(
+            KeyAttachment.sshSettingsURL(for: .github)?.absoluteString
+                == "https://github.com/settings/keys"
+        )
+        #expect(
+            KeyAttachment.sshSettingsURL(for: .gitlab)?.absoluteString
+                == "https://gitlab.com/-/user_settings/ssh_keys"
+        )
+        #expect(
+            KeyAttachment.sshSettingsURL(for: .gitea)?.absoluteString
+                == "https://gitea.com/user/settings/keys"
+        )
+        #expect(KeyAttachment.sshSettingsURL(for: .custom) == nil)
+    }
+
+    @Test func makeNewAccountCarriesSelectedProvider() {
+        let result = Self.sampleResult()
+        let fresh = KeyAttachment.makeNewAccount(
+            from: result,
+            suggestedEmail: "new@example.com",
+            provider: .gitlab
+        )
+        #expect(fresh.provider == .gitlab)
     }
 }

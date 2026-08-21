@@ -8,7 +8,9 @@ import Foundation
 struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
     let id: UUID
     var label: String
-    var githubUsername: String
+    /// Git forge username (provider-agnostic). Older JSON used `githubUsername`.
+    var username: String
+    var provider: Provider
     var sshAlias: String
     var keyPath: String
     var keyFingerprint: String?
@@ -22,6 +24,57 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
     var createdAt: Date
     var updatedAt: Date
     var lastUsedAt: Date?
+
+    /// Git forge / host family for this account. Drives SSH-settings
+    /// deep links and one-click `insteadOf` presets. Missing in older
+    /// accounts.json → decode as `.github`.
+    enum Provider: String, Codable, CaseIterable, Identifiable, Sendable {
+        case github
+        case gitlab
+        case gitea
+        case custom
+
+        var id: String { rawValue }
+
+        /// Canonical public hostname used by rewrite presets (nil for custom).
+        var host: String? {
+            switch self {
+            case .github: return "github.com"
+            case .gitlab: return "gitlab.com"
+            case .gitea:  return "gitea.com"
+            case .custom: return nil
+            }
+        }
+
+        /// User-facing page for adding SSH public keys, when the forge
+        /// has a known settings URL. Custom has none — callers must
+        /// not invent a GitHub URL.
+        var sshSettingsURL: URL? {
+            switch self {
+            case .github:
+                return URL(string: "https://github.com/settings/keys")
+            case .gitlab:
+                return URL(string: "https://gitlab.com/-/user_settings/ssh_keys")
+            case .gitea:
+                return URL(string: "https://gitea.com/user/settings/keys")
+            case .custom:
+                return nil
+            }
+        }
+
+        /// One-click `insteadOf` pairs for this provider's common HTTPS
+        /// and SSH clone URLs, rewriting onto `git@<sshAlias>:`.
+        /// Empty when the alias is blank, or for `.custom`.
+        func insteadOfPresets(sshAlias: String) -> [URLRewrite] {
+            let alias = sshAlias.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !alias.isEmpty, let host else { return [] }
+            let target = "git@\(alias):"
+            return [
+                URLRewrite(from: "https://\(host)/", to: target),
+                URLRewrite(from: "git@\(host):", to: target),
+            ]
+        }
+    }
 
     enum Scope: Codable, Equatable, Hashable, Sendable {
         case global
@@ -64,13 +117,41 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
         }
     }
 
-    // Codable migration: existing accounts.json files that lack the
-    // sshPort key will decode with the previous hardcoded default (443).
+    private enum CodingKeys: String, CodingKey {
+        case id
+        case label
+        case username
+        case githubUsername
+        case provider
+        case sshAlias
+        case keyPath
+        case keyFingerprint
+        case sshPort
+        case gitUserName
+        case gitUserEmail
+        case scope
+        case urlRewrites
+        case color
+        case notes
+        case createdAt
+        case updatedAt
+        case lastUsedAt
+    }
+
+    // Codable migration:
+    // - missing `provider` → `.github`
+    // - missing `sshPort` → `.port443`
+    // - `username` preferred; fall back to legacy `githubUsername`
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         id              = try c.decode(UUID.self, forKey: .id)
         label           = try c.decode(String.self, forKey: .label)
-        githubUsername  = try c.decode(String.self, forKey: .githubUsername)
+        if let modern = try c.decodeIfPresent(String.self, forKey: .username) {
+            username = modern
+        } else {
+            username = try c.decodeIfPresent(String.self, forKey: .githubUsername) ?? ""
+        }
+        provider        = try c.decodeIfPresent(Provider.self, forKey: .provider) ?? .github
         sshAlias        = try c.decode(String.self, forKey: .sshAlias)
         keyPath         = try c.decode(String.self, forKey: .keyPath)
         keyFingerprint  = try c.decodeIfPresent(String.self, forKey: .keyFingerprint)
@@ -86,10 +167,32 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
         lastUsedAt      = try c.decodeIfPresent(Date.self, forKey: .lastUsedAt)
     }
 
+    func encode(to encoder: Encoder) throws {
+        var c = encoder.container(keyedBy: CodingKeys.self)
+        try c.encode(id, forKey: .id)
+        try c.encode(label, forKey: .label)
+        try c.encode(username, forKey: .username)
+        try c.encode(provider, forKey: .provider)
+        try c.encode(sshAlias, forKey: .sshAlias)
+        try c.encode(keyPath, forKey: .keyPath)
+        try c.encodeIfPresent(keyFingerprint, forKey: .keyFingerprint)
+        try c.encode(sshPort, forKey: .sshPort)
+        try c.encode(gitUserName, forKey: .gitUserName)
+        try c.encode(gitUserEmail, forKey: .gitUserEmail)
+        try c.encode(scope, forKey: .scope)
+        try c.encode(urlRewrites, forKey: .urlRewrites)
+        try c.encode(color, forKey: .color)
+        try c.encode(notes, forKey: .notes)
+        try c.encode(createdAt, forKey: .createdAt)
+        try c.encode(updatedAt, forKey: .updatedAt)
+        try c.encodeIfPresent(lastUsedAt, forKey: .lastUsedAt)
+    }
+
     init(
         id: UUID,
         label: String,
-        githubUsername: String,
+        username: String,
+        provider: Provider = .github,
         sshAlias: String,
         keyPath: String,
         keyFingerprint: String?,
@@ -106,7 +209,8 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
     ) {
         self.id = id
         self.label = label
-        self.githubUsername = githubUsername
+        self.username = username
+        self.provider = provider
         self.sshAlias = sshAlias
         self.keyPath = keyPath
         self.keyFingerprint = keyFingerprint
@@ -121,6 +225,17 @@ struct Account: Codable, Identifiable, Equatable, Hashable, Sendable {
         self.updatedAt = updatedAt
         self.lastUsedAt = lastUsedAt
     }
+
+    /// Merge this provider's rewrite presets into `urlRewrites` without
+    /// duplicating identical from/to pairs. No-op for custom / empty alias.
+    mutating func applyInsteadOfPreset() {
+        let presets = provider.insteadOfPresets(sshAlias: sshAlias)
+        for preset in presets {
+            if !urlRewrites.contains(where: { $0.from == preset.from && $0.to == preset.to }) {
+                urlRewrites.append(preset)
+            }
+        }
+    }
 }
 
 extension Account {
@@ -129,6 +244,7 @@ extension Account {
         sshAlias: String,
         keyPath: String,
         sshPort: SSHPort = .port443,
+        provider: Provider = .github,
         gitUserName: String,
         gitUserEmail: String,
         scope: Scope = .global,
@@ -138,7 +254,8 @@ extension Account {
         return Account(
             id: UUID(),
             label: label,
-            githubUsername: "",
+            username: "",
+            provider: provider,
             sshAlias: sshAlias,
             keyPath: keyPath,
             keyFingerprint: nil,

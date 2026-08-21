@@ -13,7 +13,8 @@ struct AccountProjectorTests {
         Account(
             id: UUID(uuidString: "11111111-1111-1111-1111-111111111111")!,
             label: "Personal",
-            githubUsername: "yangflow",
+            username: "yangflow",
+            provider: .github,
             sshAlias: "github.com",
             keyPath: "\(NSHomeDirectory())/.ssh/id_ed25519",
             keyFingerprint: nil,
@@ -39,7 +40,8 @@ struct AccountProjectorTests {
         Account(
             id: UUID(uuidString: "22222222-2222-2222-2222-222222222222")!,
             label: "work",
-            githubUsername: "bob",
+            username: "bob",
+            provider: .github,
             sshAlias: "github-work",
             keyPath: "\(NSHomeDirectory())/.ssh/id_rsa",
             keyFingerprint: nil,
@@ -180,7 +182,8 @@ struct AccountProjectorTests {
         second = Account(
             id: UUID(),
             label: second.label,
-            githubUsername: second.githubUsername,
+            username: second.username,
+            provider: second.provider,
             sshAlias: "github-second",
             keyPath: second.keyPath,
             keyFingerprint: nil,
@@ -207,7 +210,8 @@ struct AccountProjectorTests {
         account = Account(
             id: account.id,
             label: account.label,
-            githubUsername: account.githubUsername,
+            username: account.username,
+            provider: account.provider,
             sshAlias: account.sshAlias,
             keyPath: account.keyPath,
             keyFingerprint: nil,

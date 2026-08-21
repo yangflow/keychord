@@ -1429,23 +1429,6 @@
         }
       }
     },
-    "GitHub username": {
-      "extractionState": "manual",
-      "localizations": {
-        "en": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GitHub username"
-          }
-        },
-        "zh-Hans": {
-          "stringUnit": {
-            "state": "translated",
-            "value": "GitHub 用户名"
-          }
-        }
-      }
-    },
     "octocat": {
       "extractionState": "manual",
       "localizations": {
@@ -3091,6 +3074,227 @@
           "stringUnit": {
             "state": "translated",
             "value": "keychord 构建时未包含 Sparkle 自动更新框架。\n\n要启用应用内更新：\n  1. Xcode → File → Add Package Dependencies\n  2. 粘贴 https://github.com/sparkle-project/Sparkle\n  3. 将 `Sparkle` 库添加到 keychord 应用 target\n  4. 在 Info.plist 中设置 SUFeedURL 与 SUPublicEDKey\n  5. 重新构建\n\n完整说明见 UpdaterService.swift。"
+          }
+        }
+      }
+    },
+    "Username": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Username"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "用户名"
+          }
+        }
+      }
+    },
+    "Provider": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供方"
+          }
+        }
+      }
+    },
+    "GitLab": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitLab"
+          }
+        }
+      }
+    },
+    "Gitea": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gitea"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Gitea"
+          }
+        }
+      }
+    },
+    "Custom": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Custom"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "自定义"
+          }
+        }
+      }
+    },
+    "Apply rewrite preset": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Apply rewrite preset"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "应用改写预设"
+          }
+        }
+      }
+    },
+    "Add insteadOf rules for this provider’s common HTTPS and SSH clone URLs.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Add insteadOf rules for this provider’s common HTTPS and SSH clone URLs."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "为该提供方常见的 HTTPS 与 SSH clone URL 添加 insteadOf 规则。"
+          }
+        }
+      }
+    },
+    "Copy the public key and add it under GitLab → Preferences → SSH Keys. Then use it with an account so keychord can project the Host block.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the public key and add it under GitLab → Preferences → SSH Keys. Then use it with an account so keychord can project the Host block."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制公钥，并添加到 GitLab → Preferences → SSH Keys。然后将其用于某个账号，以便 keychord 投影 Host 块。"
+          }
+        }
+      }
+    },
+    "Copy the public key and add it under Gitea → Settings → SSH / GPG Keys. Then use it with an account so keychord can project the Host block.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the public key and add it under Gitea → Settings → SSH / GPG Keys. Then use it with an account so keychord can project the Host block."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制公钥，并添加到 Gitea → Settings → SSH / GPG Keys。然后将其用于某个账号，以便 keychord 投影 Host 块。"
+          }
+        }
+      }
+    },
+    "Copy the public key and add it to your Git host’s SSH keys page. Then use it with an account so keychord can project the Host block.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Copy the public key and add it to your Git host’s SSH keys page. Then use it with an account so keychord can project the Host block."
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "复制公钥，并添加到你的 Git 主机的 SSH keys 页面。然后将其用于某个账号，以便 keychord 投影 Host 块。"
+          }
+        }
+      }
+    },
+    "Open GitLab SSH settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open GitLab SSH settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 GitLab SSH 设置"
+          }
+        }
+      }
+    },
+    "Open Gitea SSH settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open Gitea SSH settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 Gitea SSH 设置"
+          }
+        }
+      }
+    },
+    "Open SSH settings": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open SSH settings"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "打开 SSH 设置"
           }
         }
       }

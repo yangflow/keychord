@@ -5,8 +5,11 @@ import Foundation
 /// in the UI layer so cancelling the attach picker never writes.
 enum KeyAttachment {
 
-    /// GitHub's user-facing page for adding SSH public keys.
-    static let githubSSHSettingsURL = URL(string: "https://github.com/settings/keys")
+    /// SSH keys settings URL for a provider. `nil` for `.custom` — callers
+    /// must copy the public key only and must not invent a GitHub URL.
+    static func sshSettingsURL(for provider: Account.Provider) -> URL? {
+        provider.sshSettingsURL
+    }
 
     /// Apply a generated key's path + fingerprint onto an existing account.
     /// Private key bytes are never copied — only the filesystem path.
@@ -34,26 +37,30 @@ enum KeyAttachment {
     /// in AccountDetailView — Host projection still requires a non-empty alias.
     static func makeNewAccount(
         from result: KeygenResult,
-        suggestedEmail: String = ""
+        suggestedEmail: String = "",
+        provider: Account.Provider = .github
     ) -> Account {
         makeNewAccount(
             privateKeyPath: result.privateKeyPath,
             fingerprint: result.fingerprint,
-            suggestedEmail: suggestedEmail
+            suggestedEmail: suggestedEmail,
+            provider: provider
         )
     }
 
     static func makeNewAccount(
         privateKeyPath: String,
         fingerprint: String?,
-        suggestedEmail: String = ""
+        suggestedEmail: String = "",
+        provider: Account.Provider = .github
     ) -> Account {
         let now = Date()
         let email = suggestedEmail.trimmingCharacters(in: .whitespacesAndNewlines)
         return Account(
             id: UUID(),
             label: "",
-            githubUsername: "",
+            username: "",
+            provider: provider,
             sshAlias: "",
             keyPath: AccountProjector.toTilde(privateKeyPath),
             keyFingerprint: fingerprint,
