@@ -4,6 +4,14 @@ All notable changes to keychord are documented here. The format is based on [Kee
 
 ## [Unreleased]
 
+### Fixed
+
+- **Dock icon after closing windows** — closing About, Accounts, or Sparkle’s update UI restores `.accessory` so the Dock icon goes away while KeyChord stays in the menu bar. One app-wide `NSWindow.willCloseNotification` listener replaces the Accounts-only handler.
+
+### Added
+
+- **In-app language** — Settings offers Follow System / English / 简体中文. The choice is persisted, applied via `AppleLanguages` + SwiftUI `locale`, and a Relaunch button appears when a full catalog refresh needs a process restart.
+
 ## [0.4.0] — 2026-08-22
 
 ### Removed

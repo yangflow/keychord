@@ -120,7 +120,7 @@ xcodebuild test \
    - **钥匙** 生成 SSH key
    - **导入** 从现有配置检测并选择性导入账号
    - **时钟** 浏览并恢复备份
-   - **设置** 登录时打开与 Include 维护
+   - **设置** 语言（跟随系统 / English / 简体中文）、登录时打开与 Include 维护
 4. 填写 label、git name/email、SSH alias、key path，以及可选的 `gitdir:` scope 和 URL 改写。⌘S 保存。
 5. 每次保存都会重新生成 managed 文件，并在真实 config 里重新安装 `Include`（如果被误删）。
 6. 回到 popover，**Doctor** 区会列出检测到的配置问题，附带一键修复按钮。

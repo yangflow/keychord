@@ -119,7 +119,7 @@ The unit test suite covers the SSH config parser, the git config IO layer, `Acco
    - **Key** generate an SSH key
    - **Import** detect accounts from existing config and selectively import
    - **Restore** browse and restore backups
-   - **Settings** Open at Login and Include maintenance
+   - **Settings** language (Follow System / English / 简体中文), Open at Login, and Include maintenance
 4. Fill in label, git name/email, SSH alias, key path, optional `gitdir:` scope and URL rewrites. ⌘S saves.
 5. Every save regenerates the managed files and reinstalls the `Include` line if it got wiped.
 6. Back in the popover, the **Doctor** section surfaces any config problems with one-click fixes.

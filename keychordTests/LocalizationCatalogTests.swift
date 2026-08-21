@@ -44,6 +44,11 @@ struct LocalizationCatalogTests {
         "Launch keychord in the menu bar when you log in to this Mac.",
         "Open at Login needs approval in System Settings → General → Login Items.",
         "Could not enable Open at Login. Check System Settings → Login Items.",
+        "Language",
+        "Follow System",
+        "Overrides the system language for KeyChord only.",
+        "Relaunch KeyChord to apply the language everywhere.",
+        "Relaunch",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]

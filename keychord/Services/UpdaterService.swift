@@ -41,6 +41,11 @@ final class UpdaterService: NSObject {
     }
 
     func checkForUpdates() {
+        // Sparkle presents a titled window; LSUIElement apps need `.regular`
+        // for it to appear correctly. ActivationPolicyController restores
+        // `.accessory` when that window (and any other titled window) closes.
+        NSApp.setActivationPolicy(.regular)
+        NSApp.activate(ignoringOtherApps: true)
         controller.checkForUpdates(nil)
     }
 

@@ -1,11 +1,12 @@
 import SwiftUI
 
 /// Lightweight settings sheet for maintenance actions that are not
-/// account-specific. Today: Open at Login, and strip Include markers
+/// account-specific: language, Open at Login, and strip Include markers
 /// while keeping accounts.json and keys.
 struct SettingsView: View {
     let onDismiss: () -> Void
 
+    @Environment(AppLanguageStore.self) private var languageStore
     @State private var loginItem: LoginItemController
     @State private var confirmRemoveIncludes = false
     @State private var statusMessage: String?
@@ -20,8 +21,33 @@ struct SettingsView: View {
     }
 
     var body: some View {
-        VStack(spacing: 0) {
+        @Bindable var languageStore = languageStore
+        return VStack(spacing: 0) {
             Form {
+                Section {
+                    Picker("Language", selection: $languageStore.preference) {
+                        Text("Follow System").tag(AppLanguagePreference.system)
+                        Text(verbatim: "English").tag(AppLanguagePreference.english)
+                        Text(verbatim: "简体中文").tag(AppLanguagePreference.simplifiedChinese)
+                    }
+
+                    Text("Overrides the system language for KeyChord only.")
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+
+                    if languageStore.pendingRelaunch {
+                        Text("Relaunch KeyChord to apply the language everywhere.")
+                            .font(.caption)
+                            .foregroundStyle(.orange)
+
+                        Button("Relaunch") {
+                            AppLanguageStore.relaunch()
+                        }
+                    }
+                } header: {
+                    Text("Language")
+                }
+
                 Section {
                     Toggle(
                         "Open at Login",
@@ -82,7 +108,7 @@ struct SettingsView: View {
             .padding(.horizontal, KC.space20)
             .padding(.vertical, KC.space12)
         }
-        .frame(minWidth: 360, minHeight: 280)
+        .frame(minWidth: 360, minHeight: 360)
         .onAppear {
             loginItem.refresh()
         }
