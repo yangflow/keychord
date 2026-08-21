@@ -58,7 +58,26 @@ struct CurrentRepoMatchedRow: View {
     var originURL: String? = nil
     var onClear: (() -> Void)? = nil
 
-    @State private var clonePrefill: String = ""
+    @State private var clonePrefill: String
+
+    init(
+        account: Account,
+        repoRoot: String,
+        probe: HostProbeState,
+        originURL: String? = nil,
+        onClear: (() -> Void)? = nil
+    ) {
+        self.account = account
+        self.repoRoot = repoRoot
+        self.probe = probe
+        self.originURL = originURL
+        self.onClear = onClear
+        let seed = originURL.flatMap { url -> String? in
+            let preferred = CloneURLRewriter.preferredCloneInput(fromOriginURL: url)
+            return preferred.isEmpty ? nil : preferred
+        } ?? ""
+        self._clonePrefill = State(initialValue: seed)
+    }
 
     var body: some View {
         KCHeroContainer(tint: heroTint) {
