@@ -12,6 +12,9 @@ struct AccountDetailView: View {
     /// Bumped by the parent after a successful write, so the Save button can
     /// flash a short acknowledgement (#45).
     var savedAt: Date? = nil
+    /// True when the git author below was seeded from `git config --global`,
+    /// which the caption under those fields explains (#49).
+    var identityFromGlobalConfig: Bool = false
 
     @State private var wrote = TransientConfirmation()
 
@@ -31,6 +34,11 @@ struct AccountDetailView: View {
                     LabeledTextField(label: "Username", text: $draft.username, placeholder: "octocat")
                     LabeledTextField(label: "Git name", text: $draft.gitUserName, placeholder: "Your Name")
                     LabeledTextField(label: "Git email", text: $draft.gitUserEmail, placeholder: "you@example.com")
+                    if identityFromGlobalConfig {
+                        Text("From git config --global")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                    }
                 } header: {
                     Text("Identity")
                 }
@@ -216,8 +224,8 @@ struct AccountDetailView: View {
         panel.canChooseFiles = false
         panel.canChooseDirectories = true
         panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Choose the directory this account gitdir scope applies to.")
+        panel.prompt = String.loc("Choose")
+        panel.message = String.loc("Choose the directory this account gitdir scope applies to.")
         let current = gitdirPath(at: index)
         if !current.isEmpty {
             panel.directoryURL = URL(fileURLWithPath: ConfigStore.expand(current), isDirectory: true)
@@ -231,8 +239,8 @@ struct AccountDetailView: View {
         panel.canChooseFiles = true
         panel.canChooseDirectories = false
         panel.allowsMultipleSelection = false
-        panel.prompt = String(localized: "Choose")
-        panel.message = String(localized: "Choose an SSH private key file.")
+        panel.prompt = String.loc("Choose")
+        panel.message = String.loc("Choose an SSH private key file.")
         let sshDir = (NSHomeDirectory() as NSString).appendingPathComponent(".ssh")
         panel.directoryURL = URL(fileURLWithPath: sshDir, isDirectory: true)
         if !draft.keyPath.isEmpty {

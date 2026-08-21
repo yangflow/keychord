@@ -32,6 +32,35 @@ enum GitGlobalIdentity {
         )
     }
 
+    /// Result of seeding a draft with the global author.
+    struct Prefill: Equatable, Sendable {
+        var account: Account
+        /// True when at least one field was actually filled, which is what the
+        /// “from git config --global” caption in the form describes.
+        var didFill: Bool
+    }
+
+    /// Seed a new account's git author from the global config without ever
+    /// stepping on the user: a field that already holds anything is left alone,
+    /// so a value typed while `git config` was being read survives.
+    static func prefill(_ account: Account, with identity: Identity) -> Prefill {
+        var result = account
+        var filled = false
+        if isBlank(result.gitUserName), !identity.name.isEmpty {
+            result.gitUserName = identity.name
+            filled = true
+        }
+        if isBlank(result.gitUserEmail), !identity.email.isEmpty {
+            result.gitUserEmail = identity.email
+            filled = true
+        }
+        return Prefill(account: result, didFill: filled)
+    }
+
+    private static func isBlank(_ value: String) -> Bool {
+        value.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    }
+
     /// `git config --global --get <key>`; empty when unset (exit 1) or when git
     /// cannot run at all.
     private static func value(
