@@ -43,9 +43,12 @@ struct RestoreView: View {
                 }
 
                 ForEach(entries) { entry in
-                    BackupRestoreRow(entry: entry, isBusy: isBusy) {
-                        Task { await restore(entry.record) }
-                    }
+                    BackupRestoreRow(
+                        entry: entry,
+                        isBusy: isBusy,
+                        onRestore: { Task { await restore(entry.record) } },
+                        onDelete: { Task { await delete(entry.record) } }
+                    )
                 }
 
                 if isBusy {
@@ -89,6 +92,22 @@ struct RestoreView: View {
             loadError = String(localized: "Restore failed: \(String(describing: error))")
         }
     }
+
+    private func delete(_ record: BackupRecord) async {
+        let svc = backups
+        isBusy = true
+        defer { isBusy = false }
+        do {
+            try await Task.detached {
+                try svc.delete(record)
+            }.value
+            statusMessage = nil
+            loadError = nil
+            reload()
+        } catch {
+            loadError = String(localized: "Delete failed: \(String(describing: error))")
+        }
+    }
 }
 
 // MARK: - Row
@@ -97,6 +116,7 @@ private struct BackupRestoreRow: View {
     let entry: BackupListEntry
     let isBusy: Bool
     let onRestore: () -> Void
+    let onDelete: () -> Void
 
     @State private var isExpanded = false
 
@@ -124,6 +144,11 @@ private struct BackupRestoreRow: View {
                 Spacer(minLength: 8)
 
                 Button("Restore", action: onRestore)
+                    .buttonStyle(.borderless)
+                    .font(.caption)
+                    .disabled(isBusy)
+
+                Button("Delete", role: .destructive, action: onDelete)
                     .buttonStyle(.borderless)
                     .font(.caption)
                     .disabled(isBusy)

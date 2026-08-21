@@ -378,4 +378,53 @@ struct BackupServiceTests {
             }
         }
     }
+
+    @Test func deleteRemovesBackupFile() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("{}\n", at: source)
+            let record = try service.backup(originalPath: source.path)
+            #expect(FileManager.default.fileExists(atPath: record.backupPath))
+
+            try service.delete(record)
+
+            #expect(!FileManager.default.fileExists(atPath: record.backupPath))
+            #expect(try service.list(for: source.path).isEmpty)
+        }
+    }
+
+    @Test func deleteThrowsIfBackupMissing() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("{}\n", at: source)
+            let record = try service.backup(originalPath: source.path)
+            try FileManager.default.removeItem(atPath: record.backupPath)
+
+            #expect(throws: BackupError.self) {
+                try service.delete(record)
+            }
+        }
+    }
+
+    @Test func deleteRefusesSymlinkBackup() throws {
+        try Self.withTempRoot { service, root in
+            let source = root.appendingPathComponent("accounts.json")
+            try Self.writeFile("{}\n", at: source)
+            let record = try service.backup(originalPath: source.path)
+
+            let real = URL(fileURLWithPath: record.backupPath)
+            let sibling = real.deletingLastPathComponent()
+                .appendingPathComponent("real-\(UUID().uuidString)")
+            try FileManager.default.moveItem(at: real, to: sibling)
+            try FileManager.default.createSymbolicLink(
+                atPath: record.backupPath,
+                withDestinationPath: sibling.path
+            )
+
+            #expect(throws: BackupError.self) {
+                try service.delete(record)
+            }
+            #expect(FileManager.default.fileExists(atPath: sibling.path))
+        }
+    }
 }

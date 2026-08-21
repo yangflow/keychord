@@ -53,6 +53,7 @@ struct LocalizationCatalogTests {
         "Relaunch",
         "Account color",
         "Ed25519",
+        "Delete",
     ]
 
     private static let requiredLocales = ["en", "zh-Hans"]
