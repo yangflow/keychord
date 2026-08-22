@@ -10,6 +10,19 @@
     <!-- Prepend new <item> blocks here for each release. -->
 
     <item>
+      <title>Version 0.6.0</title>
+      <pubDate>Sat, 22 Aug 2026 16:06:00 +0800</pubDate>
+      <sparkle:version>6</sparkle:version>
+      <sparkle:shortVersionString>0.6.0</sparkle:shortVersionString>
+      <sparkle:minimumSystemVersion>26.2</sparkle:minimumSystemVersion>
+      <enclosure url="https://github.com/yangflow/keychord/releases/download/v0.6.0/KeyChord-0.6.0.dmg"
+                 type="application/octet-stream"
+                 sparkle:edSignature="s5x2V0odNCyKjjo2cdEOrW2P9jG3KB4lBHFu06Gbwpo944yzbhXShIDC3fCaGDeIZYPOKy9tCiffSKFOSWwpDQ=="
+                 length="6264538" />
+    </item>
+
+
+    <item>
       <title>Version 0.5.0</title>
       <pubDate>Sat, 22 Aug 2026 02:19:49 +0800</pubDate>
       <sparkle:version>5</sparkle:version>
