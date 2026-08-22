@@ -64,7 +64,8 @@ final class StatusItemDropTargetController {
 
         // Let the drag session finish before mimicking a status-item click. The
         // match now outlives the popover, so nothing has to be restored here.
-        try? await Task.sleep(for: .milliseconds(150))
+        // Finder's drag can still own the click stream at 150ms on a cold launch.
+        try? await Task.sleep(for: .milliseconds(280))
         await openPopoverShowingMatch()
     }
 
@@ -81,7 +82,13 @@ final class StatusItemDropTargetController {
     /// Opens the MenuBarExtra window if it is not already presented.
     /// Does not click when already open — that would toggle closed and clear
     /// the match card.
+    ///
+    /// `performClick` often no-ops on a never-opened `MenuBarExtra` (the window
+    /// scene is created on the first real click). Lift our drop overlay, dismiss
+    /// the first-launch hint, and send a mouseDown/Up through the button so a
+    /// cold-launch drop still presents.
     func openPopoverShowingMatch() async {
+        MenuBarHintController.shared.dismiss()
         ensureInstalled()
         guard let button = MenuBarStatusItemLocator.keychordStatusItem()?.button else {
             return
@@ -89,12 +96,59 @@ final class StatusItemDropTargetController {
         if button.state == .on {
             return
         }
+
+        NSApp.activate(ignoringOtherApps: true)
+        presentStatusItem(button)
+        if button.state == .on { return }
+
+        try? await Task.sleep(for: .milliseconds(120))
+        guard let retry = MenuBarStatusItemLocator.keychordStatusItem()?.button,
+              retry.state != .on else { return }
+        presentStatusItem(retry)
+    }
+
+    /// Click the real status-item button, not the drop overlay sitting on top.
+    /// Overlay is reinstalled immediately after so the next drag still lands.
+    private func presentStatusItem(_ button: NSStatusBarButton) {
+        let overlay = dropView
+        overlay?.removeFromSuperview()
+        defer { ensureInstalled() }
+
         button.performClick(nil)
-        if button.state != .on {
-            try? await Task.sleep(for: .milliseconds(100))
-            guard let retryButton = MenuBarStatusItemLocator.keychordStatusItem()?.button,
-                  retryButton.state != .on else { return }
-            retryButton.performClick(nil)
+        if button.state == .on { return }
+
+        sendSyntheticClick(to: button)
+    }
+
+    private func sendSyntheticClick(to button: NSStatusBarButton) {
+        guard let window = button.window else {
+            button.performClick(nil)
+            return
+        }
+        let locationInWindow = button.convert(
+            NSPoint(x: button.bounds.midX, y: button.bounds.midY),
+            to: nil
+        )
+        func mouseEvent(_ type: NSEvent.EventType) -> NSEvent? {
+            NSEvent.mouseEvent(
+                with: type,
+                location: locationInWindow,
+                modifierFlags: [],
+                timestamp: ProcessInfo.processInfo.systemUptime,
+                windowNumber: window.windowNumber,
+                context: nil,
+                eventNumber: 0,
+                clickCount: 1,
+                pressure: 1
+            )
+        }
+        if let down = mouseEvent(.leftMouseDown) {
+            button.mouseDown(with: down)
+            window.sendEvent(down)
+        }
+        if let up = mouseEvent(.leftMouseUp) {
+            button.mouseUp(with: up)
+            window.sendEvent(up)
         }
     }
 }
